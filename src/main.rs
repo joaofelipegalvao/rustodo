@@ -13,7 +13,7 @@ fn run() -> Result<(), Box<dyn Error>> {
     let args: Vec<String> = env::args().collect();
 
     if args.len() < 2 {
-        return Err("Uso: todo <comando> [argumentos]\nComandos: add, list".into());
+        return Err("Uso: todo <comando> [argumentos]\nComandos: add, list, done".into());
     }
 
     let comando = &args[1];
@@ -56,6 +56,10 @@ fn run() -> Result<(), Box<dyn Error>> {
             let conteudo = fs::read_to_string("todos.txt")?;
 
             let mut linhas: Vec<String> = conteudo.lines().map(|l| l.to_string()).collect();
+
+            if numero == 0 || numero > linhas.len() {
+                return Err("Número de tarefa inválido".into());
+            }
 
             let indice = numero - 1;
             linhas[indice] = linhas[indice].replace("[ ]", "[x]");
