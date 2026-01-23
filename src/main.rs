@@ -31,7 +31,7 @@ fn run() -> Result<(), Box<dyn Error>> {
                 .append(true)
                 .open("todos.txt")?;
 
-            writeln!(file, "{}", tarefa)?;
+            writeln!(file, "[ ] {}", tarefa)?;
 
             println!("✓ Tarefa adicionada");
         }
@@ -45,6 +45,25 @@ fn run() -> Result<(), Box<dyn Error>> {
                 println!("Nenhuma tarefa");
             }
         },
+
+        "done" => {
+            if args.len() < 3 {
+                return Err("Uso: todo done <número>".into());
+            }
+
+            let numero: usize = args[2].parse()?;
+
+            let conteudo = fs::read_to_string("todos.txt")?;
+
+            let mut linhas: Vec<String> = conteudo.lines().map(|l| l.to_string()).collect();
+
+            let indice = numero - 1;
+            linhas[indice] = linhas[indice].replace("[ ]", "[x]");
+
+            fs::write("todos.txt", linhas.join("\n") + "\n")?;
+
+            println!("✓ Tarefa marcada como concluída");
+        }
         _ => {
             return Err(format!("Comando desconhecido: {}", comando).into());
         }
