@@ -39,8 +39,15 @@ fn run() -> Result<(), Box<dyn Error>> {
         }
         "list" => match fs::read_to_string("todos.txt") {
             Ok(conteudo) => {
-                for (i, linha) in conteudo.lines().enumerate() {
-                    println!("{}. {}", i + 1, linha);
+                let linhas_validas: Vec<&str> =
+                    conteudo.lines().filter(|l| !l.trim().is_empty()).collect();
+
+                if linhas_validas.is_empty() {
+                    println!("Nenhuma tarefa");
+                } else {
+                    for (i, linha) in linhas_validas.iter().enumerate() {
+                        println!("{}. {}", i + 1, linha);
+                    }
                 }
             }
             Err(_) => {

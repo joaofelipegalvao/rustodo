@@ -10,11 +10,13 @@ Este projeto foi desenvolvido em 4 etapas, marcada por tags:
 | [v2] | Comando done para marcar conclusão | `parse()`, `.map().collect()`, `.replace()`, `Vec<String>`, `.join()`, `fs::write()` |
 | [v3] | Comando remove para deletar tarefas | `Vec::remove()`, validação de índices, tratamento de erros |
 | [v4] | Comando undone para desmarcar conclusão | manipulação inversa de estados, lógica booleana |
+| [v4.1] | Correção de bug lógico no comando list | `trim()`, filtro de linhas vazias, tratamento robusto de entrada |
 
 [v1]: https://github.com/joaofelipegalvao/todo-cli/releases/tag/v0.1.0
 [v2]: https://github.com/joaofelipegalvao/todo-cli/compare/v0.1.0...v0.2.0
 [v3]: https://github.com/joaofelipegalvao/todo-cli/compare/v0.2.0...v0.3.0
 [v4]: https://github.com/joaofelipegalvao/todo-cli/compare/v0.3.0...v0.4.0
+[v4.1]: https://github.com/joaofelipegalvao/todo-cli/compare/v0.4.0...v0.4.1
 
 ## 🚀 Como usar
 
@@ -61,6 +63,7 @@ git checkout v0.1.0  # ou qualquer tag
 - ✅ Substituição de strings com .replace()
 - ✅ Sobrescrita de arquivos com fs::write()
 - ✅ Remoção de elementos com Vec::remove()
+- ✅ Tratamento de strings com trim() para remover espaços em branco
 
 ## 🎯 Próximos passos
 
