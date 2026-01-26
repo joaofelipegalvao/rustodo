@@ -2,9 +2,9 @@
 
 > Gerenciador de tarefas em linha de comando - Projeto de estudo em Rust
 
-Um gerenciador de tarefas simples e funcional desenvolvido para aprender Rust na prática, com foco em CLI, manipulação de arquivos e tratamento de erros.
+Um gerenciador de tarefas simples, colorido e funcional desenvolvido para aprender Rust na prática, com foco em CLI, manipulação de arquivos, tratamento de erros e UX visual.
 
-## 📚 Evolução do projeto
+## Evolução do projeto
 
 Este projeto foi desenvolvido de forma incremental. Cada versão adiciona uma feature e conceitos novos:
 
@@ -14,9 +14,10 @@ Este projeto foi desenvolvido de forma incremental. Cada versão adiciona uma fe
 | [v0.2.0] | Comando done para marcar conclusão | `parse()`, `.map().collect()`, `.replace()`, `Vec<String>`, `.join()`, `fs::write()` |
 | [v0.3.0] | Comando remove para deletar tarefas | `Vec::remove()`, validação de índices, tratamento de erros |
 | [v0.4.0] | Comando undone para desmarcar | manipulação inversa de estados, lógica booleana |
-| [v0.4.1] | 🐛 Correção: bug no comando list | `trim()`, filtro de linhas vazias, tratamento robusto |
-| [v0.4.2] | 🐛 Correção: validações de estado | validação de duplicação, mensagens específicas, pré-condições |
+| [v0.4.1] |Correção: bug no comando list | `trim()`, filtro de linhas vazias, tratamento robusto |
+| [v0.4.2] | Correção: validações de estado | validação de duplicação, mensagens específicas, pré-condições |
 | [v0.5.0] | Comando clear para limpar tudo | `fs::remove_file()`, `fs::metadata()`, tratamento completo |
+| [v0.6.0] | Interface visual com cores | `colored`, hierarquia visual, design UX, formatação dinâmica |
 
 [v0.1.0]: https://github.com/joaofelipegalvao/todo-cli/releases/tag/v0.1.0
 [v0.2.0]: https://github.com/joaofelipegalvao/todo-cli/compare/v0.1.0...v0.2.0
@@ -25,8 +26,9 @@ Este projeto foi desenvolvido de forma incremental. Cada versão adiciona uma fe
 [v0.4.1]: https://github.com/joaofelipegalvao/todo-cli/compare/v0.4.0...v0.4.1
 [v0.4.2]: https://github.com/joaofelipegalvao/todo-cli/compare/v0.4.1...v0.4.2
 [v0.5.0]: https://github.com/joaofelipegalvao/todo-cli/compare/v0.4.2...v0.5.0
+[v0.6.0]: https://github.com/joaofelipegalvao/todo-cli/compare/v0.5.0...v0.6.0
 
-## 📋 Comandos disponíveis
+## Comandos disponíveis
 
 | Comando | Descrição | Exemplo |
 |---------|-----------|---------|
@@ -42,110 +44,80 @@ Este projeto foi desenvolvido de forma incremental. Cada versão adiciona uma fe
 git checkout v0.1.0  # ou qualquer tag acima
 ```
 
-## 🐛 Bugs encontrados e corrigidos
-
-Durante o desenvolvimento, alguns bugs interessantes foram descobertos e resolvidos:
-
-### Bug #1: Linha fantasma no list
-
-**Problema:** Ao remover todas as tarefas, `list` mostrava "1." sem conteúdo.  
-**Causa:** Arquivo ficava com linha vazia após remoção.  
-**Solução:** Filtro `.filter(|l| !l.trim().is_empty())` em todas as operações de leitura.  
-**Versão:** v0.4.1
-
-### Bug #2: Duplicação de marcação
-
-**Problema:** Marcar tarefa já concluída causava `[x][x]` no arquivo, corrompendo os dados.  
-**Causa:** Falta de validação de estado antes de aplicar `.replace()`.  
-**Solução:** Verificação com `.contains("[x]")` antes de marcar como concluída.  
-**Versão:** v0.4.2
-
-### Bug #3: Índices incorretos após filtro
-
-**Problema:** Números mostrados no `list` não correspondiam aos índices reais do arquivo.  
-**Causa:** Linhas vazias no arquivo causavam desalinhamento entre visualização e dados.  
-**Solução:** Filtrar linhas vazias consistentemente em **todos** os comandos (done, undone, remove).  
-**Versão:** v0.4.2
-
-## 🎨 Decisões de design
-
-### Por que `clear` em vez de deletar automaticamente?
-
-Inicialmente consideramos deletar `todos.txt` automaticamente quando a última tarefa fosse removida. Decidimos criar um comando `clear` explícito porque:
-
-- ✅ Respeita a intenção do usuário (ação explícita vs comportamento implícito)
-- ✅ Evita surpresas (usuário pode querer manter arquivo vazio)
-- ✅ Mais previsível e consistente
-- ✅ Permite reversão (arquivo existe até ser explicitamente removido)
-
-### Por que validar estado antes de marcar?
-
-Impedir que tarefas sejam marcadas múltiplas vezes:
-
-- ✅ Evita corrupção do arquivo (`[x][x]` duplicado)
-- ✅ Garante integridade dos dados
-- ✅ Mensagens de erro mais claras para o usuário
-- ✅ Comportamento idempotente (executar 2x = mesma coisa que 1x)
-
-### Por que filtrar linhas vazias em todos os comandos?
-
-Garante robustez mesmo se:
-
-- ✅ Arquivo for editado manualmente
-- ✅ Houver corrupção de dados
-- ✅ Bugs gerarem linhas vazias
-- ✅ Formato for inconsistente
-
-## 💡 O que aprendi
+## O que aprendi
 
 ### Manipulação de arquivos
 
-- ✅ `OpenOptions` com `.create()` e `.append()` para adicionar sem sobrescrever
-- ✅ `writeln!` macro para escrita formatada em arquivos
-- ✅ `fs::read_to_string()` para leitura completa
-- ✅ `fs::write()` para sobrescrever arquivo inteiro
-- ✅ `fs::remove_file()` para deletar arquivos
-- ✅ `fs::metadata()` para verificar existência sem abrir
+- `OpenOptions` com `.create()` e `.append()` para adicionar sem sobrescrever
+- `writeln!` macro para escrita formatada
+- `fs::read_to_string()` para leitura completa
+- `fs::write()` para sobrescrever arquivo inteiro
+- `fs::remove_file()` para deletar arquivos
+- `fs::metadata()` para verificar existência sem abrir
 
 ### Strings e coleções
 
-- ✅ `enumerate()` para obter índices + valores em loops
-- ✅ `parse()` para conversão string → número com validação
-- ✅ `.map().collect()` para transformar iteradores em coleções
-- ✅ `.replace()` para substituição de texto
-- ✅ `.contains()` para busca em strings
-- ✅ `.trim()` para remover espaços em branco
-- ✅ `.join()` para concatenar com separador
-- ✅ `.filter()` para selecionar elementos
-- ✅ `Vec::remove()` para deletar elementos por índice
+- `enumerate()` para obter índices + valores em loops
+- `parse()` para conversão string → número com validação
+- `.map().collect()` para transformar iteradores
+- `.replace()` para substituição de texto
+- `.contains()` para busca em strings
+- `.trim()` para remover espaços em branco
+- `.to_string()` para resolver lifetimes (`&str` → `String`)
+- `.join()` para concatenar com separador
+- `.filter()` para selecionar elementos
+- `Vec::remove()` para deletar por índice
+- `.repeat()` para strings repetidas
 
 ### Controle de fluxo e erros
 
-- ✅ Pattern matching com `match` para subcomandos
-- ✅ Tratamento de erros com `?` operator (propagação automática)
-- ✅ `Result<T, E>` para funções que podem falhar
-- ✅ `Box<dyn Error>` para erros genéricos
-- ✅ `if let` para pattern matching simplificado
-- ✅ Validação de entrada e pré-condições
+- Pattern matching com `match` para subcomandos
+- Tratamento de erros com `?` operator (propagação automática)
+- `Result<T, E>` para funções que podem falhar
+- `Box<dyn Error>` para erros genéricos
+- `if let` para pattern matching simplificado
+- Validação de entrada e pré-condições
+- Mensagens de erro específicas (não genéricas)
 
 ### CLI e UX
 
-- ✅ `env::args()` para capturar argumentos da linha de comando
-- ✅ Subcomandos com pattern matching
-- ✅ Validação de entrada (argumentos, números, estados)
-- ✅ `println!` vs `eprintln!` (stdout vs stderr)
-- ✅ `process::exit()` para códigos de saída
-- ✅ Mensagens de erro específicas e úteis
+- `env::args()` para capturar argumentos
+- Subcomandos com pattern matching
+- Validação de argumentos (quantidade, tipo, estado)
+- `println!` vs `eprintln!` (stdout vs stderr)
+- `process::exit()` para códigos de saída
+- Hierarquia visual com cores e formatação
+- Feedback imediato com cores semânticas
+- Respiração visual (espaços em branco importam)
+
+### Design e cores
+
+- `colored` crate para cores cross-platform
+- `.dimmed()`, `.bold()`, `.strikethrough()` para formatação
+- Cores semânticas (verde = sucesso, vermelho = atenção)
+- Hierarquia visual (números dimmed, conteúdo destacado)
+- Múltiplos sinais (cor + ícone + riscado) para acessibilidade
+- Conversão `as f32` para cálculos de percentual
+- `as u32` para truncar decimais
 
 ### Debug e qualidade
 
-- ✅ Encontrar e corrigir bugs através de testes manuais
-- ✅ Validação de pré-condições (evitar estados inválidos)
-- ✅ Pensamento em edge cases (arquivo vazio, índices inválidos)
-- ✅ Uso de debug prints (`eprintln!`) para investigação
-- ✅ Refatoração iterativa (melhorar sem quebrar)
+- Encontrar bugs através de testes manuais
+- Uso de `eprintln!` para debug prints
+- Investigação de arquivos com `cat` e `od`
+- Validação de pré-condições (evitar estados inválidos)
+- Pensamento em edge cases (arquivo vazio, índices inválidos)
+- Refatoração iterativa sem quebrar funcionalidade
+- Consistência entre comandos (filtrar em todos)
 
-## 📦 Instalação
+### Lifetimes e ownership
+
+- Problema de lifetime com `.trim()` retornando `&str`
+- Solução com `.to_string()` para criar `String` owned
+- Diferença entre referência temporária e valor próprio
+- Compilador detectando uso de referências inválidas
+
+## Instalação
 
 ```bash
 # Clonar repositório
@@ -159,7 +131,7 @@ cargo build --release
 sudo cp target/release/todo-cli /usr/local/bin/todo
 ```
 
-## 🚀 Como usar
+## Como usar
 
 ### Após instalar globalmente
 
@@ -183,9 +155,9 @@ cargo run -- remove 1
 cargo run -- clear
 ```
 
-## 🎯 Roadmap
+## Roadmap
 
-### Implementado ✅
+### Implementado
 
 - [x] Comando add para adicionar tarefas
 - [x] Comando list para listar todas
@@ -195,17 +167,21 @@ cargo run -- clear
 - [x] Comando clear para limpar todas
 - [x] Validação completa de erros
 - [x] Tratamento robusto de arquivo
+- [x] Interface visual com cores
+- [x] Contador de progresso com percentual
+- [x] Hierarquia visual e formatação
 
-### Próximos passos 🔮
+### Próximos passos
 
-- [ ] Testes unitários
-- [ ] Cores no terminal (tarefas concluídas em verde)
-- [ ] Contador de progresso ("2 de 5 concluídas")
+- [ ] Filtros (`--pending`, `--done`)
 - [ ] Prioridades (alta/média/baixa)
-- [ ] Categorias/tags (#trabalho, #casa)
-- [ ] Busca e filtros
+- [ ] Categorias/tags (`#trabalho`, `#casa`)
+- [ ] Busca (`search "rust"`)
+- [ ] Editar tarefa (`edit 1 "novo texto"`)
 - [ ] Data de criação/vencimento
 - [ ] Formato JSON para dados estruturados
+- [ ] Testes unitários
+- [ ] Refatoração com structs
 
 ---
 
