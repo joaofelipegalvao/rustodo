@@ -11,6 +11,15 @@ fn main() {
     }
 }
 
+fn prioridade_ordem(pri: &str) -> u8 {
+    match pri {
+        "high" => 0,
+        "medium" => 1,
+        "low" => 2,
+        _ => 3,
+    }
+}
+
 fn extrair_prioridade(linha: &str) -> (&str, String) {
     let sem_checkbox = linha
         .replace("[ ]", "")
@@ -149,6 +158,7 @@ fn run() -> Result<(), Box<dyn Error>> {
         "list" => {
             let mut filtro_status = "all";
             let mut filtro_prioridade: Option<&str> = None;
+            let mut ordenar = false;
 
             for arg in &args[2..] {
                 match arg.as_str() {
@@ -184,6 +194,12 @@ fn run() -> Result<(), Box<dyn Error>> {
                         }
 
                         filtro_prioridade = Some("low");
+                    }
+                    "--sort" => {
+                        if ordenar {
+                            return Err("Use --sort apenas uma vez.".into());
+                        }
+                        ordenar = true;
                     }
                     _ => return Err(format!("Filtro inválido: {}", arg).into()),
                 }
@@ -227,6 +243,14 @@ fn run() -> Result<(), Box<dyn Error>> {
                     if linhas_validas.is_empty() {
                         println!("Nenhuma tarefa encontrada com esses filtros");
                         return Ok(());
+                    }
+
+                    if ordenar {
+                        linhas_validas.sort_by(|a, b| {
+                            let (pri_a, _) = extrair_prioridade(a);
+                            let (pri_b, _) = extrair_prioridade(b);
+                            prioridade_ordem(pri_a).cmp(&prioridade_ordem(pri_b))
+                        });
                     }
 
                     let titulo = match (filtro_status, filtro_prioridade) {

@@ -20,6 +20,7 @@ Este projeto foi desenvolvido de forma incremental. Cada versão adiciona uma fe
 | [v0.6.0] | Interface visual com cores | `colored`, hierarquia visual, design UX, formatação dinâmica |
 | [v0.7.0] | Filtros avançados (--pending, --done) | flags opcionais, `.filter()`, `.copied()`, funções auxiliares, slices |
 | [v0.8.0] | Prioridades + Filtros de prioridade | `Option<T>`, tuplas, pattern matching com tuplas, pipeline de filtros, validação de flags, títulos dinâmicos, psicologia de cores, defaults inteligentes, fail fast |
+| [v0.9.0] | Ordenação por prioridade | `.sort_by()`, `Ordering` enum, funções de mapeamento, `u8`, pipeline otimizado (filtrar → ordenar), flags booleanas |
 
 [v0.1.0]: https://github.com/joaofelipegalvao/todo-cli/releases/tag/v0.1.0
 [v0.2.0]: https://github.com/joaofelipegalvao/todo-cli/compare/v0.1.0...v0.2.0
@@ -31,6 +32,7 @@ Este projeto foi desenvolvido de forma incremental. Cada versão adiciona uma fe
 [v0.6.0]: https://github.com/joaofelipegalvao/todo-cli/compare/v0.5.0...v0.6.0
 [v0.7.0]: https://github.com/joaofelipegalvao/todo-cli/compare/v0.6.0...v0.7.0
 [v0.8.0]: https://github.com/joaofelipegalvao/todo-cli/compare/v0.7.0...v0.8.0
+[v0.9.0]: https://github.com/joaofelipegalvao/todo-cli/compare/v0.8.0...v0.9.0
 
 ## Comandos disponíveis
 
@@ -44,7 +46,9 @@ Este projeto foi desenvolvido de forma incremental. Cada versão adiciona uma fe
 | `list --done` | Lista apenas tarefas concluídas | `todo list --done` |
 | `list --high` | Lista apenas tarefas de alta prioridade | `todo list --high` |
 | `list --low` | Lista apenas tarefas de baixa prioridade | `todo list --low` |
+| `list --sort` | Lista tarefas ordenadas por prioridade | `todo list --sort` |
 | `list --pending --high` | Combina filtros de status e prioridade | `todo list --pending --high` |
+| `list --pending --sort` | Pendentes ordenadas por prioridade | `todo list --pending --sort` |
 | `done <número>` | Marca tarefa como concluída | `todo done 1` |
 | `undone <número>` | Desmarca tarefa | `todo undone 1` |
 | `remove <número>` | Remove tarefa específica | `todo remove 1` |
@@ -82,6 +86,9 @@ git checkout v0.1.0  # ou qualquer tag acima
 - `.repeat()` para strings repetidas
 - Slices `&[&str]` para passar fatias de dados sem copiar
 - Tuplas `(T, U)` para retornar múltiplos valores de funções
+- `.sort_by()` para ordenação customizada com comparador
+- `Ordering` enum para comparações type-safe (Less, Equal, Greater)
+- `.cmp()` para comparar valores ordenáveis
 
 ### Controle de fluxo e erros
 
@@ -138,6 +145,8 @@ git checkout v0.1.0  # ou qualquer tag acima
 - Retorno de tuplas para múltiplos valores
 - Pipeline de transformações (filtros em sequência)
 - Modularização de lógica visual (`emoji_prioridade`)
+- Funções de mapeamento (`prioridade_ordem`) para conversão conceito → número
+- Escolha de tipos apropriados (`u8` vs `i32`) baseada em semântica
 
 ### Debug e qualidade
 
@@ -148,6 +157,10 @@ git checkout v0.1.0  # ou qualquer tag acima
 - Pensamento em edge cases (arquivo vazio, índices inválidos)
 - Refatoração iterativa sem quebrar funcionalidade
 - Consistência entre comandos (filtrar em todos)
+- Otimização de pipeline (filtrar antes de ordenar)
+- Análise de complexidade (Big-O) para decisões de performance
+- Princípio YAGNI (You Aren't Gonna Need It) - não adicionar complexidade desnecessária
+- Opt-in complexity - features complexas são opcionais
 
 ### Lifetimes e ownership
 
@@ -181,8 +194,11 @@ todo add "Estudar Rust"                    # prioridade medium (padrão)
 todo add "Reunião urgente" --high          # alta prioridade
 todo add "Organizar mesa" --low            # baixa prioridade
 
-# Listar todas
+# Listar todas (ordem de criação)
 todo list
+
+# Listar ordenadas por prioridade
+todo list --sort
 
 # Filtrar por status
 todo list --pending
@@ -195,6 +211,10 @@ todo list --low
 # Combinar filtros
 todo list --pending --high                 # pendentes de alta prioridade
 todo list --done --low                     # concluídas de baixa prioridade
+
+# Combinar filtros + ordenação
+todo list --pending --sort                 # pendentes ordenadas
+todo list --high --sort                    # altas ordenadas (já são do mesmo nível)
 
 # Marcar como concluída
 todo done 1
@@ -215,7 +235,8 @@ todo clear
 cargo run -- add "Estudar Rust"
 cargo run -- add "Reunião urgente" --high
 cargo run -- list
-cargo run -- list --pending --high
+cargo run -- list --sort
+cargo run -- list --pending --sort
 cargo run -- done 1
 cargo run -- undone 1
 cargo run -- remove 1
@@ -243,6 +264,8 @@ cargo run -- clear
 - [x] Combinação de filtros (status + prioridade)
 - [x] Validação de flags conflitantes
 - [x] Títulos dinâmicos contextuais
+- [x] Ordenação por prioridade (--sort)
+- [x] Pipeline otimizado (filtrar → ordenar)
 
 ### Próximos passos
 
@@ -250,6 +273,7 @@ cargo run -- clear
 - [ ] Busca (`search "rust"`)
 - [ ] Editar tarefa (`edit 1 "novo texto"`)
 - [ ] Data de criação/vencimento
+- [ ] Ordenação por data (`--sort date`)
 - [ ] Formato JSON para dados estruturados
 - [ ] Testes unitários
 - [ ] Refatoração com structs
