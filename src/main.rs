@@ -11,31 +11,60 @@ fn main() {
     }
 }
 
+fn extrair_prioridade(linha: &str) -> (&str, String) {
+    let sem_checkbox = linha
+        .replace("[ ]", "")
+        .replace("[x]", "")
+        .trim()
+        .to_string();
+
+    if sem_checkbox.contains("(high)") {
+        let texto = sem_checkbox.replace("(high)", "").trim().to_string();
+        ("high", texto)
+    } else if sem_checkbox.contains("(low)") {
+        let texto = sem_checkbox.replace("(low)", "").trim().to_string();
+        ("low", texto)
+    } else {
+        ("medium", sem_checkbox)
+    }
+}
+
+fn emoji_prioridade(prioridade: &str) -> String {
+    match prioridade {
+        "high" => "".red().to_string(),
+        "low" => "".green().to_string(),
+        _ => "".yellow().to_string(),
+    }
+}
+
 fn exibir_tarefas(tarefas: &[&str], titulo: &str) {
-    println!("\n {}:\n", titulo);
+    println!("\n {}:\n", titulo);
 
     let mut concluidas = 0;
     let total = tarefas.len();
 
     for (i, linha) in tarefas.iter().enumerate() {
         let numero = format!("{}.", i + 1);
+        let concluida = linha.contains("[x]");
 
-        if linha.contains("[x]") {
-            let texto = linha.replace("[x]", "").trim().to_string();
+        let (prioridade, texto) = extrair_prioridade(linha);
+        let emoji = emoji_prioridade(prioridade);
+
+        if concluida {
             println!(
-                "{} {} {}",
+                "{} {} {} {}",
                 numero.dimmed(),
-                "".green(),
+                emoji,
+                "󰄵".green(),
                 texto.green().strikethrough()
             );
-
             concluidas += 1;
         } else {
-            let texto = linha.replace("[ ]", "").trim().to_string();
             println!(
-                "{} {} {}",
+                "{} {} {} {}",
                 numero.dimmed(),
-                "󰔟".yellow(),
+                emoji,
+                "".yellow(),
                 texto.bright_white()
             );
         }
@@ -77,30 +106,92 @@ fn run() -> Result<(), Box<dyn Error>> {
     match comando.as_str() {
         "add" => {
             if args.len() < 3 {
-                return Err("Uso: todo add <tarefa>".into());
+                return Err("Uso: todo add <tarefa> [--high | --low]".into());
             }
 
             let tarefa = &args[2];
+
+            let linha = match args.len() {
+                3 => format!("[ ] {}", tarefa),
+
+                4 => {
+                    let flag = args[3].as_str();
+                    match flag {
+                        "--high" => format!("[ ] (high) {}", tarefa),
+                        "--low" => format!("[ ] (low) {}", tarefa),
+
+                        _ => {
+                            return Err(
+                                format!("Flag inválida '{}'. Use --high ou --low", flag).into()
+                            );
+                        }
+                    }
+                }
+
+                _ => {
+                    return Err(
+                        "Uso: todo add <tarefa> [--high | --low]. Apenas uma flag é permitida"
+                            .into(),
+                    );
+                }
+            };
 
             let mut file = OpenOptions::new()
                 .create(true)
                 .append(true)
                 .open("todos.txt")?;
 
-            writeln!(file, "[ ] {}", tarefa)?;
+            writeln!(file, "{}", linha)?;
 
             println!("{}", "✓ Tarefa adicionada".green());
         }
+
         "list" => {
-            let filtro = if args.len() > 2 {
-                args[2].as_str()
-            } else {
-                "all"
-            };
+            let mut filtro_status = "all";
+            let mut filtro_prioridade: Option<&str> = None;
+
+            for arg in &args[2..] {
+                match arg.as_str() {
+                    "--pending" => {
+                        if filtro_status != "all" {
+                            return Err(
+                                "Use apenas um filtro de status (--pending ou --done).\nExemplo válido: todo list --pending --high".into()
+                            );
+                        }
+                        filtro_status = "pending";
+                    }
+                    "--done" => {
+                        if filtro_status != "all" {
+                            return Err(
+                                "Use apenas um filtro de status (--done ou --pending).".into()
+                            );
+                        }
+                        filtro_status = "done";
+                    }
+                    "--high" => {
+                        if filtro_prioridade.is_some() {
+                            return Err(
+                                "Use apenas um filtro de prioridade (--high ou --low)".into()
+                            );
+                        }
+                        filtro_prioridade = Some("high");
+                    }
+                    "--low" => {
+                        if filtro_prioridade.is_some() {
+                            return Err(
+                                "Use apenas um filtro de prioridade (--low ou --high)".into()
+                            );
+                        }
+
+                        filtro_prioridade = Some("low");
+                    }
+                    _ => return Err(format!("Filtro inválido: {}", arg).into()),
+                }
+            }
 
             match fs::read_to_string("todos.txt") {
                 Ok(conteudo) => {
-                    let linhas_validas: Vec<&str> =
+                    let mut linhas_validas: Vec<&str> =
                         conteudo.lines().filter(|l| !l.trim().is_empty()).collect();
 
                     if linhas_validas.is_empty() {
@@ -108,48 +199,51 @@ fn run() -> Result<(), Box<dyn Error>> {
                         return Ok(());
                     }
 
-                    match filtro {
-                        "--pending" => {
-                            let pendentes: Vec<&str> = linhas_validas
-                                .iter()
-                                .filter(|linha| linha.contains("[ ]"))
-                                .copied()
-                                .collect();
+                    linhas_validas = match filtro_status {
+                        "pending" => linhas_validas
+                            .iter()
+                            .filter(|l| l.contains("[ ]"))
+                            .copied()
+                            .collect(),
+                        "done" => linhas_validas
+                            .iter()
+                            .filter(|l| l.contains("[x]"))
+                            .copied()
+                            .collect(),
+                        _ => linhas_validas,
+                    };
 
-                            if pendentes.is_empty() {
-                                println!("Nenhuma tarefa pendente");
-                            } else {
-                                exibir_tarefas(&pendentes, "Tarefas pendentes");
-                            }
-                        }
-
-                        "--done" => {
-                            let concluidas: Vec<&str> = linhas_validas
-                                .iter()
-                                .filter(|linha| linha.contains("[x]"))
-                                .copied()
-                                .collect();
-
-                            if concluidas.is_empty() {
-                                println!("Nenhuma tarefa concluída");
-                            } else {
-                                exibir_tarefas(&concluidas, "Tarefas concluídas");
-                            }
-                        }
-
-                        "all" => {
-                            exibir_tarefas(&linhas_validas, "Tarefas");
-                        }
-
-                        _ => {
-                            return Err(format!(
-                                "Filtro inválido: {}. Use --pending ou --done",
-                                filtro
-                            )
-                            .into());
-                        }
+                    if let Some(pri) = filtro_prioridade {
+                        linhas_validas = linhas_validas
+                            .iter()
+                            .filter(|linha| {
+                                let (prioridade, _) = extrair_prioridade(linha);
+                                prioridade == pri
+                            })
+                            .copied()
+                            .collect();
                     }
+
+                    if linhas_validas.is_empty() {
+                        println!("Nenhuma tarefa encontrada com esses filtros");
+                        return Ok(());
+                    }
+
+                    let titulo = match (filtro_status, filtro_prioridade) {
+                        ("pending", Some("high")) => "Tarefas pendentes de alta prioridade",
+                        ("pending", Some("low")) => "Tarefas pendentes de baixa prioridade",
+                        ("pending", None) => "Tarefas pendentes",
+                        ("done", Some("high")) => "Tarefas concluídas de alta prioridade",
+                        ("done", Some("low")) => "Tarefas concluídas de baixa prioridade",
+                        ("done", None) => "Tarefas concluídas",
+                        (_, Some("high")) => "Alta prioridade",
+                        (_, Some("low")) => "Baixa prioridade",
+                        _ => "Tarefas",
+                    };
+
+                    exibir_tarefas(&linhas_validas, titulo);
                 }
+
                 Err(_) => {
                     println!("Nenhuma tarefa");
                 }
