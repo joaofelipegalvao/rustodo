@@ -5,6 +5,33 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.1] - 2026-01-27
+
+### Changed
+
+- **BREAKING CHANGE:** Entire codebase translated to English
+- All variable names Portuguese → English
+- All function names Portuguese → English  
+- All user-facing messages Portuguese → English
+- All dynamic titles and error messages now in English
+- Achieve full consistency with English documentation
+- Updated function names: `extract_priority`, etc.
+
+### Added
+
+- `search <term>` command to search tasks by term
+- `display_task()` function for atomic rendering
+- `display_lists()` function for list rendering with statistics
+
+### Changed
+
+- Complete refactoring: separation of parsing vs rendering
+- Better code reuse without duplication
+
+### Fixed
+
+- Correct numbering in search command
+
 ## [Unreleased]
 
 ### Planned
@@ -16,115 +43,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - JSON export
 - Unit tests
 - Refactoring with structs
-
-## 1.0.1 - 2026-01-27
-
-### Changed
-
-- **BREAKING CHANGE:**
-
-## [1.0.1] - 2026-01-27
-
-### Changed
-
-- **BREAKING CHANGE:** Entire codebase translated to English
-- All variable names Portuguese → English
-- All function names Portuguese → English  
-- All user-facing messages Portuguese → English
-- All dynamic titles and error messages now in English
-- Achieve full consistency with English documentation
-- Updated function names: `extrair_prioridade` → `extract_priority`, etc.
-
-### Added
-
-- `search <term>` command to search tasks by term
-- `display_task()` function for atomic rendering
-- `display_lists()` function for list rendering with statistics
-
-### Changed
-
-- Complete refactoring: separation of parsing vs rendering
-- Better code reuse without duplication
-
-### Fixed
-
-- Correct numbering in search command
-
-## [1.0.0] - 2026-01-27
-
-### Added
-
-- `search <term>` command to search tasks by term
-- `display_task()` function for atomic rendering
-- `display_lists()` function for list rendering with statistics
-
-### Changed
-
-- Complete refactoring: separation of parsing vs rendering
-- Better code reuse without duplication
-
-### Fixed
-
-- Correct numbering in search command
-
-## [0.9.0] - 2026-01-27
-
-### Added
-
-- `--sort` flag to sort tasks by priority
-- `priority_order()` function for high/medium/low mapping
-- Optimized pipeline: filter → then sort
-
-## [0.8.0] - 2026-01-26
-
-### Added
-
-- Priority system (high, medium, low)
-- `--high` and `--low` flags to filter by priority
-- Colored emojis ( <img src="../todo-cli/assets/icons/circle-high.svg" width="12" /> <img src="../todo-cli/assets/icons/circle-medium.svg" width="12" /> <img src="../todo-cli/assets/icons/circle-low.svg" width="12" /> ) for visual indication
-- `extract_priority()` function for parsing
-- `priority_emoji()` function for rendering
-- Filter combination (status + priority)
-- Conflicting flags validation
-- Dynamic titles based on context
-
-## [0.7.0] - 2026-01-26
-
-### Added
-
-- `--pending` and `--done` flags to filter by status
-- Filter combination support
-- Helper functions for code reuse
-
-## [0.6.0] - 2026-01-25
-
-### Added
-
-- Colorful visual interface using `colored` crate
-- Visual hierarchy with dimmed/bold formatting
-- Progress counter with percentage
-- Color-coded priority indicators
-
-## [0.5.0] - 2026-01-24
-
-### Added
-
-- `clear` command to remove all tasks
-- File existence validation with `fs::metadata()`
-
-## [0.4.2] - 2026-01-23
-
-### Fixed
-
-- State validation to prevent duplicate operations
-- More specific error messages
-
-## [0.4.1] - 2026-01-23
-
-### Fixed
-
-- Bug in `list` command with empty lines
-- Robust line filtering with `trim()`
 
 ## [0.4.0] - 2026-01-23
 
