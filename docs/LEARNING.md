@@ -1608,6 +1608,284 @@ This is **mature CLI architecture** - not duplication, but proper separation of 
 
 ---
 
+### v1.1.0 - Medium Priority Filter
+
+**🎯 Goal:** Add `--medium` filter to complete priority filtering system
+
+**📦 Problem Identified:**
+
+Users could create medium priority tasks but couldn't filter by them:
+
+```bash
+# ✅ Can create medium priority
+todo add "Normal task"              # Creates as medium (default)
+todo add "Normal task" --medium     # Future: explicit medium
+
+# ❌ Can't filter medium priority
+todo list --high    # Works
+todo list --low     # Works
+todo list --medium  # Error: Invalid filter ❌
+```
+
+**This was a design flaw** - asymmetry between creation and querying.
+
+**📦 Implementation:**
+
+```rust
+"list" => {
+    // ... existing code ...
+    
+    for arg in &args[2..] {
+        match arg.as_str() {
+            "--pending" => { /* ... */ }
+            "--done" => { /* ... */ }
+            "--high" => {
+                if priority_filter.is_some() {
+                    return Err("Use only one priority filter (--high, --medium or --low)".into());
+                }
+                priority_filter = Some("high");
+            }
+            "--medium" => {  // ← NEW
+                if priority_filter.is_some() {
+                    return Err("Use only one priority filter (--high, --medium or --low)".into());
+                }
+                priority_filter = Some("medium");
+            }
+            "--low" => {
+                if priority_filter.is_some() {
+                    return Err("Use only one priority filter (--high, --medium or --low)".into());
+                }
+                priority_filter = Some("low");
+            }
+            // ... rest of filters ...
+        }
+    }
+    
+    // Update dynamic titles to include medium
+    let title = match (status_filter, priority_filter) {
+        ("pending", Some("high")) => "High priority pending tasks",
+        ("pending", Some("medium")) => "Medium priority pending tasks",  // ← NEW
+        ("pending", Some("low")) => "Low priority pending tasks",
+        ("pending", None) => "Pending tasks",
+        ("done", Some("high")) => "High priority completed tasks",
+        ("done", Some("medium")) => "Medium priority completed tasks",  // ← NEW
+        ("done", Some("low")) => "Low priority completed tasks",
+        ("done", None) => "Completed tasks",
+        (_, Some("high")) => "High priority",
+        (_, Some("medium")) => "Medium priority",  // ← NEW
+        (_, Some("low")) => "Low priority",
+        _ => "Tasks",
+    };
+}
+```
+
+**🧠 Key Concepts:**
+
+#### Why this fix was necessary
+
+**Original flawed assumption:**
+> "Medium is the default, so users don't need to filter by it"
+
+**Reality:**
+> "Medium is the default, so MOST tasks will be medium, making filtering essential"
+
+**Analogy:**
+
+```
+E-commerce without "medium price" filter:
+- Filter by cheap ✅
+- Filter by expensive ✅  
+- Filter by medium ❌  ← where most products are!
+```
+
+Doesn't make sense!
+
+#### The problem in practice
+
+```bash
+# Scenario: 50 total tasks
+# 5 high
+# 40 medium  ← MAJORITY
+# 5 low
+
+# Without --medium:
+todo list              # Shows all 50 (overwhelming)
+todo list --pending    # Still shows high + medium + low mixed
+
+# Can't focus on the 40 medium tasks!
+```
+
+**With --medium:**
+
+```bash
+todo list --medium              # Shows 40 medium tasks
+todo list --pending --medium    # Focus on pending medium work
+```
+
+#### Symmetry in design
+
+**Before (asymmetric):**
+
+```
+Creation:
+--high   ✅
+--medium (implicit) ✅
+--low    ✅
+
+Filtering:
+--high   ✅
+--medium ❌  ← Missing!
+--low    ✅
+```
+
+**After (symmetric):**
+
+```
+Creation:
+--high   ✅
+--medium ✅
+--low    ✅
+
+Filtering:
+--high   ✅
+--medium ✅  ← Complete!
+--low    ✅
+```
+
+**Symmetry = predictability = better UX**
+
+#### Design principle learned
+
+> "Defaults are for INPUT convenience, not QUERY limitation"
+
+**Input (creation):**
+
+- Default to medium → users don't always need to specify
+- Makes quick task creation easy
+
+**Query (filtering):**
+
+- Provide ALL options → users need full control
+- Never assume they don't need to filter by default value
+
+#### Real-world impact
+
+**Scenario:** Developer with 100 tasks
+
+```bash
+# Distribution:
+# 10 high priority (urgent work)
+# 75 medium priority (regular work)  ← BULK OF WORK
+# 15 low priority (nice to have)
+
+# Without --medium:
+todo list --high       # See 10 tasks (good)
+todo list --low        # See 15 tasks (good)
+# How to see the 75 medium tasks? 🤔
+todo list              # Shows all 100 (too much!)
+
+# With --medium:
+todo list --medium     # See 75 tasks (perfect!)
+todo list --pending --medium  # Even more focused
+```
+
+**This is essential for real-world usage with many tasks.**
+
+#### Consistency with user expectations
+
+**User mental model:**
+
+```bash
+# "If I can create with --medium, I should be able to filter by --medium"
+todo add "Task" --medium   # (future feature)
+todo list --medium         # Should work!
+```
+
+**Breaking this expectation creates confusion:**
+
+- "Why can't I filter by the priority I created?"
+- "Did I do something wrong?"
+- "Is medium not a real priority?"
+
+#### Code changes minimal, impact maximal
+
+**What changed:**
+
+- ✅ Added one `match` arm (`"--medium" => { ... }`)
+- ✅ Updated 3 title strings
+- ✅ Updated error messages to include "medium"
+
+**Impact:**
+
+- ✅ Complete feature symmetry
+- ✅ Solves real use case (filter majority of tasks)
+- ✅ Meets user expectations
+- ✅ Professional, complete API
+
+#### Testing the fix
+
+```bash
+# Setup
+rm todos.txt
+todo add "Urgent work" --high
+todo add "Regular task 1"
+todo add "Regular task 2"
+todo add "Regular task 3"
+todo add "Regular task 4"
+todo add "Regular task 5"
+todo add "Low priority task" --low
+
+# Test 1: Filter by medium (NEW!)
+todo list --medium
+# Output:
+# 📋 Medium priority:
+# 2. 🟡 ⏳ Regular task 1
+# 3. 🟡 ⏳ Regular task 2
+# 4. 🟡 ⏳ Regular task 3
+# 5. 🟡 ⏳ Regular task 4
+# 6. 🟡 ⏳ Regular task 5
+
+# Test 2: Combine with status filter
+todo list --pending --medium
+# Shows only pending medium tasks
+
+# Test 3: All three priorities work
+todo list --high    # ✅ 1 task
+todo list --medium  # ✅ 5 tasks (NEW!)
+todo list --low     # ✅ 1 task
+
+# Test 4: Sorting still works
+todo list --medium --sort
+# Medium tasks already same priority, but shows consistency
+```
+
+#### Why this is a "design fix" not just a "feature"
+
+**Not a new feature because:**
+
+- Doesn't add new capability
+- Completes existing priority system
+- Fixes asymmetry/incompleteness
+
+**It's a design fix because:**
+
+- Original design was flawed (incomplete)
+- Creates consistency users expect
+- Solves problem users encounter in practice
+
+**Lesson:** Even with careful planning, design flaws can slip through. **Critical thinking and real usage** reveal them. This is why:
+
+- ✅ Testing with realistic data matters
+- ✅ Questioning design decisions is valuable
+- ✅ User perspective differs from developer perspective
+
+**🔗 Resources:**
+
+- [Code v1.1.0](https://github.com/joaofelipegalvao/todo-cli/tree/v1.1.0)
+- [Full diff](https://github.com/joaofelipegalvao/todo-cli/compare/v1.0.1...v1.1.0)
+
+---
+
 ## Concepts Learned
 
 ### File Manipulation
@@ -1821,23 +2099,41 @@ fn display_everything(tasks: &[&str], mode: &str) {
 
 ---
 
-### Why `medium` as Default Priority?
+### Why Add `--medium` Filter? (Design Evolution)
 
-**Could have forced:**
+**Original flawed assumption:**
+> "Medium is the default, so users don't need to filter by it"
+
+**Reality discovered through usage:**
+> "Medium is the default, so MOST tasks will be medium, making filtering essential"
+
+**The fix:**
+
+- ✅ Added `--medium` flag for completeness
+- ✅ Created symmetry: if you can create with it, you can filter by it
+- ✅ Solved real problem: filtering the majority of tasks
+
+**Design principle learned:**
+> "Defaults are for INPUT convenience, not QUERY limitation"
+
+**Input (creation):**
+
+- Default to medium → users don't always need to specify
+- Makes quick task creation easy
+
+**Query (filtering):**
+
+- Provide ALL options → users need full control
+- Never assume they don't need to filter by default value
+
+**Impact:**
 
 ```bash
-todo add "Task"
-# Error: Specify priority with --high or --low
+# With 100 tasks: 10 high, 75 medium, 15 low
+# Before: Could only filter high or low
+# After: Can filter medium (the majority!)
+todo list --medium  # Shows 75 tasks ✅
 ```
-
-**Why default is better:**
-
-- ✅ **Least friction** - most tasks are "normal"
-- ✅ **Quick capture** - "Just want to add it quickly!"
-- ✅ **Opt-in complexity** - complexity only when needed
-
-**Design principle:**
-> "Make the common case fast, the uncommon case possible"
 
 ---
 

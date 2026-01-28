@@ -17,9 +17,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Unit tests
 - Refactoring with structs
 
+## [1.1.0] 2026-01-28
+
+### Added
+
+- --medium flag to filter tasks by medium priority
+- Complete symmetry in priority filtering (high/medium/low)
+- Dynamic titles for medium priority task combinations
+
 ### Changed
 
-- **BREAKING CHANGE:**
+- Updated help messages to include --medium option
+- Improved consistency between task creation and filtering
+
+### Fixed
+
+- Design flaw: users can now filter by medium priority, completing the priority filter set
 
 ## [1.0.1] - 2026-01-27
 
@@ -141,6 +154,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Error handling with `?` operator
 
 [Unreleased]: https://github.com/joaofelipegalvao/todo-cli/compare/v1.0.0...HEAD
+[1.1.0]:https://github.com/joaofelipegalvao/todo-cli/compare/v1.0.1...v1.1.0
+[1.0.1]: https://github.com/joaofelipegalvao/todo-cli/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/joaofelipegalvao/todo-cli/compare/v0.9.0...v1.0.0
 [0.9.0]: https://github.com/joaofelipegalvao/todo-cli/compare/v0.8.0...v0.9.0
 [0.8.0]: https://github.com/joaofelipegalvao/todo-cli/compare/v0.7.0...v0.8.0

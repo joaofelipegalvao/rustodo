@@ -57,10 +57,12 @@ todo list --done          # Only completed tasks
 
 # Filter by priority
 todo list --high          # Only high priority
+todo list --medium        # Only medium priority
 todo list --low           # Only low priority
 
 # Combine filters
 todo list --pending --high              # Pending high priority
+todo list --pending --medium            # Pending medium priority
 todo list --done --low                  # Completed low priority
 todo list --pending --high --sort       # Pending high priority, sorted
 ```
@@ -227,8 +229,12 @@ todo done 2  # Mark documentation task as done
 # See only what needs attention
 todo list --pending --high
 
+# Focus on medium priority work (where most tasks are)
+todo list --pending --medium
+
 # Review completed work by priority
 todo list --done --high
+todo list --done --medium
 
 # Organize by seeing everything sorted
 todo list --sort

@@ -112,9 +112,7 @@ fn run() -> Result<(), Box<dyn Error>> {
 
     if args.len() < 2 {
         return Err(
-            "Usage: todo <command> [arguments]\nCommands: add, list [--pending | --done], done, undone, remove, clear"
-                .into(),
-        );
+            "Usage: todo <command> [arguments]\nCommands: add, list [--pending|--done|--high|--medium|--low|--sort], done, undone, remove, clear, search".into());
     }
 
     let command = &args[1];
@@ -178,7 +176,7 @@ fn run() -> Result<(), Box<dyn Error>> {
                     }
                     "--done" => {
                         if status_filter != "all" {
-                            return Err("Use only one status filter (--done or --pending).".into());
+                            return Err("Use only one status filter (--done or --pending)".into());
                         }
                         status_filter = "done";
                     }
@@ -187,6 +185,14 @@ fn run() -> Result<(), Box<dyn Error>> {
                             return Err("Use only one priority filter (--high or --low)".into());
                         }
                         priority_filter = Some("high");
+                    }
+                    "--medium" => {
+                        if priority_filter.is_some() {
+                            return Err(
+                                "Use only one priority filter (--high, --medium or --low)".into()
+                            );
+                        }
+                        priority_filter = Some("medium");
                     }
                     "--low" => {
                         if priority_filter.is_some() {
@@ -255,12 +261,15 @@ fn run() -> Result<(), Box<dyn Error>> {
 
                     let title = match (status_filter, priority_filter) {
                         ("pending", Some("high")) => "High priority pending tasks",
+                        ("pending", Some("medium")) => "Medium priority pending tasks",
                         ("pending", Some("low")) => "Low priority pending tasks",
                         ("pending", None) => "Pending tasks",
                         ("done", Some("high")) => "High priority completed tasks",
+                        ("done", Some("medium")) => "Medium priority completed tasks",
                         ("done", Some("low")) => "Low priority completed tasks",
                         ("done", None) => "Completed tasks",
                         (_, Some("high")) => "High priority",
+                        (_, Some("medium")) => "Medium priority",
                         (_, Some("low")) => "Low priority",
                         _ => "Tasks",
                     };
@@ -425,4 +434,3 @@ fn run() -> Result<(), Box<dyn Error>> {
 
     Ok(())
 }
-
