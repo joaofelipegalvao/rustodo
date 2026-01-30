@@ -29,7 +29,7 @@ todo done 1
 ## Commands
 
 ```bash
-todo add <task> [--high|--low]      # Add task (default: medium priority)
+todo add <task> [--high|--medium |--low]      # Add task (default: medium priority)
 todo list [flags]                    # List tasks
 todo search <term>                   # Search tasks
 todo done <number>                   # Mark as completed
@@ -61,6 +61,7 @@ This project was developed as a Rust learning exercise, documenting each increme
 | v0.2.0 | Mark as done | `.map()`, `.collect()`, `Vec<String>` |
 | v0.8.0 | Priorities + Filters | `Option<T>`, pattern matching, pipeline |
 | v1.0.0 | Search + Refactoring | Atomic functions, separation of concerns |
+| v1.2.0 | Type-safe structs | `struct`, `enum`, `impl`, derive macros |
 
 [See full evolution →](docs/LEARNING.md)
 
@@ -85,9 +86,11 @@ This project was developed as a Rust learning exercise, documenting each increme
 - Advanced filters and search
 - Sorting by priority
 - Optimized pipeline architecture
+- **Type-safe architecture with structs/enums**
 
 ### Planned
 
+- JSON serialization with `serde`
 - Tags/categories (`#work`, `#home`)
 - Edit command
 - Due dates

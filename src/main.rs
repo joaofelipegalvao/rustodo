@@ -1,6 +1,4 @@
-use std::fs;
-use std::io::Write;
-use std::{env, error::Error, fs::OpenOptions, process};
+use std::{env, error::Error, fs, process};
 
 use colored::{ColoredString, Colorize};
 
@@ -11,55 +9,132 @@ fn main() {
     }
 }
 
-fn priority_order(pri: &str) -> u8 {
-    match pri {
-        "high" => 0,
-        "medium" => 1,
-        "low" => 2,
-        _ => 3,
+#[derive(Debug, Clone)]
+struct Task {
+    text: String,
+    completed: bool,
+    priority: Priority,
+}
+
+#[derive(Debug, Clone, PartialEq, Copy)]
+enum Priority {
+    High,
+    Medium,
+    Low,
+}
+
+impl Task {
+    fn new(text: String, priority: Priority) -> Self {
+        Task {
+            text,
+            completed: false,
+            priority,
+        }
+    }
+
+    fn mark_done(&mut self) {
+        self.completed = true;
+    }
+
+    fn mark_undone(&mut self) {
+        self.completed = false;
+    }
+
+    fn to_line(&self) -> String {
+        let checkbox = if self.completed { "[x]" } else { "[ ]" };
+        let priority_str = match self.priority {
+            Priority::High => "(high)",
+            Priority::Medium => "",
+            Priority::Low => "(low)",
+        };
+
+        if priority_str.is_empty() {
+            format!("{} {}", checkbox, self.text)
+        } else {
+            format!("{} {} {}", checkbox, priority_str, self.text)
+        }
+    }
+
+    fn from_line(line: &str) -> Option<Self> {
+        let completed = line.contains("[x]");
+
+        let without_checkbox = line
+            .replace("[ ]", "")
+            .replace("[x]", "")
+            .trim()
+            .to_string();
+
+        let (priority, text) = if without_checkbox.starts_with("(high)") {
+            (
+                Priority::High,
+                without_checkbox.replace("(high)", "").trim().to_string(),
+            )
+        } else if without_checkbox.starts_with("(low)") {
+            (
+                Priority::Low,
+                without_checkbox.replace("(low)", "").trim().to_string(),
+            )
+        } else {
+            (Priority::Medium, without_checkbox)
+        };
+
+        Some(Task {
+            text,
+            completed,
+            priority,
+        })
     }
 }
 
-fn extract_priority(line: &str) -> (&str, String) {
-    let without_checkbox = line
-        .replace("[ ]", "")
-        .replace("[x]", "")
-        .trim()
-        .to_string();
+impl Priority {
+    fn order(&self) -> u8 {
+        match self {
+            Priority::High => 0,
+            Priority::Medium => 1,
+            Priority::Low => 2,
+        }
+    }
 
-    if without_checkbox.contains("(high)") {
-        let text = without_checkbox.replace("(high)", "").trim().to_string();
-        ("high", text)
-    } else if without_checkbox.contains("(low)") {
-        let text = without_checkbox.replace("(low)", "").trim().to_string();
-        ("low", text)
-    } else {
-        ("medium", without_checkbox)
+    fn emoji(&self) -> ColoredString {
+        match self {
+            Priority::High => "".red(),
+            Priority::Medium => "".yellow(),
+            Priority::Low => "".green(),
+        }
     }
 }
 
-fn priority_emoji(priority: &str) -> ColoredString {
-    match priority {
-        "high" => "".red(),
-        "low" => "".green(),
-        _ => "".yellow(),
+fn load_tasks() -> Result<Vec<Task>, Box<dyn Error>> {
+    match fs::read_to_string("todos.txt") {
+        Ok(content) => {
+            let tasks: Vec<Task> = content
+                .lines()
+                .filter(|l| !l.trim().is_empty())
+                .filter_map(Task::from_line)
+                .collect();
+            Ok(tasks)
+        }
+        Err(_) => Ok(Vec::new()),
     }
 }
 
-fn display_task(number: usize, line: &str) {
+fn save_tasks(tasks: &[Task]) -> Result<(), Box<dyn Error>> {
+    let lines: Vec<String> = tasks.iter().map(|t| t.to_line()).collect();
+    fs::write("todos.txt", lines.join("\n") + "\n")?;
+    Ok(())
+}
+
+fn display_task(number: usize, task: &Task) {
     let number_fmt = format!("{}.", number);
-    let completed = line.contains("[x]");
+    let emoji = task.priority.emoji();
 
-    let (priority, text) = extract_priority(line);
-    let emoji = priority_emoji(priority);
-
-    if completed {
+    if task.completed {
         println!(
             "{} {} {} {}",
             number_fmt.dimmed(),
             emoji,
             "󰄵".green(),
-            text.green().strikethrough()
+            task.text.green().strikethrough()
         );
     } else {
         println!(
@@ -67,21 +142,21 @@ fn display_task(number: usize, line: &str) {
             number_fmt.dimmed(),
             emoji,
             "".yellow(),
-            text.bright_white()
+            task.text.bright_white()
         );
     }
 }
 
-fn display_lists(tasks: &[&str], title: &str) {
+fn display_lists(tasks: &[Task], title: &str) {
     println!("\n {}:\n", title);
 
     let mut completed = 0;
     let total = tasks.len();
 
-    for (i, line) in tasks.iter().enumerate() {
-        display_task(i + 1, line);
+    for (i, task) in tasks.iter().enumerate() {
+        display_task(i + 1, task);
 
-        if line.contains("[x]") {
+        if task.completed {
             completed += 1;
         }
     }
@@ -112,7 +187,9 @@ fn run() -> Result<(), Box<dyn Error>> {
 
     if args.len() < 2 {
         return Err(
-            "Usage: todo <command> [arguments]\nCommands: add, list [--pending|--done|--high|--medium|--low|--sort], done, undone, remove, clear, search".into());
+            "Usage: todo <command> [arguments]\nCommands: add, list [--pending|--done|--high|--medium|--low|--sort], done, undone, remove, clear, search"
+                .into(),
+        );
     }
 
     let command = &args[1];
@@ -120,57 +197,47 @@ fn run() -> Result<(), Box<dyn Error>> {
     match command.as_str() {
         "add" => {
             if args.len() < 3 {
-                return Err("Usage: todo add <task> [--high | --low]".into());
+                return Err("Usage: todo add <task> [--high|--medium|--low]".into());
             }
 
-            let task = &args[2];
+            let text = args[2].clone();
 
-            let line = match args.len() {
-                3 => format!("[ ] {}", task),
-
-                4 => {
-                    let flag = args[3].as_str();
-                    match flag {
-                        "--high" => format!("[ ] (high) {}", task),
-                        "--low" => format!("[ ] (low) {}", task),
-
-                        _ => {
-                            return Err(
-                                format!("Invalid flag '{}'. Use --high or --low", flag).into()
-                            );
-                        }
+            let priority = if args.len() >= 4 {
+                match args[3].as_str() {
+                    "--high" => Priority::High,
+                    "--medium" => Priority::Medium,
+                    "--low" => Priority::Low,
+                    _ => {
+                        return Err(format!(
+                            "Invalid flag '{}'. Use --high, --medium or --low",
+                            args[3]
+                        )
+                        .into());
                     }
                 }
-
-                _ => {
-                    return Err(
-                        "Usage: todo add <task> [--high | --low]. Only one flag is allowed".into(),
-                    );
-                }
+            } else {
+                Priority::Medium
             };
 
-            let mut file = OpenOptions::new()
-                .create(true)
-                .append(true)
-                .open("todos.txt")?;
+            let task = Task::new(text, priority);
 
-            writeln!(file, "{}", line)?;
+            let mut tasks = load_tasks()?;
+            tasks.push(task);
+            save_tasks(&tasks)?;
 
             println!("{}", "✓ Task added".green());
         }
 
         "list" => {
             let mut status_filter = "all";
-            let mut priority_filter: Option<&str> = None;
+            let mut priority_filter: Option<Priority> = None;
             let mut sort = false;
 
             for arg in &args[2..] {
                 match arg.as_str() {
                     "--pending" => {
                         if status_filter != "all" {
-                            return Err(
-                                "Use only one status filter (--pending or --done).\nValid example: todo list --pending --high".into()
-                            );
+                            return Err("Use only one status filter (--pending or --done)".into());
                         }
                         status_filter = "pending";
                     }
@@ -182,9 +249,11 @@ fn run() -> Result<(), Box<dyn Error>> {
                     }
                     "--high" => {
                         if priority_filter.is_some() {
-                            return Err("Use only one priority filter (--high or --low)".into());
+                            return Err(
+                                "Use only one priority filter (--high, --medium or --low)".into()
+                            );
                         }
-                        priority_filter = Some("high");
+                        priority_filter = Some(Priority::High);
                     }
                     "--medium" => {
                         if priority_filter.is_some() {
@@ -192,18 +261,19 @@ fn run() -> Result<(), Box<dyn Error>> {
                                 "Use only one priority filter (--high, --medium or --low)".into()
                             );
                         }
-                        priority_filter = Some("medium");
+                        priority_filter = Some(Priority::Medium);
                     }
                     "--low" => {
                         if priority_filter.is_some() {
-                            return Err("Use only one priority filter (--low or --high)".into());
+                            return Err(
+                                "Use only one priority filter (--high, --medium or --low)".into()
+                            );
                         }
-
-                        priority_filter = Some("low");
+                        priority_filter = Some(Priority::Low);
                     }
                     "--sort" => {
                         if sort {
-                            return Err("Use --sort only once.".into());
+                            return Err("Use --sort only once".into());
                         }
                         sort = true;
                     }
@@ -211,76 +281,50 @@ fn run() -> Result<(), Box<dyn Error>> {
                 }
             }
 
-            match fs::read_to_string("todos.txt") {
-                Ok(content) => {
-                    let mut valid_lines: Vec<&str> =
-                        content.lines().filter(|l| !l.trim().is_empty()).collect();
+            let mut tasks = load_tasks()?;
 
-                    if valid_lines.is_empty() {
-                        println!("No tasks");
-                        return Ok(());
-                    }
-
-                    valid_lines = match status_filter {
-                        "pending" => valid_lines
-                            .iter()
-                            .filter(|l| l.contains("[ ]"))
-                            .copied()
-                            .collect(),
-                        "done" => valid_lines
-                            .iter()
-                            .filter(|l| l.contains("[x]"))
-                            .copied()
-                            .collect(),
-                        _ => valid_lines,
-                    };
-
-                    if let Some(pri) = priority_filter {
-                        valid_lines = valid_lines
-                            .iter()
-                            .filter(|line| {
-                                let (priority, _) = extract_priority(line);
-                                priority == pri
-                            })
-                            .copied()
-                            .collect();
-                    }
-
-                    if valid_lines.is_empty() {
-                        println!("No tasks found with these filters");
-                        return Ok(());
-                    }
-
-                    if sort {
-                        valid_lines.sort_by(|a, b| {
-                            let (pri_a, _) = extract_priority(a);
-                            let (pri_b, _) = extract_priority(b);
-                            priority_order(pri_a).cmp(&priority_order(pri_b))
-                        });
-                    }
-
-                    let title = match (status_filter, priority_filter) {
-                        ("pending", Some("high")) => "High priority pending tasks",
-                        ("pending", Some("medium")) => "Medium priority pending tasks",
-                        ("pending", Some("low")) => "Low priority pending tasks",
-                        ("pending", None) => "Pending tasks",
-                        ("done", Some("high")) => "High priority completed tasks",
-                        ("done", Some("medium")) => "Medium priority completed tasks",
-                        ("done", Some("low")) => "Low priority completed tasks",
-                        ("done", None) => "Completed tasks",
-                        (_, Some("high")) => "High priority",
-                        (_, Some("medium")) => "Medium priority",
-                        (_, Some("low")) => "Low priority",
-                        _ => "Tasks",
-                    };
-
-                    display_lists(&valid_lines, title);
-                }
-
-                Err(_) => {
-                    println!("No tasks");
-                }
+            if tasks.is_empty() {
+                println!("No tasks");
+                return Ok(());
             }
+
+            // Filtrar por status
+            match status_filter {
+                "pending" => tasks.retain(|t| !t.completed),
+                "done" => tasks.retain(|t| t.completed),
+                _ => {}
+            };
+
+            // Filtrar por prioridade
+            if let Some(pri) = priority_filter {
+                tasks.retain(|t| t.priority == pri);
+            }
+
+            if tasks.is_empty() {
+                println!("No tasks found with these filters");
+                return Ok(());
+            }
+
+            if sort {
+                tasks.sort_by(|a, b| a.priority.order().cmp(&b.priority.order()));
+            }
+
+            let title = match (status_filter, priority_filter) {
+                ("pending", Some(Priority::High)) => "High priority pending tasks",
+                ("pending", Some(Priority::Medium)) => "Medium priority pending tasks",
+                ("pending", Some(Priority::Low)) => "Low priority pending tasks",
+                ("pending", None) => "Pending tasks",
+                ("done", Some(Priority::High)) => "High priority completed tasks",
+                ("done", Some(Priority::Medium)) => "Medium priority completed tasks",
+                ("done", Some(Priority::Low)) => "Low priority completed tasks",
+                ("done", None) => "Completed tasks",
+                (_, Some(Priority::High)) => "High priority",
+                (_, Some(Priority::Medium)) => "Medium priority",
+                (_, Some(Priority::Low)) => "Low priority",
+                _ => "Tasks",
+            };
+
+            display_lists(&tasks, title);
         }
 
         "done" => {
@@ -290,27 +334,21 @@ fn run() -> Result<(), Box<dyn Error>> {
 
             let number: usize = args[2].parse()?;
 
-            let content = fs::read_to_string("todos.txt")?;
+            let mut tasks = load_tasks()?;
 
-            let mut lines: Vec<String> = content
-                .lines()
-                .filter(|l| !l.trim().is_empty())
-                .map(|l| l.to_string())
-                .collect();
-
-            if number == 0 || number > lines.len() {
+            if number == 0 || number > tasks.len() {
                 return Err("Invalid task number".into());
             }
 
             let index = number - 1;
 
-            if lines[index].contains("[x]") {
+            if tasks[index].completed {
                 return Err("Task is already marked as completed".into());
             }
 
-            lines[index] = lines[index].replace("[ ]", "[x]");
+            tasks[index].mark_done();
 
-            fs::write("todos.txt", lines.join("\n") + "\n")?;
+            save_tasks(&tasks)?;
 
             println!("{}", "✓ Task marked as completed".green());
         }
@@ -322,27 +360,21 @@ fn run() -> Result<(), Box<dyn Error>> {
 
             let number: usize = args[2].parse()?;
 
-            let content = fs::read_to_string("todos.txt")?;
+            let mut tasks = load_tasks()?;
 
-            let mut lines: Vec<String> = content
-                .lines()
-                .filter(|l| !l.trim().is_empty())
-                .map(|l| l.to_string())
-                .collect();
-
-            if number == 0 || number > lines.len() {
+            if number == 0 || number > tasks.len() {
                 return Err("Invalid task number".into());
             }
 
             let index = number - 1;
 
-            if lines[index].contains("[ ]") {
+            if !tasks[index].completed {
                 return Err("Task is already unmarked".into());
             }
 
-            lines[index] = lines[index].replace("[x]", "[ ]");
+            tasks[index].mark_undone();
 
-            fs::write("todos.txt", lines.join("\n") + "\n")?;
+            save_tasks(&tasks)?; // ← CORRIGIDO (adicionado ?)
 
             println!("{}", "✓ Task unmarked".yellow());
         }
@@ -354,40 +386,30 @@ fn run() -> Result<(), Box<dyn Error>> {
 
             let term = &args[2];
 
-            match fs::read_to_string("todos.txt") {
-                Ok(content) => {
-                    let valid_lines: Vec<&str> =
-                        content.lines().filter(|l| !l.trim().is_empty()).collect();
+            let tasks = load_tasks()?;
 
-                    if valid_lines.is_empty() {
-                        println!("No tasks");
-                        return Ok(());
-                    }
+            if tasks.is_empty() {
+                println!("No tasks");
+                return Ok(());
+            }
 
-                    let mut results: Vec<(usize, &str)> = Vec::new();
+            let results: Vec<(usize, &Task)> = tasks
+                .iter()
+                .enumerate()
+                .filter(|(_, task)| task.text.to_lowercase().contains(&term.to_lowercase()))
+                .map(|(i, task)| (i + 1, task))
+                .collect();
 
-                    for (i, line) in valid_lines.iter().enumerate() {
-                        if line.to_lowercase().contains(&term.to_lowercase()) {
-                            results.push((i + 1, line));
-                        }
-                    }
+            if results.is_empty() {
+                println!("No results for '{}'", term);
+            } else {
+                println!("\n󱎸 Results for \"{}\":\n", term);
 
-                    if results.is_empty() {
-                        println!("No results for '{}'", term);
-                    } else {
-                        println!("\n Results for \"{}\":\n", term);
-
-                        for (number, line) in &results {
-                            display_task(*number, line);
-                        }
-
-                        println!("\n{} result(s) found\n", results.len());
-                    }
+                for (number, task) in &results {
+                    display_task(*number, task);
                 }
 
-                Err(_) => {
-                    println!("No tasks");
-                }
+                println!("\n{} result(s) found\n", results.len());
             }
         }
 
@@ -398,22 +420,16 @@ fn run() -> Result<(), Box<dyn Error>> {
 
             let number: usize = args[2].parse()?;
 
-            let content = fs::read_to_string("todos.txt")?;
+            let mut tasks = load_tasks()?;
 
-            let mut lines: Vec<String> = content
-                .lines()
-                .filter(|l| !l.trim().is_empty())
-                .map(|l| l.to_string())
-                .collect();
-
-            if number == 0 || number > lines.len() {
+            if number == 0 || number > tasks.len() {
                 return Err("This task doesn't exist or was already removed".into());
             }
 
             let index = number - 1;
-            lines.remove(index);
+            tasks.remove(index);
 
-            fs::write("todos.txt", lines.join("\n") + "\n")?;
+            save_tasks(&tasks)?;
 
             println!("{}", "✓ Task removed".red());
         }

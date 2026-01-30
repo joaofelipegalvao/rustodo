@@ -13,21 +13,57 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Edit command
 - Due dates
 - Sort by date (`--sort date`)
-- JSON export
+- JSON export with `serde`
 - Unit tests
-- Refactoring with structs
+- Subtasks/nested tasks
 
-## [1.1.0] 2026-01-28
+## [1.2.0] - 2026-01-29
 
 ### Added
 
-- --medium flag to filter tasks by medium priority
+- Type-safe architecture with structs and enums
+- `Priority` enum (High, Medium, Low) replacing string-based priorities
+- `Task` struct encapsulating task data (text, completed, priority)
+- `impl` blocks with methods: `new()`, `to_line()`, `from_line()`, `mark_done()`, `mark_undone()`
+- Centralized I/O with `load_tasks()` and `save_tasks()` helper functions
+- Derive macros: `Debug`, `Clone`, `PartialEq`, `Copy` for type safety
+
+### Changed
+
+- **BREAKING CHANGE:** Complete refactoring from string parsing to struct-based architecture
+- All commands now use `Task` struct instead of raw string manipulation
+- Parsing logic centralized in `Task::from_line()` method
+- File I/O consolidated into two functions (36% code reduction)
+- `add` command: uses `Task::new()` constructor
+- `done`/`undone` commands: use `task.mark_done()`/`task.mark_undone()` methods
+- `list` command: type-safe field access (`task.completed`, `task.priority`)
+- Priority comparison: string matching → enum comparison
+- Display logic: uses `Priority::emoji()` and `Priority::order()` methods
+
+### Fixed
+
+- Ownership issues with priority filters using `Copy` trait
+- Clippy warnings: redundant closures replaced with function pointers
+- Type safety: compiler now catches priority typos at compile time
+
+### Technical Details
+
+- Code metrics: ~180 lines → ~115 lines (36% reduction)
+- Maintainability: Adding new fields now requires changes in only 3 places instead of 7+
+- Extensibility: Easy to add timestamps, tags, subtasks in future versions
+- Type safety: No more runtime errors from typos like `"hihg"`
+
+## [1.1.0] - 2026-01-28
+
+### Added
+
+- `--medium` flag to filter tasks by medium priority
 - Complete symmetry in priority filtering (high/medium/low)
 - Dynamic titles for medium priority task combinations
 
 ### Changed
 
-- Updated help messages to include --medium option
+- Updated help messages to include `--medium` option
 - Improved consistency between task creation and filtering
 
 ### Fixed
@@ -153,8 +189,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Pattern matching for subcommands
 - Error handling with `?` operator
 
-[Unreleased]: https://github.com/joaofelipegalvao/todo-cli/compare/v1.0.0...HEAD
-[1.1.0]:https://github.com/joaofelipegalvao/todo-cli/compare/v1.0.1...v1.1.0
+[Unreleased]: https://github.com/joaofelipegalvao/todo-cli/compare/v1.2.0...HEAD
+[1.2.0]: https://github.com/joaofelipegalvao/todo-cli/compare/v1.1.0...v1.2.0
+[1.1.0]: https://github.com/joaofelipegalvao/todo-cli/compare/v1.0.1...v1.1.0
 [1.0.1]: https://github.com/joaofelipegalvao/todo-cli/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/joaofelipegalvao/todo-cli/compare/v0.9.0...v1.0.0
 [0.9.0]: https://github.com/joaofelipegalvao/todo-cli/compare/v0.8.0...v0.9.0

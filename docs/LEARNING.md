@@ -1886,6 +1886,892 @@ todo list --medium --sort
 
 ---
 
+### v1.2.0 - Struct Refactoring (Type-Safe Architecture)
+
+**🎯 Goal:** Replace string parsing with type-safe structs and enums for maintainability and extensibility
+
+**📦 The Problem We're Solving:**
+
+**Before v1.2.0:**
+
+Every command parsed strings manually:
+
+```rust
+// Parsing priority from strings (repeated everywhere)
+let without_checkbox = line.replace("[ ]", "").replace("[x]", "").trim();
+if without_checkbox.contains("(high)") {
+    let text = without_checkbox.replace("(high)", "").trim();
+    // ... handle high priority
+} else if without_checkbox.contains("(low)") {
+    // ... handle low priority
+}
+
+// Checking completion status (string matching)
+if line.contains("[x]") {
+    // completed
+} else {
+    // pending
+}
+```
+
+**Problems:**
+
+❌ String parsing repeated in every command  
+❌ No type safety - typos like `"hihg"` compile fine  
+❌ Hard to add new fields (timestamps, tags)  
+❌ Can't leverage Rust's type system  
+❌ Prone to bugs (what if format changes?)  
+
+**Example of the mess:**
+
+```rust
+// In 'add' command
+format!("[ ] (high) {}", task)
+
+// In 'list' command  
+.filter(|line| line.contains("(high)"))
+
+// In 'display' command
+if line.contains("(high)") { "🔴" } else { "🟡" }
+
+// All coupled to string format "[ ] (high) Task"
+// Change format → must update EVERYWHERE
+```
+
+---
+
+**📦 The Solution: Structs + Enums**
+
+**Core data structures:**
+
+```rust
+#[derive(Debug, Clone, PartialEq, Copy)]
+enum Priority {
+    High,
+    Medium,
+    Low,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+struct Task {
+    text: String,
+    completed: bool,
+    priority: Priority,
+}
+```
+
+**Why this is revolutionary:**
+
+✅ **Type-safe** - compiler catches mistakes  
+✅ **Self-documenting** - clear what a Task contains  
+✅ **Extensible** - add fields easily  
+✅ **DRY** - parsing logic in ONE place  
+✅ **Testable** - can unit test Task methods  
+
+**🧠 Key Concepts:**
+
+#### What is a `struct`?
+
+Think of it as a **custom data type** that groups related data:
+
+```rust
+// Instead of passing around 3 separate values:
+fn display_task(text: String, completed: bool, priority: String) { }
+
+// We bundle them into one logical unit:
+fn display_task(task: &Task) { }
+```
+
+**Real-world analogy:**
+
+```rust
+// Like a form with labeled fields:
+struct Person {
+    name: String,      // "John Doe"
+    age: u32,          // 25
+    email: String,     // "john@example.com"
+}
+
+// Instead of passing 3 separate strings/numbers around
+```
+
+**Our Task struct:**
+
+```rust
+struct Task {
+    text: String,       // "Study Rust"
+    completed: bool,    // false
+    priority: Priority, // High
+}
+```
+
+#### What is an `enum`?
+
+An enum represents **one of several possible values**:
+
+```rust
+enum Priority {
+    High,    // ← can ONLY be one of these
+    Medium,  // ← mutually exclusive
+    Low,     // ← not multiple at once
+}
+```
+
+**Why enum vs strings?**
+
+```rust
+// ❌ String approach - error-prone
+let priority = "hihg";  // Typo! Compiles fine, breaks at runtime
+if priority == "high" { }  // Won't match, silent bug
+
+// ✅ Enum approach - compile-time safety
+let priority = Priority::Hihg;  // ERROR: no variant `Hihg`
+// Won't compile! Catches typo immediately
+```
+
+**Enums are exhaustive:**
+
+```rust
+match priority {
+    Priority::High => "🔴",
+    Priority::Medium => "🟡",
+    // Forgot Low? ❌ Compiler error: "non-exhaustive patterns"
+}
+```
+
+Compiler **forces** you to handle all cases!
+
+#### The `#[derive(...)]` attributes
+
+```rust
+#[derive(Debug, Clone, PartialEq, Copy)]
+enum Priority {
+    High,
+    Medium,
+    Low,
+}
+```
+
+**What do these mean?**
+
+**`Debug`** - Enables printing for debugging:
+
+```rust
+let pri = Priority::High;
+println!("{:?}", pri);  // Output: High
+```
+
+Without `Debug`, this would fail!
+
+**`Clone`** - Enables creating copies:
+
+```rust
+let pri1 = Priority::High;
+let pri2 = pri1.clone();  // Explicit copy
+```
+
+**`PartialEq`** - Enables comparison:
+
+```rust
+if task.priority == Priority::High {
+    // This works because of PartialEq
+}
+```
+
+**`Copy`** - Enables implicit copying:
+
+```rust
+let pri1 = Priority::High;
+let pri2 = pri1;  // Automatically copied (not moved!)
+// pri1 still valid here ✅
+```
+
+**Why Copy is important:**
+
+```rust
+// Without Copy:
+let pri = Priority::High;
+some_function(pri);  // pri moved into function
+// pri no longer accessible here! ❌
+
+// With Copy:
+let pri = Priority::High;
+some_function(pri);  // pri copied into function
+// pri still valid here! ✅
+```
+
+**When can you use Copy?**
+
+Only for types that are "cheap to copy" (no heap allocation):
+
+✅ Numbers: `i32`, `u8`, `f64`  
+✅ Booleans: `bool`  
+✅ Simple enums: `Priority`  
+❌ Strings: `String` (heap-allocated)  
+❌ Vectors: `Vec<T>` (heap-allocated)  
+
+**Our Priority enum is 1 byte - perfect for Copy!**
+
+#### `impl` blocks - Adding methods to types
+
+```rust
+impl Priority {
+    fn order(&self) -> u8 {
+        match self {
+            Priority::High => 0,
+            Priority::Medium => 1,
+            Priority::Low => 2,
+        }
+    }
+
+    fn emoji(&self) -> ColoredString {
+        match self {
+            Priority::High => "🔴".red(),
+            Priority::Medium => "🟡".yellow(),
+            Priority::Low => "🟢".green(),
+        }
+    }
+}
+```
+
+**What's `&self`?**
+
+```rust
+fn emoji(&self) -> ColoredString
+//       ↑ "self" = the Priority value we're calling this on
+```
+
+**Usage:**
+
+```rust
+let pri = Priority::High;
+let icon = pri.emoji();  // "self" is `pri`
+//         ↑ calling method ON the value
+```
+
+**Why this is powerful:**
+
+```rust
+// Before (global function):
+fn priority_emoji(priority: &str) -> String {
+    match priority {
+        "high" => "🔴",
+        // ...
+    }
+}
+let icon = priority_emoji("high");  // Must pass string
+
+// After (method):
+impl Priority {
+    fn emoji(&self) -> ColoredString {
+        match self {
+            Priority::High => "🔴".red(),
+            // ...
+        }
+    }
+}
+let icon = Priority::High.emoji();  // Called ON the type
+```
+
+**Methods are "attached" to the type** - cleaner and more discoverable.
+
+#### Implementing Task methods
+
+```rust
+impl Task {
+    // Constructor - creates new Task
+    fn new(text: String, priority: Priority) -> Self {
+        Self {
+            text,
+            completed: false,  // Always starts incomplete
+            priority,
+        }
+    }
+
+    // Convert Task → string format for file
+    fn to_line(&self) -> String {
+        let checkbox = if self.completed { "[x]" } else { "[ ]" };
+        let pri_str = match self.priority {
+            Priority::High => " (high)",
+            Priority::Low => " (low)",
+            Priority::Medium => "",
+        };
+        format!("{}{} {}", checkbox, pri_str, self.text)
+    }
+
+    // Parse string → Task (returns Option because can fail)
+    fn from_line(line: &str) -> Option<Self> {
+        // ... parsing logic ...
+    }
+
+    // Mark as done
+    fn mark_done(&mut self) {
+        self.completed = true;
+    }
+
+    // Mark as pending
+    fn mark_undone(&mut self) {
+        self.completed = false;
+    }
+}
+```
+
+**Key patterns:**
+
+**`Self` vs `self`:**
+
+```rust
+fn new(text: String) -> Self {  // "Self" = Task type
+    Self { text, ... }           // Constructs Task instance
+}
+
+fn mark_done(&mut self) {       // "self" = this instance
+    self.completed = true;       // Modifies this instance
+}
+```
+
+**`&mut self` - Mutable reference:**
+
+```rust
+fn mark_done(&mut self) {
+//           ↑ need mut to modify
+    self.completed = true;
+}
+
+// Usage:
+let mut task = Task::new("Study".into(), Priority::High);
+task.mark_done();  // Modifies task
+```
+
+**Why `Option<Self>` for parsing?**
+
+```rust
+fn from_line(line: &str) -> Option<Self> {
+    // Parsing can fail if line is invalid
+    if line.is_empty() {
+        return None;  // Invalid - return nothing
+    }
+    
+    Some(Task {  // Valid - return Task wrapped in Some
+        text: "...".to_string(),
+        completed: false,
+        priority: Priority::Medium,
+    })
+}
+```
+
+**Using it:**
+
+```rust
+match Task::from_line("[ ] Task") {
+    Some(task) => println!("Parsed: {:?}", task),
+    None => println!("Invalid line"),
+}
+
+// Or with if let:
+if let Some(task) = Task::from_line("[ ] Task") {
+    println!("Got: {:?}", task);
+}
+```
+
+#### Centralized I/O with `load_tasks` and `save_tasks`
+
+**Before - I/O scattered everywhere:**
+
+```rust
+// In 'add' command
+let mut file = OpenOptions::new().append(true).open("todos.txt")?;
+writeln!(file, "[ ] (high) {}", task)?;
+
+// In 'done' command
+let content = fs::read_to_string("todos.txt")?;
+let mut lines: Vec<String> = content.lines().map(|l| l.to_string()).collect();
+// ... modify ...
+fs::write("todos.txt", lines.join("\n"))?;
+
+// In 'remove' command
+let content = fs::read_to_string("todos.txt")?;
+// ... same parsing again ...
+```
+
+**After - Centralized:**
+
+```rust
+fn load_tasks() -> Result<Vec<Task>, Box<dyn Error>> {
+    match fs::read_to_string("todos.txt") {
+        Ok(content) => {
+            let tasks: Vec<Task> = content
+                .lines()
+                .filter(|l| !l.trim().is_empty())
+                .filter_map(Task::from_line)  // Parsing in ONE place
+                .collect();
+            Ok(tasks)
+        }
+        Err(_) => Ok(Vec::new()),  // Missing file = empty list
+    }
+}
+
+fn save_tasks(tasks: &[Task]) -> Result<(), Box<dyn Error>> {
+    let lines: Vec<String> = tasks.iter().map(|t| t.to_line()).collect();
+    fs::write("todos.txt", lines.join("\n") + "\n")?;
+    Ok(())
+}
+```
+
+**Now every command:**
+
+```rust
+"done" => {
+    let mut tasks = load_tasks()?;  // Load
+    tasks[index].mark_done();       // Modify
+    save_tasks(&tasks)?;            // Save
+}
+```
+
+**Benefits:**
+
+✅ **Single source of truth** for parsing  
+✅ **Consistent error handling**  
+✅ **Easy to change format** (only edit 2 functions)  
+✅ **Ready for JSON/database** later  
+
+#### Understanding `.filter_map()`
+
+```rust
+content
+    .lines()                           // Iterator<Item = &str>
+    .filter(|l| !l.trim().is_empty())  // Remove empty lines
+    .filter_map(Task::from_line)       // Parse + filter in one step
+    .collect()
+```
+
+**What's `.filter_map()`?**
+
+It combines `.map()` and `.filter()`:
+
+```rust
+// Long way:
+.map(|line| Task::from_line(line))     // Vec<Option<Task>>
+.filter(|opt| opt.is_some())           // Remove None values
+.map(|opt| opt.unwrap())               // Unwrap Some(Task)
+
+// Short way:
+.filter_map(Task::from_line)           // Vec<Task> directly!
+```
+
+**How it works:**
+
+```rust
+fn filter_map<B, F>(self, f: F) -> FilterMap<Self, F>
+where
+    F: FnMut(Self::Item) -> Option<B>,
+//                          ↑ Function returns Option
+```
+
+- If function returns `Some(value)` → keep value
+- If function returns `None` → skip
+
+**Example:**
+
+```rust
+let lines = vec!["[ ] Task 1", "", "invalid", "[ ] Task 2"];
+
+let tasks: Vec<Task> = lines
+    .iter()
+    .filter_map(|line| Task::from_line(line))
+    .collect();
+
+// Result: vec![Task("Task 1"), Task("Task 2")]
+// Empty and invalid lines silently filtered out ✅
+```
+
+#### Function pointers vs closures
+
+```rust
+// ❌ Clippy warning:
+.filter_map(|line| Task::from_line(line))
+
+// ✅ Idiomatic:
+.filter_map(Task::from_line)
+```
+
+**Why is the second better?**
+
+**Closures have overhead:**
+
+```rust
+|line| Task::from_line(line)
+// Creates closure that:
+// 1. Captures environment (even if nothing to capture)
+// 2. Calls function
+// 3. Returns result
+```
+
+**Function pointers are direct:**
+
+```rust
+Task::from_line
+// Direct reference to function
+// No closure creation
+// Compiler can inline better
+```
+
+**When can you do this?**
+
+When signatures match exactly:
+
+```rust
+// Function signature:
+fn from_line(line: &str) -> Option<Task>
+
+// .filter_map expects:
+fn(Item) -> Option<B>
+
+// Perfect match! ✅
+```
+
+**When you CAN'T:**
+
+```rust
+// Need to transform:
+.map(|x| x + 1)  // Can't use function pointer
+
+// Need to capture:
+let prefix = "Task: ";
+.map(|x| format!("{}{}", prefix, x))  // Closure needed
+```
+
+#### Refactoring Strategy
+
+**Step-by-step approach:**
+
+1. ✅ Add structs/enums (doesn't break existing code)
+2. ✅ Add helper functions (`load_tasks`, `save_tasks`)
+3. ✅ Refactor one command at a time
+4. ✅ Test after each change
+5. ✅ Delete old code only when fully replaced
+
+**This incremental approach:**
+
+- Reduces risk of breaking everything
+- Allows testing at each step
+- Easy to roll back if needed
+- Teaches one concept at a time
+
+#### Command Refactoring Examples
+
+**Before/After: `add` command**
+
+```rust
+// Before (string manipulation):
+"add" => {
+    let task = &args[2];
+    
+    let line = match args.len() {
+        3 => format!("[ ] {}", task),
+        4 => {
+            let flag = args[3].as_str();
+            match flag {
+                "--high" => format!("[ ] (high) {}", task),
+                "--low" => format!("[ ] (low) {}", task),
+                _ => return Err("Invalid flag".into()),
+            }
+        }
+        _ => return Err("Usage: todo add <task> [--high | --low]".into()),
+    };
+    
+    let mut file = OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open("todos.txt")?;
+    
+    writeln!(file, "{}", line)?;
+    println!("{}", "✓ Task added".green());
+}
+
+// After (using Task):
+"add" => {
+    if args.len() < 3 {
+        return Err("Usage: todo add <task> [--high | --low]".into());
+    }
+
+    let text = args[2].clone();
+    
+    let priority = if args.len() >= 4 {
+        match args[3].as_str() {
+            "--high" => Priority::High,
+            "--medium" => Priority::Medium,
+            "--low" => Priority::Low,
+            _ => return Err(format!("Invalid flag '{}'", args[3]).into()),
+        }
+    } else {
+        Priority::Medium
+    };
+
+    let task = Task::new(text, priority);
+    
+    let mut tasks = load_tasks()?;
+    tasks.push(task);
+    save_tasks(&tasks)?;
+
+    println!("{}", "✓ Task added".green());
+}
+```
+
+**Improvements:**
+
+✅ **Type-safe priority** - `Priority::High` not `"high"`  
+✅ **No string formatting** - `Task::new()` handles it  
+✅ **Centralized I/O** - `load_tasks/save_tasks`  
+✅ **Clearer logic** - no nested string matching  
+
+**Before/After: `done` command**
+
+```rust
+// Before (string replacement):
+"done" => {
+    let number: usize = args[2].parse()?;
+    let content = fs::read_to_string("todos.txt")?;
+    
+    let mut lines: Vec<String> = content
+        .lines()
+        .filter(|l| !l.trim().is_empty())
+        .map(|l| l.to_string())
+        .collect();
+    
+    if number == 0 || number > lines.len() {
+        return Err("Invalid task number".into());
+    }
+    
+    let index = number - 1;
+    
+    if lines[index].contains("[x]") {
+        return Err("Task is already marked as completed".into());
+    }
+    
+    lines[index] = lines[index].replace("[ ]", "[x]");
+    
+    fs::write("todos.txt", lines.join("\n") + "\n")?;
+    println!("{}", "✓ Task marked as completed".green());
+}
+
+// After (using Task):
+"done" => {
+    if args.len() < 3 {
+        return Err("Usage: todo done <number>".into());
+    }
+
+    let number: usize = args[2].parse()?;
+    let mut tasks = load_tasks()?;
+
+    if number == 0 || number > tasks.len() {
+        return Err("Invalid task number".into());
+    }
+
+    let index = number - 1;
+
+    if tasks[index].completed {
+        return Err("Task is already marked as completed".into());
+    }
+
+    tasks[index].mark_done();
+    save_tasks(&tasks)?;
+
+    println!("{}", "✓ Task marked as completed".green());
+}
+```
+
+**Improvements:**
+
+✅ **15 lines → 10 lines** (33% reduction)  
+✅ **Direct field check** - `tasks[index].completed`  
+✅ **Dedicated method** - `mark_done()`  
+✅ **No string manipulation**  
+✅ **Clearer intent**  
+
+#### Problems Encountered
+
+**Issue 1: Ownership error with `priority_filter`**
+
+**The bug:**
+
+```rust
+if let Some(pri) = priority_filter {
+//          ↑ MOVE happens here
+    tasks = tasks.into_iter().filter(|t| t.priority == pri).collect();
+}
+
+let title = match (status_filter, priority_filter) {
+//                                ↑ error: value moved
+}
+```
+
+**What happened:**
+
+1. `if let Some(pri)` **moves** the `Priority` out of the `Option`
+2. `priority_filter` becomes partially moved
+3. Can't use `priority_filter` in the `match` later
+
+**Solution: Derive `Copy`:**
+
+```rust
+#[derive(Debug, Clone, PartialEq, Copy)]  // ← Add Copy
+enum Priority {
+    High,
+    Medium,
+    Low,
+}
+```
+
+**Why Copy solves it:**
+
+```rust
+// Without Copy:
+if let Some(pri) = priority_filter {
+    // pri = moved Priority
+    // priority_filter = None
+}
+
+// With Copy:
+if let Some(pri) = priority_filter {
+    // pri = copied Priority
+    // priority_filter = still Some(Priority) ✅
+}
+```
+
+**Why Copy is safe here:**
+
+- `Priority` is 3 variants = 1 byte
+- No heap allocation
+- Trivial to copy
+- Idiomatically correct for small enums
+
+**Issue 2: Clippy warning on redundant closure**
+
+**The warning:**
+
+```rust
+.filter_map(|line| Task::from_line(line))
+//          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+//          warning: redundant closure
+```
+
+**The fix:**
+
+```rust
+// Before:
+.filter_map(|line| Task::from_line(line))
+
+// After:
+.filter_map(Task::from_line)
+```
+
+**When can you do this?**
+
+When closure signature matches function signature:
+
+```rust
+// Function:
+fn from_line(line: &str) -> Option<Task>
+
+// Closure in filter_map:
+|line: &str| -> Option<Task>
+
+// Perfect match! Use function directly ✅
+```
+
+#### Impact of Refactoring
+
+**Code metrics:**
+
+| Metric | Before | After | Change |
+|--------|--------|-------|--------|
+| Total lines | ~180 | ~115 | **-36%** |
+| `add` command | 30 lines | 20 lines | -33% |
+| `list` command | 90 lines | 60 lines | -33% |
+| `done` command | 25 lines | 15 lines | -40% |
+| `search` command | 35 lines | 20 lines | -43% |
+
+**36% less code with MORE features!**
+
+**Maintainability improvements:**
+
+```rust
+// Before - To add a "tags" field:
+// 1. Update add command (string formatting)
+// 2. Update display_task (parsing)
+// 3. Update extract_priority (parsing)
+// 4. Update list filters (parsing)
+// 5. Update search (parsing)
+// 6. Update done/undone (preserve tags)
+// 7. Update remove (preserve tags)
+// = TOUCH 7+ PLACES
+
+// After - To add a "tags" field:
+struct Task {
+    text: String,
+    completed: bool,
+    priority: Priority,
+    tags: Vec<String>,  // ← Add here
+}
+
+// Update:
+// 1. Task::new() - add parameter
+// 2. Task::to_line() - serialize tags
+// 3. Task::from_line() - parse tags
+// = TOUCH 3 FUNCTIONS
+// All commands automatically work! ✅
+```
+
+**Extensibility unlocked:**
+
+Now trivial to add:
+
+✅ Timestamps:
+
+```rust
+struct Task {
+    // ...
+    created_at: DateTime,
+    completed_at: Option<DateTime>,
+}
+```
+
+✅ Tags:
+
+```rust
+struct Task {
+    // ...
+    tags: Vec<String>,
+}
+```
+
+✅ Subtasks:
+
+```rust
+struct Task {
+    // ...
+    subtasks: Vec<Task>,
+}
+```
+
+✅ JSON serialization (next version):
+
+```rust
+#[derive(Serialize, Deserialize)]  // One line!
+struct Task { /* ... */ }
+```
+
+**🔗 Resources:**
+
+- [Code v1.2.0](https://github.com/joaofelipegalvao/todo-cli/tree/v1.2.0)
+- [Full diff](https://github.com/joaofelipegalvao/todo-cli/compare/v1.1.0...v1.2.0)
+- [Rust Book - Structs](https://doc.rust-lang.org/book/ch05-00-structs.html)
+- [Rust Book - Enums](https://doc.rust-lang.org/book/ch06-00-enums.html)
+- [Rust Book - Methods](https://doc.rust-lang.org/book/ch05-03-method-syntax.html)
+
+---
+
 ## Concepts Learned
 
 ### File Manipulation
@@ -1953,7 +2839,7 @@ todo list --medium --sort
 - `colored` crate for cross-platform colors
 - `.dimmed()`, `.bold()`, `.strikethrough()` for formatting
 - Semantic colors (green = success, red = attention)
-- Color psychology ( <img src="../assets/icons/circle-high.svg" width="11" > red = urgent, <img src="../assets/icons/circle-medium.svg" width="11"> yellow = normal, <img src="../assets/icons/circle-low.svg" width="11"> green = low)
+- Color psychology (🔴 red = urgent, 🟡 yellow = normal, 🟢 green = low)
 - Visual priority system with emojis
 - Visual hierarchy (dimmed numbers, highlighted content)
 - Multiple signals (color + icon + strikethrough) for accessibility
@@ -1979,6 +2865,22 @@ todo list --medium --sort
 - Clear separation: data parsing vs visual rendering
 - Mature CLI design without code duplication
 
+### Structs and Type Safety (v1.2.0+)
+
+- **Structs** - Custom data types grouping related data
+- **Enums** - Type-safe enumeration with exhaustive matching
+- **`impl` blocks** - Methods attached to types
+- **Derive macros** - Auto-implementing traits (`Debug`, `Clone`, `PartialEq`, `Copy`)
+- **`&self` vs `&mut self`** - Immutable vs mutable methods
+- **`Self` type** - Referring to the implementing type in methods
+- **`Option<T>`** - Representing optional/nullable values safely
+- **`.filter_map()`** - Combining map and filter operations
+- **Function pointers** - Using functions as values directly
+- **`Copy` trait** - When types can be copied implicitly
+- **Type-safe state** - Compiler-enforced correctness
+- **Centralized parsing** - Single source of truth for data format
+- **Method encapsulation** - Business logic on types
+
 ### Debug and Quality
 
 - Finding bugs through manual testing
@@ -1992,6 +2894,8 @@ todo list --medium --sort
 - Complexity analysis (Big-O) for performance decisions
 - YAGNI principle (You Aren't Gonna Need It) - don't add unnecessary complexity
 - Opt-in complexity - complex features are optional
+- Incremental migration - refactor step by step
+- Clippy lints - Follow community best practices
 
 ### Lifetimes and Ownership
 
@@ -2000,6 +2904,9 @@ todo list --medium --sort
 - Difference between temporary reference and owned value
 - Compiler detecting invalid reference usage
 - `.copied()` to work with double references (`&&str`)
+- Move vs Copy semantics
+- Ownership transfer with `into_iter()`
+- Borrowing with `&` and `&mut`
 
 ---
 
@@ -2137,6 +3044,60 @@ todo list --medium  # Shows 75 tasks ✅
 
 ---
 
+### Why Refactor to Structs? (v1.2.0)
+
+**String-based approach problems:**
+
+- ❌ String parsing repeated everywhere
+- ❌ No compile-time validation (typos like `"hihg"`)
+- ❌ Hard to extend (adding fields requires touching many places)
+- ❌ Prone to bugs (format changes break everything)
+
+**Struct-based approach benefits:**
+
+- ✅ Type-safe - compiler catches mistakes
+- ✅ Self-documenting - clear what data contains
+- ✅ Extensible - add fields in one place
+- ✅ DRY - parsing logic centralized
+- ✅ Testable - can unit test methods
+
+**The transformation:**
+
+```rust
+// Before: Parsing everywhere
+if line.contains("(high)") { /* ... */ }
+
+// After: Type-safe field access
+if task.priority == Priority::High { /* ... */ }
+```
+
+**Lesson:** Start simple (strings), refactor to robust (structs) once you understand the domain.
+
+---
+
+### When to Use Enums vs Strings?
+
+**Use Enums when:**
+
+- ✅ Fixed set of values (priorities: High/Medium/Low)
+- ✅ Need compile-time validation
+- ✅ Want exhaustive matching
+- ✅ Values are fundamental to domain
+
+**Use Strings when:**
+
+- ✅ User-provided data (task text)
+- ✅ Open-ended values
+- ✅ Display purposes only
+- ✅ Simpler prototype phase
+
+**Our evolution:**
+
+- **v0.1-v1.1:** Strings for everything (learning)
+- **v1.2+:** Enums for priority, strings for task text (mature)
+
+---
+
 ## Conclusion
 
 This project taught me:
@@ -2147,7 +3108,38 @@ This project taught me:
 4. **Error handling** that's helpful, not frustrating
 5. **Visual design** that reduces cognitive load
 6. **Code organization** that scales without duplication
+7. **Type safety** - using the compiler to prevent bugs
+8. **Refactoring strategy** - evolve code without breaking it
 
 **Most importantly:** Learning is a process. Each version had bugs, inefficiencies, and room for improvement. That's expected and valuable.
 
+**Version milestones:**
+
+- **v0.1-v0.5:** Basic functionality (make it work)
+- **v0.6-v0.9:** Polish and features (make it nice)
+- **v1.0-v1.1:** Professional quality (make it complete)
+- **v1.2+:** Type safety and architecture (make it right)
+
 **The journey is the lesson.** 🦀
+
+---
+
+## Next Steps
+
+**Potential future versions:**
+
+- **v1.3:** JSON serialization with `serde`
+- **v1.4:** Due dates and reminders
+- **v1.5:** Tags system
+- **v1.6:** Subtasks/nested tasks
+- **v1.7:** Multiple todo files (projects)
+- **v2.0:** TUI (Terminal User Interface) with `ratatui`
+
+**Each version would teach:**
+
+- New Rust concepts
+- Different design patterns
+- Real-world trade-offs
+- Professional practices
+
+**Stay curious, keep building!** 🚀
