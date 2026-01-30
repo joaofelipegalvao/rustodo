@@ -1,0 +1,27 @@
+[
+  {
+    "text": "Review pull requests",
+    "completed": false,
+    "priority": "High"
+  },
+  {
+    "text": "Write documentation",
+    "completed": false,
+    "priority": "Medium"
+  },
+  {
+    "text": "Team meeting at 3pm",
+    "completed": false,
+    "priority": "High"
+  },
+  {
+    "text": "Refactor old code",
+    "completed": false,
+    "priority": "Low"
+  },
+  {
+    "text": "Estudar Rust",
+    "completed": false,
+    "priority": "Medium"
+  }
+]

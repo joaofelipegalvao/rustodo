@@ -11,11 +11,48 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Tags/categories (`#work`, `#home`)
 - Edit command
-- Due dates
+- Due dates with `chrono`
 - Sort by date (`--sort date`)
-- JSON export with `serde`
-- Unit tests
+- Recurring tasks
 - Subtasks/nested tasks
+- Export/import commands
+- Unit tests
+- TUI (Terminal User Interface)
+
+## [1.3.0] - 2026-01-30
+
+### Added
+
+- JSON serialization using `serde` and `serde_json`
+- Automatic serialization/deserialization with derive macros
+- `#[derive(Serialize, Deserialize)]` on `Task` and `Priority`
+- Pretty-printed JSON output with `to_string_pretty()`
+- Automatic type validation and descriptive error messages
+- Universal format support (JSON as standard)
+
+### Changed
+
+- **BREAKING CHANGE:** File format migrated from custom text (`todos.txt`) to JSON (`todos.json`)
+- `load_tasks()`: Replaced manual parsing with `serde_json::from_str()` (12 lines → 3 lines)
+- `save_tasks()`: Replaced manual formatting with `serde_json::to_string_pretty()` (4 lines → 2 lines)
+- Storage file: `todos.txt` → `todos.json`
+- `clear` command: Updated to delete `todos.json` instead of `todos.txt`
+
+### Removed
+
+- `Task::to_line()` method - replaced by automatic serialization (12 lines deleted)
+- `Task::from_line()` method - replaced by automatic deserialization (25 lines deleted)
+- All custom text parsing logic (37 lines total)
+
+### Technical Details
+
+- **91% code reduction** in I/O operations (53 lines → 5 lines)
+- Serde generates 100+ lines of optimized serialization code automatically
+- Format-agnostic design allows easy migration to TOML, YAML, or binary formats
+- Extensibility: Adding new fields now requires only 1 line (struct field) instead of 30+ lines (parser updates)
+- Better error messages: "missing field `priority` at line 4 column 3" vs generic parsing errors
+- Git-friendly: JSON diffs clearly show what changed
+- Tooling support: Can use `jq`, JSON validators, formatters, etc.
 
 ## [1.2.0] - 2026-01-29
 
@@ -189,7 +226,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Pattern matching for subcommands
 - Error handling with `?` operator
 
-[Unreleased]: https://github.com/joaofelipegalvao/todo-cli/compare/v1.2.0...HEAD
+[Unreleased]: https://github.com/joaofelipegalvao/todo-cli/compare/v1.3.0...HEAD
+[1.3.0]: https://github.com/joaofelipegalvao/todo-cli/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/joaofelipegalvao/todo-cli/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/joaofelipegalvao/todo-cli/compare/v1.0.1...v1.1.0
 [1.0.1]: https://github.com/joaofelipegalvao/todo-cli/compare/v1.0.0...v1.0.1

@@ -86,11 +86,11 @@ This project was developed as a Rust learning exercise, documenting each increme
 - Advanced filters and search
 - Sorting by priority
 - Optimized pipeline architecture
-- **Type-safe architecture with structs/enums**
+- Type-safe architecture with structs/enums
+- JSON serialization with `serde`
 
 ### Planned
 
-- JSON serialization with `serde`
 - Tags/categories (`#work`, `#home`)
 - Edit command
 - Due dates

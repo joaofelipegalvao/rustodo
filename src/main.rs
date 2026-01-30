@@ -1,6 +1,7 @@
 use std::{env, error::Error, fs, process};
 
 use colored::{ColoredString, Colorize};
+use serde::{Deserialize, Serialize};
 
 fn main() {
     if let Err(e) = run() {
@@ -9,14 +10,14 @@ fn main() {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 struct Task {
     text: String,
     completed: bool,
     priority: Priority,
 }
 
-#[derive(Debug, Clone, PartialEq, Copy)]
+#[derive(Debug, Clone, PartialEq, Copy, Serialize, Deserialize)]
 enum Priority {
     High,
     Medium,
@@ -39,51 +40,6 @@ impl Task {
     fn mark_undone(&mut self) {
         self.completed = false;
     }
-
-    fn to_line(&self) -> String {
-        let checkbox = if self.completed { "[x]" } else { "[ ]" };
-        let priority_str = match self.priority {
-            Priority::High => "(high)",
-            Priority::Medium => "",
-            Priority::Low => "(low)",
-        };
-
-        if priority_str.is_empty() {
-            format!("{} {}", checkbox, self.text)
-        } else {
-            format!("{} {} {}", checkbox, priority_str, self.text)
-        }
-    }
-
-    fn from_line(line: &str) -> Option<Self> {
-        let completed = line.contains("[x]");
-
-        let without_checkbox = line
-            .replace("[ ]", "")
-            .replace("[x]", "")
-            .trim()
-            .to_string();
-
-        let (priority, text) = if without_checkbox.starts_with("(high)") {
-            (
-                Priority::High,
-                without_checkbox.replace("(high)", "").trim().to_string(),
-            )
-        } else if without_checkbox.starts_with("(low)") {
-            (
-                Priority::Low,
-                without_checkbox.replace("(low)", "").trim().to_string(),
-            )
-        } else {
-            (Priority::Medium, without_checkbox)
-        };
-
-        Some(Task {
-            text,
-            completed,
-            priority,
-        })
-    }
 }
 
 impl Priority {
@@ -105,13 +61,9 @@ impl Priority {
 }
 
 fn load_tasks() -> Result<Vec<Task>, Box<dyn Error>> {
-    match fs::read_to_string("todos.txt") {
+    match fs::read_to_string("todos.json") {
         Ok(content) => {
-            let tasks: Vec<Task> = content
-                .lines()
-                .filter(|l| !l.trim().is_empty())
-                .filter_map(Task::from_line)
-                .collect();
+            let tasks: Vec<Task> = serde_json::from_str(&content)?;
             Ok(tasks)
         }
         Err(_) => Ok(Vec::new()),
@@ -119,8 +71,8 @@ fn load_tasks() -> Result<Vec<Task>, Box<dyn Error>> {
 }
 
 fn save_tasks(tasks: &[Task]) -> Result<(), Box<dyn Error>> {
-    let lines: Vec<String> = tasks.iter().map(|t| t.to_line()).collect();
-    fs::write("todos.txt", lines.join("\n") + "\n")?;
+    let json = serde_json::to_string_pretty(tasks)?;
+    fs::write("todos.json", json)?;
     Ok(())
 }
 
@@ -435,8 +387,8 @@ fn run() -> Result<(), Box<dyn Error>> {
         }
 
         "clear" => {
-            if fs::metadata("todos.txt").is_ok() {
-                fs::remove_file("todos.txt")?;
+            if fs::metadata("todos.json").is_ok() {
+                fs::remove_file("todos.json")?;
                 println!("{}", "✓ All tasks have been removed".red().bold());
             } else {
                 println!("No tasks to remove");
