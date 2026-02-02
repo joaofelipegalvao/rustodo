@@ -3442,6 +3442,779 @@ struct Task {
 
 ---
 
+### v1.4.0 - Tags System
+
+**🎯 Goal:** Add categorization system with tags and fix critical numbering bug
+
+**📦 What We're Adding:**
+
+**Tags for task organization:**
+
+```bash
+# Before - no categorization:
+todo add "Study Rust" --high
+todo add "Fix bug" --high
+# How to separate work from personal? No way!
+
+# After - with tags:
+todo add "Study Rust" --high --tag learning --tag programming
+todo add "Fix bug" --high --tag work --tag urgent
+todo list --tag work  # Show only work tasks
+```
+
+**Why tags matter:**
+
+✅ **Categorization** - Group tasks by project, context, etc.  
+✅ **Flexible filtering** - Multiple tags per task  
+✅ **Easy to add** - Thanks to JSON/serde  
+✅ **Visual feedback** - Tags shown in list  
+✅ **Discovery** - `tags` command shows all tags  
+
+**🧠 Key Concepts:**
+
+#### Adding a field to existing struct
+
+**This is where JSON/serde shines!**
+
+```rust
+// Before (v1.3.0):
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct Task {
+    text: String,
+    completed: bool,
+    priority: Priority,
+}
+
+// After (v1.4.0):
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct Task {
+    text: String,
+    completed: bool,
+    priority: Priority,
+    tags: Vec<String>,  // ← Add ONE line
+}
+```
+
+**That's it!** Serde handles everything automatically.
+
+**What happens:**
+
+1. **Serialization** - Tasks now include tags in JSON:
+
+```json
+{
+  "text": "Study Rust",
+  "completed": false,
+  "priority": "High",
+  "tags": ["learning", "programming"]
+}
+```
+
+1. **Deserialization** - Serde parses tags automatically
+2. **Backward compatibility** - Old tasks without tags? They fail to load!
+
+**Handling backward compatibility:**
+
+```rust
+// Problem: Old JSON doesn't have "tags" field
+{
+  "text": "Old task",
+  "completed": false,
+  "priority": "High"
+  // Missing "tags"!
+}
+
+// Serde error: "missing field `tags`"
+```
+
+**Solution: Use `#[serde(default)]`:**
+
+```rust
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct Task {
+    text: String,
+    completed: bool,
+    priority: Priority,
+    #[serde(default)]  // ← Use Vec::default() if missing
+    tags: Vec<String>,
+}
+```
+
+**Now:**
+
+- New tasks: `"tags": ["work"]` ✅
+- Old tasks: Missing field → `tags: vec![]` ✅
+
+**This is graceful degradation!**
+
+#### `Vec<String>` for multiple values
+
+**Why `Vec<String>` instead of single `String`?**
+
+```rust
+// ❌ Single tag - limited
+tags: String  // Can only have one tag
+
+// ✅ Multiple tags - flexible
+tags: Vec<String>  // Can have many tags
+```
+
+**Usage:**
+
+```rust
+let task = Task {
+    text: "Study Rust".to_string(),
+    completed: false,
+    priority: Priority::High,
+    tags: vec!["learning".to_string(), "programming".to_string()],
+};
+```
+
+**In JSON:**
+
+```json
+{
+  "tags": ["learning", "programming"]
+}
+```
+
+**Empty tags:**
+
+```json
+{
+  "tags": []
+}
+```
+
+**Serde handles all of this automatically!**
+
+#### Updating `Task::new()` signature
+
+**Before:**
+
+```rust
+fn new(text: String, priority: Priority) -> Self {
+    Task {
+        text,
+        completed: false,
+        priority,
+    }
+}
+```
+
+**After:**
+
+```rust
+fn new(text: String, priority: Priority, tags: Vec<String>) -> Self {
+    Task {
+        text,
+        completed: false,
+        priority,
+        tags,
+    }
+}
+```
+
+**Impact:**
+
+```rust
+// All calls to Task::new() must be updated:
+let task = Task::new(text, priority);  // ❌ Compile error
+
+let task = Task::new(text, priority, tags);  // ✅ Works
+```
+
+**This is why type safety is great:**
+
+- Compiler catches every place that needs updating
+- Can't forget to handle tags
+- No runtime surprises
+
+#### Parsing multiple flags of same type
+
+**Challenge:** Allow `--tag` multiple times:
+
+```bash
+todo add "Study Rust" --tag learning --tag programming --tag rust
+```
+
+**Solution: Loop and collect:**
+
+```rust
+let mut tags: Vec<String> = Vec::new();
+let mut i = 3;  // Start after command and task text
+
+while i < args.len() {
+    match args[i].as_str() {
+        "--high" => priority = Priority::High,
+        "--medium" => priority = Priority::Medium,
+        "--low" => priority = Priority::Low,
+        "--tag" => {
+            if i + 1 >= args.len() {
+                return Err("--tag requires a value".into());
+            }
+            tags.push(args[i + 1].clone());  // Add tag to vector
+            i += 1;  // Skip the tag value
+        }
+        _ => return Err(format!("Invalid flag: {}", args[i]).into()),
+    }
+    i += 1;
+}
+```
+
+**How it works:**
+
+```bash
+todo add "Task" --tag work --tag urgent
+#                    ↓         ↓
+#                  i=3       i=5
+```
+
+**Step by step:**
+
+```rust
+// i = 3: args[3] = "--tag"
+"--tag" => {
+    // i + 1 = 4: args[4] = "work"
+    tags.push(args[4].clone());  // tags = ["work"]
+    i += 1;  // i = 4
+}
+i += 1;  // i = 5
+
+// i = 5: args[5] = "--tag"
+"--tag" => {
+    // i + 1 = 6: args[6] = "urgent"
+    tags.push(args[6].clone());  // tags = ["work", "urgent"]
+    i += 1;  // i = 6
+}
+i += 1;  // i = 7 (end of args)
+```
+
+**Result:** `tags = ["work", "urgent"]`
+
+**Why manual loop instead of iterator?**
+
+```rust
+// ❌ Hard with iterator (need lookahead for values)
+args.iter().for_each(|arg| { /* how to get next arg? */ })
+
+// ✅ Easy with manual loop (can increment i)
+while i < args.len() {
+    match args[i] {
+        "--tag" => {
+            tags.push(args[i + 1]);  // Easy access to next
+            i += 1;  // Skip it
+        }
+    }
+    i += 1;
+}
+```
+
+**This is a common pattern for flag parsing!**
+
+#### Filtering with `retain()`
+
+**Before (v1.3.0):** Creating new vectors
+
+```rust
+let mut valid_lines: Vec<&str> = all_lines
+    .iter()
+    .filter(|line| !line.is_empty())
+    .copied()
+    .collect();  // Creates NEW vector
+```
+
+**After (v1.4.0):** Modifying in-place
+
+```rust
+let mut indexed_tasks: Vec<(usize, &Task)> = /* ... */;
+
+// Filter in-place
+indexed_tasks.retain(|(_, t)| !t.completed);  // Removes items
+```
+
+**What's `.retain()`?**
+
+```rust
+vec.retain(|item| predicate);
+// Keeps only items where predicate returns true
+// Modifies vector IN PLACE
+```
+
+**Example:**
+
+```rust
+let mut numbers = vec![1, 2, 3, 4, 5];
+numbers.retain(|n| n % 2 == 0);  // Keep only even numbers
+// Result: vec![2, 4]
+```
+
+**Comparison:**
+
+```rust
+// filter() - creates NEW vector
+let evens: Vec<_> = numbers.iter().filter(|n| n % 2 == 0).copied().collect();
+
+// retain() - modifies EXISTING vector
+numbers.retain(|n| n % 2 == 0);
+```
+
+**Why use `retain()` here?**
+
+```rust
+// We need to apply MULTIPLE filters:
+indexed_tasks.retain(|(_, t)| !t.completed);  // Filter 1
+indexed_tasks.retain(|(_, t)| t.priority == pri);  // Filter 2
+indexed_tasks.retain(|(_, t)| t.tags.contains(tag));  // Filter 3
+
+// Each filter modifies the SAME vector
+// More efficient than creating new vectors each time
+```
+
+**Pattern in our code:**
+
+```rust
+let mut indexed_tasks: Vec<(usize, &Task)> = all_tasks
+    .iter()
+    .enumerate()
+    .map(|(i, task)| (i + 1, task))
+    .collect();
+
+// Apply filters sequentially
+match status_filter {
+    "pending" => indexed_tasks.retain(|(_, t)| !t.completed),
+    "done" => indexed_tasks.retain(|(_, t)| t.completed),
+    _ => {}
+}
+
+if let Some(pri) = priority_filter {
+    indexed_tasks.retain(|(_, t)| t.priority == pri);
+}
+
+if let Some(tag) = &tag_filter {
+    indexed_tasks.retain(|(_, t)| t.tags.contains(tag));
+}
+```
+
+**Benefits:**
+
+- ✅ Clear and readable
+- ✅ Memory efficient (no intermediate vectors)
+- ✅ Easy to add more filters
+
+#### The critical numbering bug
+
+**The Problem:**
+
+**Before fix:**
+
+```rust
+// Load all tasks
+let tasks = load_tasks()?;  // [Task1, Task2, Task3, Task4, Task5]
+
+// Filter to pending only
+let pending: Vec<&Task> = tasks
+    .iter()
+    .filter(|t| !t.completed)
+    .collect();
+// Result: [Task1, Task3, Task5]
+
+// Display with NEW numbering
+for (i, task) in pending.iter().enumerate() {
+    println!("{}. {}", i + 1, task.text);  // ❌ 1, 2, 3
+}
+// Output:
+// 1. Task1  (was index 0)
+// 2. Task3  (was index 2)
+// 3. Task5  (was index 4)
+```
+
+**User sees:**
+
+```bash
+$ todo list --pending
+1. Study Rust
+2. Fix bug
+3. Write docs
+
+$ todo done 2  # User wants to mark "Fix bug" as done
+```
+
+**What actually happens:**
+
+```rust
+// "2" maps to index 1 in the FULL array
+tasks[1].mark_done();  // Marks Task2, not Task3!
+```
+
+**Bug:** User marked the WRONG task! 🐛
+
+**The Solution: Preserve original indices**
+
+```rust
+// Create tuples with ORIGINAL indices
+let mut indexed_tasks: Vec<(usize, &Task)> = tasks
+    .iter()
+    .enumerate()
+    .map(|(i, task)| (i + 1, task))  // Store (number, task)
+    .collect();
+// Result: [(1, Task1), (2, Task2), (3, Task3), (4, Task4), (5, Task5)]
+
+// Filter while KEEPING original numbers
+indexed_tasks.retain(|(_, t)| !t.completed);
+// Result: [(1, Task1), (3, Task3), (5, Task5)]
+
+// Display with ORIGINAL numbers
+for (number, task) in &indexed_tasks {
+    println!("{}. {}", number, task.text);  // ✅ 1, 3, 5
+}
+```
+
+**User sees:**
+
+```bash
+$ todo list --pending
+1. Study Rust
+3. Fix bug      ← Original number preserved!
+5. Write docs
+
+$ todo done 3   # Correctly marks Task3
+```
+
+**Now it works!** ✅
+
+**Implementation details:**
+
+```rust
+// Updated display_lists signature:
+fn display_lists(tasks: &[(usize, &Task)], title: &str) {
+    //                    ↑ Tuple with (number, task)
+    
+    for (number, task) in tasks {
+        display_task(*number, task);  // Use original number
+    }
+}
+
+// Updated display_task signature:
+fn display_task(number: usize, task: &Task) {
+    //              ↑ Accept the original number
+    let number_fmt = format!("{}.", number);
+    // Display with original numbering
+}
+```
+
+**Why this is critical:**
+
+- ✅ Commands work on correct tasks
+- ✅ No user confusion
+- ✅ Filtering becomes safe
+- ✅ Professional UX
+
+**This bug would have made the app unusable with filters!**
+
+#### New command: `tags`
+
+**Purpose:** Show all tags in use with counts
+
+```rust
+"tags" => {
+    let tasks = load_tasks()?;
+
+    if tasks.is_empty() {
+        println!("No tasks");
+        return Ok(());
+    }
+
+    // Collect all unique tags
+    let mut all_tags: Vec<String> = Vec::new();
+    for task in &tasks {
+        for tag in &task.tags {
+            if !all_tags.contains(tag) {
+                all_tags.push(tag.clone());
+            }
+        }
+    }
+
+    if all_tags.is_empty() {
+        println!("No tags found");
+        return Ok(());
+    }
+
+    all_tags.sort();  // Alphabetical order
+
+    println!("\n Tags:\n");
+    for tag in &all_tags {
+        let count = tasks.iter().filter(|t| t.tags.contains(tag)).count();
+        println!(
+            "  {} ({} task{})",
+            tag.cyan(),
+            count,
+            if count == 1 { "" } else { "s" }  // Grammar!
+        );
+    }
+
+    println!()
+}
+```
+
+**How it works:**
+
+1. **Collect unique tags:**
+
+```rust
+let mut all_tags: Vec<String> = Vec::new();
+for task in &tasks {
+    for tag in &task.tags {
+        if !all_tags.contains(tag) {  // Deduplicate
+            all_tags.push(tag.clone());
+        }
+    }
+}
+```
+
+**Example:**
+
+```rust
+// Tasks:
+// Task1: tags = ["work", "urgent"]
+// Task2: tags = ["work", "learning"]
+// Task3: tags = ["urgent"]
+
+// Result: all_tags = ["work", "urgent", "learning"]
+```
+
+1. **Sort alphabetically:**
+
+```rust
+all_tags.sort();
+// Result: ["learning", "urgent", "work"]
+```
+
+1. **Count occurrences:**
+
+```rust
+for tag in &all_tags {
+    let count = tasks.iter().filter(|t| t.tags.contains(tag)).count();
+    // For "work": count = 2 (Task1, Task2)
+}
+```
+
+1. **Display with grammar:**
+
+```rust
+if count == 1 { "" } else { "s" }
+// "1 task" vs "2 tasks"
+```
+
+**Output:**
+
+```bash
+$ todo tags
+
+ Tags:
+
+  learning (1 task)
+  urgent (2 tasks)
+  work (2 tasks)
+```
+
+**Why this is useful:**
+
+- ✅ See all available tags
+- ✅ Find popular tags
+- ✅ Discover categorization patterns
+- ✅ Clean up unused tags
+
+#### Visual feedback for tags
+
+**Updated `display_task()`:**
+
+```rust
+fn display_task(number: usize, task: &Task) {
+    let number_fmt = format!("{}.", number);
+    let emoji = task.priority.emoji();
+
+    // Format tags
+    let tags_str = if task.tags.is_empty() {
+        String::new()  // No tags = empty string
+    } else {
+        format!(" [{}]", task.tags.join(", "))  // [tag1, tag2]
+    };
+
+    if task.completed {
+        println!(
+            "{} {} {} {}{}",
+            number_fmt.dimmed(),
+            emoji,
+            "✅".green(),
+            task.text.green().strikethrough(),
+            tags_str.dimmed()  // ← Dimmed for completed
+        );
+    } else {
+        println!(
+            "{} {} {} {}{}",
+            number_fmt.dimmed(),
+            emoji,
+            "⏳".yellow(),
+            task.text.bright_white(),
+            tags_str.cyan()  // ← Cyan for pending
+        );
+    }
+}
+```
+
+**Output examples:**
+
+```bash
+# Completed task with tags
+1. 🔴 ✅ Study Rust [learning, programming]
+                   ↑ dimmed
+
+# Pending task with tags
+2. 🟡 ⏳ Fix bug [work, urgent]
+                ↑ cyan (stands out)
+
+# Task without tags
+3. 🟢 ⏳ Buy coffee
+```
+
+**Design rationale:**
+
+- **Completed tasks:** Tags dimmed (less important)
+- **Pending tasks:** Tags cyan (visible, but not distracting)
+- **No tags:** Nothing shown (clean)
+
+**Why `join(", ")`?**
+
+```rust
+let tags = vec!["work", "urgent", "learning"];
+tags.join(", ")
+// Output: "work, urgent, learning"
+```
+
+**Alternative approaches:**
+
+```rust
+// ❌ Manual concatenation
+let mut result = String::new();
+for (i, tag) in tags.iter().enumerate() {
+    result.push_str(tag);
+    if i < tags.len() - 1 {
+        result.push_str(", ");
+    }
+}
+
+// ✅ Idiomatic
+tags.join(", ")
+```
+
+**Much cleaner!**
+
+#### Testing the complete feature
+
+```bash
+# Add tasks with tags
+$ cargo run -- add "Study Rust" --high --tag learning --tag programming
+✓ Task added
+
+$ cargo run -- add "Fix bug #123" --tag work --tag urgent
+✓ Task added
+
+$ cargo run -- add "Buy coffee" --low
+✓ Task added
+
+$ cargo run -- add "Write docs" --tag work --tag documentation
+✓ Task added
+
+# List all tasks
+$ cargo run -- list
+
+📋 Tasks:
+
+1. 🔴 ⏳ Study Rust [learning, programming]
+2. 🟡 ⏳ Fix bug #123 [work, urgent]
+3. 🟢 ⏳ Buy coffee
+4. 🟡 ⏳ Write docs [work, documentation]
+
+# Filter by tag
+$ cargo run -- list --tag work
+
+📋 Tasks:
+
+2. 🟡 ⏳ Fix bug #123 [work, urgent]
+4. 🟡 ⏳ Write docs [work, documentation]
+
+# Mark task as done (with correct numbering!)
+$ cargo run -- done 2
+✓ Task marked as completed
+
+# Search with tag filter
+$ cargo run -- search "bug" --tag work
+
+📋 Results for "bug":
+
+2. 🟡 ✅ Fix bug #123 [work, urgent]
+                      ↑ dimmed now
+
+# View all tags
+$ cargo run -- tags
+
+ Tags:
+
+  documentation (1 task)
+  learning (1 task)
+  programming (1 task)
+  urgent (1 task)
+  work (2 tasks)
+
+# Inspect JSON
+$ cat todos.json
+[
+  {
+    "text": "Study Rust",
+    "completed": false,
+    "priority": "High",
+    "tags": [
+      "learning",
+      "programming"
+    ]
+  },
+  {
+    "text": "Fix bug #123",
+    "completed": true,
+    "priority": "Medium",
+    "tags": [
+      "work",
+      "urgent"
+    ]
+  },
+  {
+    "text": "Buy coffee",
+    "completed": false,
+    "priority": "Low",
+    "tags": []
+  },
+  {
+    "text": "Write docs",
+    "completed": false,
+    "priority": "Medium",
+    "tags": [
+      "work",
+      "documentation"
+    ]
+  }
+]
+```
+
+**Everything works perfectly!** ✨
+
+**🔗 Resources:**
+
+- [Code v1.4.0](https://github.com/joaofelipegalvao/todo-cli/tree/v1.4.0)
+- [Full diff](https://github.com/joaofelipegalvao/todo-cli/compare/v1.3.0...v1.4.0)
+
+---
+
 ## Concepts Learned
 
 ### File Manipulation
@@ -3568,6 +4341,31 @@ struct Task {
 - **Format agnostic** - Same derives work for JSON, TOML, YAML, etc.
 - **`#[serde(default)]`** - Handle missing fields with defaults
 - **Descriptive errors** - Serde provides clear error messages with line/column info
+
+### Collections and Data Structures (v1.4.0+)
+
+- **`Vec<String>`** - Dynamic array of owned strings
+- **Multiple values** - Using vectors for repeatable data (tags)
+- **`.retain()`** - In-place filtering of vectors
+- **`.contains()`** - Check if vector contains element
+- **`.join()`** - Concatenate vector elements with separator
+- **Deduplication** - Removing duplicate elements from vector
+- **Manual loop vs iterator** - When to use while loop for complex parsing
+- **Index preservation** - Tuple pattern `(usize, &T)` to keep original indices
+- **Sequential filtering** - Applying multiple filters to same vector
+- **Backward compatibility** - Using `#[serde(default)]` for optional fields
+- **Graceful degradation** - Handling missing fields in old data
+
+### CLI Patterns and UX (v1.4.0+)
+
+- **Repeatable flags** - Parsing `--tag` multiple times
+- **Flag with values** - `--tag <value>` pattern
+- **Lookahead in parsing** - Accessing next argument (`args[i + 1]`)
+- **Grammar in output** - "1 task" vs "2 tasks" (singular/plural)
+- **Visual hierarchy** - Different colors for different states
+- **Critical bug patterns** - Index mismatches in filtered views
+- **Original numbering** - Preserving indices across filters
+- **Discovery commands** - `tags` command for exploration
 
 ### Debug and Quality
 
@@ -3920,6 +4718,7 @@ This project taught me:
 - **v1.0-v1.1:** Professional quality (make it complete)
 - **v1.2:** Type safety and architecture (make it right)
 - **v1.3:** Automatic serialization (make it maintainable)
+- **v1.4:** Tags and bug fixes (make it reliable)
 
 **Evolution of the codebase:**
 
@@ -3929,6 +4728,8 @@ v0.1: String matching everywhere
 v1.2: Type-safe structs and enums (36% reduction)
   ↓
 v1.3: Automatic JSON serialization (91% I/O reduction)
+  ↓
+v1.4: Extensible with tags (1 line = new feature)
   ↓
 Next: Even more powerful features with minimal code
 ```
@@ -3955,15 +4756,15 @@ Next: Even more powerful features with minimal code
 
 | Version | Feature | Rust Concepts |
 |---------|---------|---------------|
-| v1.4 | Tags | `HashSet`, `Vec<String>`, filtering |
-| v1.5 | Due dates | `chrono` crate, `DateTime<Utc>` |
-| v1.6 | Recurring | Pattern matching, date arithmetic |
-| v1.7 | Subtasks | Recursive data structures, `Box<T>` |
-| v1.8 | Projects | Multiple files, better organization |
-| v1.9 | Export | CLI arguments, file I/O variations |
-| v2.0 | TUI | Event loops, rendering, `ratatui` |
-| v2.1 | Sync | HTTP clients, `tokio`, async/await |
-| v2.2 | Web API | `axum`, REST APIs, JSON responses |
+| ~~v1.4~~ | ~~Tags~~ | ~~`Vec<String>`, `.retain()`, `#[serde(default)]`~~ ✅
+| v1.5 | Due dates | `chrono` crate, `DateTime<Utc>`, `Option<DateTime>` |
+| v1.6 | Recurring | Pattern matching, date arithmetic, custom types |
+| v1.7 | Subtasks | Recursive data structures, `Box<T>`, tree traversal |
+| v1.8 | Projects | Multiple files, better organization, workspace |
+| v1.9 | Export | CLI arguments, file I/O variations, CSV/JSON |
+| v2.0 | TUI | Event loops, rendering, `ratatui`, state management |
+| v2.1 | Sync | HTTP clients, `tokio`, async/await, `reqwest` |
+| v2.2 | Web API | `axum`, REST APIs, JSON responses, routing |
 
 **The beauty of JSON:**
 
@@ -3975,7 +4776,7 @@ struct Task {
     text: String,
     completed: bool,
     priority: Priority,
-    tags: Vec<String>,        // ← v1.4: Add ONE line
+    tags: Vec<String>,        // ✅ v1.4: DONE
     due_date: Option<String>, // ← v1.5: Add ONE line
     recurring: Option<Recurrence>, // ← v1.6: Add ONE line
     subtasks: Vec<Task>,      // ← v1.7: Add ONE line

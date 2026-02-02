@@ -1,4 +1,4 @@
-# Changelog
+## Changelog
 
 All notable changes to this project will be documented in this file.
 
@@ -9,7 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Planned
 
-- Tags/categories (`#work`, `#home`)
 - Edit command
 - Due dates with `chrono`
 - Sort by date (`--sort date`)
@@ -18,6 +17,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Export/import commands
 - Unit tests
 - TUI (Terminal User Interface)
+
+## [1.4.0] - 2026-01-31
+
+### Added
+
+- **Tags system** for task categorization
+- `tags` field in `Task` struct (`Vec<String>`)
+- `--tag <name>` flag for `add` command (can be used multiple times)
+- `--tag <name>` filter for `list` command
+- `--tag <name>` filter for `search` command
+- `tags` command to list all tags with task counts
+- Tag display in task output (colored cyan for pending, dimmed for completed)
+
+### Changed
+
+- `Task::new()` signature: now accepts `tags: Vec<String>` parameter
+- `display_task()`: Added tag display after task text
+- `list` command: Added tag filtering with `--tag` flag
+- `search` command: Added tag filtering with `--tag` flag
+- Task display format: shows tags as `[tag1, tag2]` after task text
+
+### Fixed
+
+- **Critical bug:** Task numbering now maintains original indices when filtering
+  - Before: Filtered lists showed renumbered tasks (1, 2, 3...), causing `done`/`undone`/`remove` to operate on wrong tasks
+  - After: Filtered lists show original task numbers, ensuring commands work correctly
+  - Changed `display_lists()` to accept `Vec<(usize, &Task)>` with original indices
+  - All filter operations now use `retain()` instead of `filter().collect()` to preserve indices
+
+### Technical Details
+
+- Tags are stored as `Vec<String>` in JSON
+- Empty tag vectors serialize to `[]` in JSON
+- Tag filtering is case-sensitive (matches exact tag names)
+- `tags` command deduplicates and sorts tags alphabetically
+- Original task numbering preserved through tuple `(usize, &Task)` pattern
+- Serde automatically handles tags serialization/deserialization
 
 ## [1.3.0] - 2026-01-30
 
@@ -53,6 +89,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Better error messages: "missing field `priority` at line 4 column 3" vs generic parsing errors
 - Git-friendly: JSON diffs clearly show what changed
 - Tooling support: Can use `jq`, JSON validators, formatters, etc.
+
+### Migration Notes
+
+Users need to migrate from `todos.txt` to `todos.json`:
+
+- Option 1: Start fresh (delete `todos.txt`, recreate tasks)
+- Option 2: Manual migration (convert old format to JSON)
+- Future: Migration script could be provided
 
 ## [1.2.0] - 2026-01-29
 
@@ -226,7 +270,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Pattern matching for subcommands
 - Error handling with `?` operator
 
-[Unreleased]: https://github.com/joaofelipegalvao/todo-cli/compare/v1.3.0...HEAD
+[Unreleased]: https://github.com/joaofelipegalvao/todo-cli/compare/v1.4.0...HEAD
+[1.4.0]: https://github.com/joaofelipegalvao/todo-cli/compare/v1.3.0...v1.4.0
 [1.3.0]: https://github.com/joaofelipegalvao/todo-cli/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/joaofelipegalvao/todo-cli/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/joaofelipegalvao/todo-cli/compare/v1.0.1...v1.1.0
@@ -242,4 +287,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [0.4.0]: https://github.com/joaofelipegalvao/todo-cli/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/joaofelipegalvao/todo-cli/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/joaofelipegalvao/todo-cli/compare/v0.1.0...v0.2.0
-[0.1.0]: https://github.com/joaofelipegalvao/todo-cli/releases/tag/v0.1.0
+[0.1.0]: <https://github.com/joaofelipegalvao/todo-cli/releases/tag/v0.1.0> Changelog

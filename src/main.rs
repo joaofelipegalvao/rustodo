@@ -15,6 +15,7 @@ struct Task {
     text: String,
     completed: bool,
     priority: Priority,
+    tags: Vec<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Copy, Serialize, Deserialize)]
@@ -25,11 +26,12 @@ enum Priority {
 }
 
 impl Task {
-    fn new(text: String, priority: Priority) -> Self {
+    fn new(text: String, priority: Priority, tags: Vec<String>) -> Self {
         Task {
             text,
             completed: false,
             priority,
+            tags,
         }
     }
 
@@ -80,33 +82,41 @@ fn display_task(number: usize, task: &Task) {
     let number_fmt = format!("{}.", number);
     let emoji = task.priority.emoji();
 
+    let tags_str = if task.tags.is_empty() {
+        String::new()
+    } else {
+        format!(" [{}]", task.tags.join(", "))
+    };
+
     if task.completed {
         println!(
-            "{} {} {} {}",
+            "{} {} {} {}{}",
             number_fmt.dimmed(),
             emoji,
             "󰄵".green(),
-            task.text.green().strikethrough()
+            task.text.green().strikethrough(),
+            tags_str.dimmed()
         );
     } else {
         println!(
-            "{} {} {} {}",
+            "{} {} {} {}{}",
             number_fmt.dimmed(),
             emoji,
             "".yellow(),
-            task.text.bright_white()
+            task.text.bright_white(),
+            tags_str.cyan()
         );
     }
 }
 
-fn display_lists(tasks: &[Task], title: &str) {
+fn display_lists(tasks: &[(usize, &Task)], title: &str) {
     println!("\n {}:\n", title);
 
     let mut completed = 0;
     let total = tasks.len();
 
-    for (i, task) in tasks.iter().enumerate() {
-        display_task(i + 1, task);
+    for (number, task) in tasks {
+        display_task(*number, task);
 
         if task.completed {
             completed += 1;
@@ -149,29 +159,40 @@ fn run() -> Result<(), Box<dyn Error>> {
     match command.as_str() {
         "add" => {
             if args.len() < 3 {
-                return Err("Usage: todo add <task> [--high|--medium|--low]".into());
+                return Err(
+                    "Usage: todo add <task> [--high|--medium|--low] [--tag <name>]...".into(),
+                );
             }
 
             let text = args[2].clone();
 
-            let priority = if args.len() >= 4 {
-                match args[3].as_str() {
-                    "--high" => Priority::High,
-                    "--medium" => Priority::Medium,
-                    "--low" => Priority::Low,
+            let mut priority = Priority::Medium;
+            let mut tags: Vec<String> = Vec::new();
+
+            let mut i = 3;
+
+            while i < args.len() {
+                match args[i].as_str() {
+                    "--high" => priority = Priority::High,
+                    "--medium" => priority = Priority::Medium,
+                    "--low" => priority = Priority::Low,
+                    "--tag" => {
+                        if i + 1 >= args.len() {
+                            return Err("--tag requires a value".into());
+                        }
+                        tags.push(args[i + 1].clone());
+                        i += 1;
+                    }
+
                     _ => {
-                        return Err(format!(
-                            "Invalid flag '{}'. Use --high, --medium or --low",
-                            args[3]
-                        )
-                        .into());
+                        return Err(format!("Invalid flag: {}", args[i]).into());
                     }
                 }
-            } else {
-                Priority::Medium
-            };
 
-            let task = Task::new(text, priority);
+                i += 1;
+            }
+
+            let task = Task::new(text, priority, tags);
 
             let mut tasks = load_tasks()?;
             tasks.push(task);
@@ -183,10 +204,13 @@ fn run() -> Result<(), Box<dyn Error>> {
         "list" => {
             let mut status_filter = "all";
             let mut priority_filter: Option<Priority> = None;
+            let mut tag_filter: Option<String> = None;
             let mut sort = false;
 
-            for arg in &args[2..] {
-                match arg.as_str() {
+            let mut i = 2;
+
+            while i < args.len() {
+                match args[i].as_str() {
                     "--pending" => {
                         if status_filter != "all" {
                             return Err("Use only one status filter (--pending or --done)".into());
@@ -229,36 +253,56 @@ fn run() -> Result<(), Box<dyn Error>> {
                         }
                         sort = true;
                     }
-                    _ => return Err(format!("Invalid filter: {}", arg).into()),
+                    "--tag" => {
+                        if tag_filter.is_some() {
+                            return Err("Use only one --tag filter".into());
+                        }
+
+                        if i + 1 >= args.len() {
+                            return Err("--tag requires a value".into());
+                        }
+                        tag_filter = Some(args[i + 1].clone());
+                        i += 1;
+                    }
+                    _ => return Err(format!("Invalid filter: {}", args[i]).into()),
                 }
+                i += 1;
             }
 
-            let mut tasks = load_tasks()?;
+            let all_tasks = load_tasks()?;
 
-            if tasks.is_empty() {
+            if all_tasks.is_empty() {
                 println!("No tasks");
                 return Ok(());
             }
 
-            // Filtrar por status
-            match status_filter {
-                "pending" => tasks.retain(|t| !t.completed),
-                "done" => tasks.retain(|t| t.completed),
-                _ => {}
-            };
+            let mut indexed_tasks: Vec<(usize, &Task)> = all_tasks
+                .iter()
+                .enumerate()
+                .map(|(i, task)| (i + 1, task))
+                .collect();
 
-            // Filtrar por prioridade
-            if let Some(pri) = priority_filter {
-                tasks.retain(|t| t.priority == pri);
+            match status_filter {
+                "pending" => indexed_tasks.retain(|(_, t)| !t.completed),
+                "done" => indexed_tasks.retain(|(_, t)| t.completed),
+                _ => {}
             }
 
-            if tasks.is_empty() {
+            if let Some(pri) = priority_filter {
+                indexed_tasks.retain(|(_, t)| t.priority == pri);
+            }
+
+            if let Some(tag) = &tag_filter {
+                indexed_tasks.retain(|(_, t)| t.tags.contains(tag));
+            }
+
+            if indexed_tasks.is_empty() {
                 println!("No tasks found with these filters");
                 return Ok(());
             }
 
             if sort {
-                tasks.sort_by(|a, b| a.priority.order().cmp(&b.priority.order()));
+                indexed_tasks.sort_by(|(_, a), (_, b)| a.priority.order().cmp(&b.priority.order()));
             }
 
             let title = match (status_filter, priority_filter) {
@@ -276,7 +320,7 @@ fn run() -> Result<(), Box<dyn Error>> {
                 _ => "Tasks",
             };
 
-            display_lists(&tasks, title);
+            display_lists(&indexed_tasks, title);
         }
 
         "done" => {
@@ -326,17 +370,37 @@ fn run() -> Result<(), Box<dyn Error>> {
 
             tasks[index].mark_undone();
 
-            save_tasks(&tasks)?; // ← CORRIGIDO (adicionado ?)
+            save_tasks(&tasks)?;
 
             println!("{}", "✓ Task unmarked".yellow());
         }
 
         "search" => {
             if args.len() < 3 {
-                return Err("Usage: todo search <term>".into());
+                return Err("Usage: todo search <term> [--tag <name>]".into());
             }
 
             let term = &args[2];
+            let mut tag_filter: Option<String> = None;
+
+            let mut i = 3;
+
+            while i < args.len() {
+                match args[i].as_str() {
+                    "--tag" => {
+                        if i + 1 >= args.len() {
+                            return Err("--tag requires a value".into());
+                        }
+
+                        tag_filter = Some(args[i + 1].clone());
+                        i += 1;
+                    }
+
+                    _ => return Err(format!("Invalid flag: {}", args[i]).into()),
+                }
+
+                i += 1;
+            }
 
             let tasks = load_tasks()?;
 
@@ -345,12 +409,16 @@ fn run() -> Result<(), Box<dyn Error>> {
                 return Ok(());
             }
 
-            let results: Vec<(usize, &Task)> = tasks
+            let mut results: Vec<(usize, &Task)> = tasks
                 .iter()
                 .enumerate()
                 .filter(|(_, task)| task.text.to_lowercase().contains(&term.to_lowercase()))
                 .map(|(i, task)| (i + 1, task))
                 .collect();
+
+            if let Some(tag) = &tag_filter {
+                results.retain(|(_, task)| task.tags.contains(tag));
+            }
 
             if results.is_empty() {
                 println!("No results for '{}'", term);
@@ -363,6 +431,44 @@ fn run() -> Result<(), Box<dyn Error>> {
 
                 println!("\n{} result(s) found\n", results.len());
             }
+        }
+
+        "tags" => {
+            let tasks = load_tasks()?;
+
+            if tasks.is_empty() {
+                println!("No tasks");
+                return Ok(());
+            }
+
+            let mut all_tags: Vec<String> = Vec::new();
+            for task in &tasks {
+                for tag in &task.tags {
+                    if !all_tags.contains(tag) {
+                        all_tags.push(tag.clone());
+                    }
+                }
+            }
+
+            if all_tags.is_empty() {
+                println!("No tags found");
+                return Ok(());
+            }
+
+            all_tags.sort();
+
+            println!("\n Tags:\n");
+            for tag in &all_tags {
+                let count = tasks.iter().filter(|t| t.tags.contains(tag)).count();
+                println!(
+                    "  {} ({} task{})",
+                    tag.cyan(),
+                    count,
+                    if count == 1 { "" } else { "s" }
+                );
+            }
+
+            println!()
         }
 
         "remove" => {
