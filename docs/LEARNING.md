@@ -5194,6 +5194,38 @@ $ cat todos.json
 - **Conditional text** - Different text based on logic
 - **Color-coded urgency** - Visual hierarchy with colors
 
+### CLI Frameworks and Parsing (v1.6.0+)
+
+- **`clap` crate** - Industry-standard CLI framework
+- **`#[derive(Parser)]`** - Derive macro for CLI parsing
+- **`#[derive(Subcommand)]`** - Enum as subcommands
+- **`#[derive(Args)]`** - Struct for command arguments
+- **`ValueEnum` trait** - Enums as CLI values
+- **`#[arg()]` attributes** - Configure argument behavior
+- **`#[command()]` attributes** - Configure command metadata
+- **Positional arguments** - Arguments without flags
+- **Optional arguments** - `Option<T>` for optional flags
+- **Repeatable arguments** - `Vec<T>` for multiple values
+- **`value_parser!` macro** - Custom type parsing
+- **`value_enum` attribute** - Enable ValueEnum
+- **`default_value_t` attribute** - Type-safe defaults
+- **`visible_alias` attribute** - Command shortcuts
+- **Auto-generated help** - From doc comments and attributes
+- **Automatic validation** - Type checking by clap
+
+### Type-Safe Design Patterns (v1.6.0+)
+
+- **Enums over booleans** - Mutually exclusive states
+- **Compile-time validation** - Invalid states impossible
+- **Exhaustive matching** - Compiler enforces all cases
+- **Zero runtime conflicts** - Type system prevents issues
+- **ValueEnum pattern** - Enums as CLI values
+- **Option pattern for filters** - `None` = filter disabled
+- **Separate Args structs** - Complex commands stay organized
+- **Doc comments as help** - Documentation generates UI
+- **Type-safe parsing** - `NaiveDate` from string automatically
+- **Professional error messages** - Clap generates context
+
 ### CLI Patterns and UX (v1.4.0+)
 
 - **Repeatable flags** - Parsing `--tag` multiple times
@@ -5546,6 +5578,7 @@ This project taught me:
 8. **Refactoring strategy** - evolve code without breaking it
 9. **Serialization** - leveraging ecosystem tools (serde)
 10. **Declarative programming** - derive macros doing the work
+11. **Professional CLI** - clap framework and industry patterns
 
 **Most importantly:** Learning is a process. Each version had bugs, inefficiencies, and room for improvement. That's expected and valuable.
 
@@ -5558,6 +5591,7 @@ This project taught me:
 - **v1.3:** Automatic serialization (make it maintainable)
 - **v1.4:** Tags and bug fixes (make it reliable)
 - **v1.5:** Due dates and professional display (make it practical)
+- **v1.6:** Clap framework and enums (make it professional)
 
 **Evolution of the codebase:**
 
@@ -5572,7 +5606,9 @@ v1.4: Extensible with tags (1 line = new feature)
   ↓
 v1.5: Due dates + tabular display (deadline tracking + professional UX)
   ↓
-Next: Even more powerful features with minimal code
+v1.6: Clap + ValueEnum (zero manual parsing, compile-time safety)
+  ↓
+Next: Ready for crates.io publication!
 ```
 
 **The journey is the lesson.** 🦀
@@ -5581,17 +5617,26 @@ Next: Even more powerful features with minimal code
 
 ## Next Steps
 
+**The CLI is now production-ready:**
+
+✅ Type-safe from command line to storage  
+✅ Professional help and error messages  
+✅ Zero manual parsing  
+✅ Industry-standard patterns  
+✅ Extensible architecture  
+
 **Potential future versions:**
 
-- **v1.4:** Tags system with filtering
-- **v1.5:** Due dates and timestamps (using `chrono`)
-- **v1.6:** Recurring tasks
-- **v1.7:** Subtasks/nested tasks
-- **v1.8:** Multiple projects/contexts
-- **v1.9:** Export/import commands
-- **v2.0:** TUI (Terminal User Interface) with `ratatui`
-- **v2.1:** Sync with cloud storage
-- **v2.2:** Web API for mobile apps
+- **v1.7:** Recurring tasks with chrono patterns
+- **v1.8:** Subtasks/nested tasks with `Box<Task>`
+- **v1.9:** Multiple projects/contexts
+- **v2.0:** TUI with `ratatui`
+- **v2.1:** Configuration file with `config` crate
+- **v2.2:** Shell completions (bash, zsh, fish)
+- **v2.3:** Export/import (CSV, JSON, Markdown)
+- **v2.4:** Sync with cloud storage
+- **v2.5:** Web API with `axum`
+- **v3.0:** Plugin system
 
 **Each version would teach:**
 
@@ -5599,17 +5644,21 @@ Next: Even more powerful features with minimal code
 |---------|---------|---------------|
 | ~~v1.4~~ | ~~Tags~~ | ~~`Vec<String>`, `.retain()`, `#[serde(default)]`~~ ✅
 | ~~v1.5~~ | ~~Due dates~~ | ~~`chrono`, `NaiveDate`, date arithmetic, sorting with `Option`~~ ✅
-| v1.6 | Recurring | Pattern matching, date arithmetic, custom types |
-| v1.7 | Subtasks | Recursive data structures, `Box<T>`, tree traversal |
-| v1.8 | Projects | Multiple files, better organization, workspace |
-| v1.9 | Export | CLI arguments, file I/O variations, CSV/JSON |
+| ~~v1.6~~ | ~~Clap CLI~~ | ~~`clap`, derive macros, `ValueEnum`, type-safe enums~~ ✅
+| v1.7 | Recurring | `chrono::Duration`, pattern matching, date intervals |
+| v1.8 | Subtasks | Recursive data structures, `Box<T>`, tree traversal |
+| v1.9 | Projects | Multiple files, workspace patterns, namespacing |
 | v2.0 | TUI | Event loops, rendering, `ratatui`, state management |
-| v2.1 | Sync | HTTP clients, `tokio`, async/await, `reqwest` |
-| v2.2 | Web API | `axum`, REST APIs, JSON responses, routing |
+| v2.1 | Config | TOML parsing, `config` crate, user preferences |
+| v2.2 | Completions | Shell scripting, clap completions, cross-platform |
+| v2.3 | Export | CSV, Markdown, format conversions |
+| v2.4 | Sync | HTTP clients, `tokio`, async/await, `reqwest` |
+| v2.5 | Web API | `axum`, REST APIs, JSON responses, routing |
+| v3.0 | Plugins | Dynamic loading, FFI, trait objects |
 
-**The beauty of JSON:**
+**The beauty of this architecture:**
 
-All these features are **trivial** to add now:
+All new features benefit from:
 
 ```rust
 #[derive(Serialize, Deserialize)]
@@ -5620,20 +5669,1083 @@ struct Task {
     tags: Vec<String>,        // ✅ v1.4: DONE
     due_date: Option<NaiveDate>, // ✅ v1.5: DONE
     created_at: NaiveDate,    // ✅ v1.5: DONE
-    recurring: Option<Recurrence>, // ← v1.6: Add ONE line
-    subtasks: Vec<Task>,      // ← v1.7: Add ONE line
-    project: String,          // ← v1.8: Add ONE line
+    recurring: Option<Recurrence>, // ← v1.7: Add ONE line
+    subtasks: Vec<Task>,      // ← v1.8: Add ONE line
+    project: String,          // ← v1.9: Add ONE line
 }
+
+// CLI automatically gets new filters:
+#[derive(ValueEnum)]
+enum RecurrenceFilter {
+    Daily,
+    Weekly,
+    Monthly,
+}
+
+// And clap generates everything!
 ```
 
-**No parser changes needed!** Serde handles everything automatically.
+**No parser changes needed!** Serde + Clap handle everything automatically.
 
-**This is why we refactored to structs + JSON:**
+**This is why we refactored:**
 
 Not just for now, but to **enable future growth** with minimal friction.
 
-**Stay curious, keep building!** 🚀
+**Ready for the real world!** 🚀
 
 ---
 
-**Built with ❤️ as a learning journey - Each version teaches something new**
+### v1.6.0 - Professional CLI with Clap
+
+**🎯 Goal:** Replace manual argument parsing with `clap` and migrate boolean flags to type-safe enums
+
+**📦 The Problem We're Solving:**
+
+**Before v1.6.0 - Manual parsing with conflicts:**
+
+```rust
+// Manual parsing:
+let args: Vec<String> = env::args().collect();
+if args.len() < 2 { return Err("Usage: ...".into()); }
+
+let command = &args[1];
+match command.as_str() {
+    "add" => { /* manual parsing of flags */ }
+    "list" => {
+        let mut status_filter = "all";
+        let mut priority_filter: Option<Priority> = None;
+        let mut overdue = false;
+        let mut due_soon = false;
+        let mut with_due = false;
+        let mut without_due = false;
+        
+        // Manual conflict checking:
+        if overdue || due_soon || with_due || without_due {
+            return Err("Use only one date filter".into());
+        }
+    }
+}
+```
+
+**Problems:**
+
+❌ Manual parsing (100+ lines just for flags)  
+❌ Boolean flags conflict manually (`conflicts_with_all`)  
+❌ Help text written by hand  
+❌ No type safety (strings everywhere)  
+❌ Hard to add new flags (lots of boilerplate)  
+❌ Error messages generic  
+
+**After v1.6.0 - Clap with enums:**
+
+```rust
+#[derive(Parser)]
+struct Cli {
+    #[command(subcommand)]
+    command: Commands,
+}
+
+#[derive(Subcommand)]
+enum Commands {
+    List {
+        #[arg(long, value_enum, default_value_t = StatusFilter::All)]
+        status: StatusFilter,
+        
+        #[arg(long, value_enum)]
+        due: Option<DueFilter>,
+        
+        // No conflicts - enums are mutually exclusive!
+    }
+}
+```
+
+**Benefits:**
+
+✅ **Zero manual parsing** - clap does everything  
+✅ **Zero conflicts** - enums are inherently exclusive  
+✅ **Auto-generated help** - beautiful and complete  
+✅ **Type-safe** - compiler validates everything  
+✅ **Easy to extend** - add enum value = done  
+✅ **Professional errors** - clap provides context  
+
+**🧠 Key Concepts:**
+
+#### What is Clap?
+
+**Clap** = **C**ommand **L**ine **A**rgument **P**arser
+
+The most popular CLI framework in Rust (used by cargo, ripgrep, bat, fd, etc.)
+
+**Why clap?**
+
+- ✅ Derive macros - write structs, get parser
+- ✅ Auto-generated help/version
+- ✅ Subcommands support
+- ✅ Type-safe parsing
+- ✅ Shell completions
+- ✅ Industry standard
+
+**Adding clap:**
+
+```toml
+[dependencies]
+clap = { version = "4.5", features = ["derive"] }
+```
+
+**Feature `derive`** enables `#[derive(Parser)]` macros.
+
+#### The derive macro pattern
+
+**Instead of manual parsing:**
+
+```rust
+// 50 lines of if/else/match
+```
+
+**Write declarative structs:**
+
+```rust
+#[derive(Parser)]
+struct Cli {
+    #[command(subcommand)]
+    command: Commands,
+}
+```
+
+**Clap generates:**
+
+- Parsing logic
+- Help text
+- Error messages
+- Validation
+- Type conversions
+
+**All automatically!**
+
+#### Main CLI structure
+
+```rust
+#[derive(Parser)]
+#[command(name = "todo-list")]
+#[command(author = "github.com/joaofelipegalvao")]
+#[command(version = "1.6.0")]
+#[command(about = "A modern, powerful task manager built with Rust")]
+#[command(after_help = "EXAMPLES:
+    todo add \"Task\" --priority high
+    todo list --status pending
+")]
+struct Cli {
+    #[command(subcommand)]
+    command: Commands,
+}
+```
+
+**Attributes explained:**
+
+| Attribute | Purpose |
+|-----------|---------|
+| `#[command(name)]` | Program name in help |
+| `#[command(author)]` | Shown in `--version` |
+| `#[command(version)]` | Version string |
+| `#[command(about)]` | Short description |
+| `#[command(after_help)]` | Examples after help |
+
+**Result:**
+
+```bash
+$ todo --help
+A modern, powerful task manager built with Rust
+
+Usage: todo-list <COMMAND>
+
+Commands:
+  add     Add a new task
+  list    List and filter tasks
+  ...
+
+EXAMPLES:
+    todo add "Task" --priority high
+    todo list --status pending
+```
+
+**All of this from struct attributes!**
+
+#### Subcommands with enum
+
+```rust
+#[derive(Subcommand)]
+enum Commands {
+    Add(AddArgs),
+    List { ... },
+    Done { id: usize },
+    Remove { id: usize },
+    Search { query: String },
+    Tags,
+    Clear,
+}
+```
+
+**Pattern:**
+
+- **Named fields** for simple args: `Done { id: usize }`
+- **Separate struct** for complex args: `Add(AddArgs)`
+
+**Why?**
+
+```rust
+// Simple command - inline:
+Done { id: usize }
+
+// Complex command - separate struct:
+Add(AddArgs)
+
+#[derive(Args)]
+struct AddArgs {
+    text: String,
+    #[arg(long)]
+    priority: Priority,
+    #[arg(long, short = 't')]
+    tag: Vec<String>,
+    // ... more args
+}
+```
+
+**Keeps `Commands` enum clean!**
+
+#### StatusFilter enum
+
+**The problem we had:**
+
+```rust
+// Boolean flags:
+let mut status_filter = "all";  // "all", "pending", or "done"
+
+// Manual conflict checking:
+if args.contains("--pending") && args.contains("--done") {
+    return Err("Can't use both --pending and --done".into());
+}
+```
+
+**The solution:**
+
+```rust
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
+enum StatusFilter {
+    /// Show only pending tasks
+    Pending,
+    /// Show only completed tasks
+    Done,
+    /// Show all tasks (default)
+    All,
+}
+```
+
+**What's `ValueEnum`?**
+
+A clap trait that makes enums work as CLI values:
+
+```bash
+todo list --status pending  # Parses to StatusFilter::Pending
+todo list --status done     # Parses to StatusFilter::Done
+todo list --status all      # Parses to StatusFilter::All
+```
+
+**Automatic:**
+
+- Parsing from string
+- Validation (rejects invalid values)
+- Help text generation
+- Case-insensitive matching
+
+**Usage in command:**
+
+```rust
+List {
+    #[arg(long, value_enum, default_value_t = StatusFilter::All)]
+    status: StatusFilter,
+}
+```
+
+**Attributes:**
+
+- `value_enum` - Use ValueEnum trait
+- `default_value_t` - Default if not provided
+
+**Helper method:**
+
+```rust
+impl Task {
+    fn matches_status(&self, status: StatusFilter) -> bool {
+        match status {
+            StatusFilter::Pending => !self.completed,
+            StatusFilter::Done => self.completed,
+            StatusFilter::All => true,
+        }
+    }
+}
+```
+
+**Why this is better:**
+
+```rust
+// Before:
+match status_filter {
+    "pending" => !self.completed,  // Could typo "pendingg"
+    "done" => self.completed,
+    _ => true,  // Catch-all needed
+}
+
+// After:
+match status {
+    StatusFilter::Pending => !self.completed,  // Typos = compile error
+    StatusFilter::Done => self.completed,
+    StatusFilter::All => true,  // Exhaustive - can't forget case
+}
+```
+
+**Compiler enforces correctness!**
+
+#### DueFilter enum
+
+**The old way - 4 boolean flags:**
+
+```rust
+let mut overdue = false;
+let mut due_soon = false;
+let mut with_due = false;
+let mut without_due = false;
+
+// Manual mutual exclusion:
+if overdue || due_soon || with_due || without_due {
+    return Err("Use only one date filter".into());
+}
+
+if overdue {
+    indexed_tasks.retain(|(_, t)| t.is_overdue());
+}
+if due_soon {
+    indexed_tasks.retain(|(_, t)| t.is_due_soon(7));
+}
+// ... etc
+```
+
+**The new way - 1 enum:**
+
+```rust
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
+enum DueFilter {
+    /// Tasks past their due date
+    Overdue,
+    /// Tasks due in the next 7 days
+    Soon,
+    /// Tasks with any due date set
+    WithDue,
+    /// Tasks without a due date
+    NoDue,
+}
+```
+
+**Usage:**
+
+```rust
+List {
+    #[arg(long, value_enum)]
+    due: Option<DueFilter>,  // None = no filter
+}
+```
+
+**CLI:**
+
+```bash
+todo list --due overdue
+todo list --due soon
+todo list --due with-due
+todo list --due no-due
+```
+
+**Helper method:**
+
+```rust
+impl Task {
+    fn matches_due_filter(&self, filter: DueFilter) -> bool {
+        match filter {
+            DueFilter::Overdue => self.is_overdue(),
+            DueFilter::Soon => self.is_due_soon(7),
+            DueFilter::WithDue => self.due_date.is_some(),
+            DueFilter::NoDue => self.due_date.is_none(),
+        }
+    }
+}
+```
+
+**Filtering logic:**
+
+```rust
+if let Some(due_filter) = due {
+    indexed_tasks.retain(|(_, t)| t.matches_due_filter(due_filter));
+}
+```
+
+**Benefits:**
+
+| Aspect | 4 Booleans | 1 Enum |
+|--------|------------|--------|
+| Conflicts | Manual checking | Automatic (Option) |
+| Validation | Runtime | Compile-time |
+| Adding filter | +1 bool + conflict check | +1 enum variant |
+| Help text | 4 separate flags | 1 organized group |
+| Type safety | Can set multiple true | Impossible |
+
+**Code reduction: 15 lines → 3 lines**
+
+#### SortBy enum
+
+**Before - string matching:**
+
+```rust
+let mut sort_by = "none";
+
+if args.contains("--sort") {
+    let idx = args.iter().position(|a| a == "--sort").unwrap();
+    if idx + 1 < args.len() {
+        sort_by = match args[idx + 1].as_str() {
+            "priority" => "priority",
+            "due" => "due",
+            "created" => "created",
+            _ => return Err("Invalid sort field".into()),
+        };
+    }
+}
+
+match sort_by {
+    "priority" => { /* sort */ }
+    "due" => { /* sort */ }
+    "created" => { /* sort */ }
+    _ => {}
+}
+```
+
+**After - enum:**
+
+```rust
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
+enum SortBy {
+    /// Sort by priority (High → Medium → Low)
+    Priority,
+    /// Sort by due date (earliest first)
+    Due,
+    /// Sort by creation date (oldest first)
+    Created,
+}
+```
+
+**Usage:**
+
+```rust
+List {
+    #[arg(long, short = 's', value_enum)]
+    sort: Option<SortBy>,
+}
+```
+
+**CLI:**
+
+```bash
+todo list --sort priority
+todo list --sort due
+todo list --sort created
+todo list -s priority  # short form
+```
+
+**Sorting logic:**
+
+```rust
+if let Some(sort_by) = sort {
+    match sort_by {
+        SortBy::Priority => {
+            indexed_tasks.sort_by(|(_, a), (_, b)| 
+                a.priority.order().cmp(&b.priority.order()));
+        }
+        SortBy::Due => {
+            indexed_tasks.sort_by(|(_, a), (_, b)| 
+                match (a.due_date, b.due_date) {
+                    (Some(date_a), Some(date_b)) => date_a.cmp(&date_b),
+                    (Some(_), None) => std::cmp::Ordering::Less,
+                    (None, Some(_)) => std::cmp::Ordering::Greater,
+                    (None, None) => std::cmp::Ordering::Equal,
+                });
+        }
+        SortBy::Created => {
+            indexed_tasks.sort_by(|(_, a), (_, b)| 
+                a.created_at.cmp(&b.created_at));
+        }
+    }
+}
+```
+
+**Clean and exhaustive!**
+
+#### Priority with ValueEnum
+
+**Updated Priority enum:**
+
+```rust
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, ValueEnum)]
+#[serde(rename_all = "lowercase")]
+enum Priority {
+    /// High priority - urgent and important tasks
+    High,
+    /// Medium priority - default for most tasks
+    Medium,
+    /// Low priority - nice to have, not urgent
+    Low,
+}
+```
+
+**New trait: `ValueEnum`**
+
+Enables using Priority as a CLI value:
+
+```bash
+todo add "Task" --priority high
+todo add "Task" --priority medium
+todo add "Task" --priority low
+```
+
+**In JSON (lowercase thanks to serde):**
+
+```json
+{
+  "priority": "high"
+}
+```
+
+**In CLI help:**
+
+```
+--priority <PRIORITY>
+    Task priority level
+    
+    Possible values:
+    - high:   High priority - urgent and important tasks
+    - medium: Medium priority - default for most tasks
+    - low:    Low priority - nice to have, not urgent
+```
+
+**Doc comments become help text!**
+
+#### AddArgs structure
+
+**Dedicated struct for complex command:**
+
+```rust
+#[derive(Args)]
+struct AddArgs {
+    /// Task description
+    #[arg(value_name = "DESCRIPTION")]
+    text: String,
+
+    /// Task priority level
+    #[arg(long, value_enum, default_value_t = Priority::Medium)]
+    priority: Priority,
+
+    /// Add tags (can be repeated: -t work -t urgent)
+    #[arg(long, short = 't', value_name = "TAG")]
+    tag: Vec<String>,
+
+    /// Due date in format YYYY-MM-DD
+    #[arg(long, value_name = "DATE", value_parser = clap::value_parser!(NaiveDate))]
+    due: Option<NaiveDate>,
+}
+```
+
+**Attributes explained:**
+
+**`text` field:**
+
+```rust
+#[arg(value_name = "DESCRIPTION")]
+text: String,
+```
+
+- Positional argument (no `--` flag)
+- Required (not `Option`)
+- `value_name` for help: `todo add <DESCRIPTION>`
+
+**`priority` field:**
+
+```rust
+#[arg(long, value_enum, default_value_t = Priority::Medium)]
+priority: Priority,
+```
+
+- `long` - uses `--priority`
+- `value_enum` - use ValueEnum trait
+- `default_value_t` - default if not provided
+
+**`tag` field:**
+
+```rust
+#[arg(long, short = 't', value_name = "TAG")]
+tag: Vec<String>,
+```
+
+- `long` - `--tag`
+- `short = 't'` - also accepts `-t`
+- `Vec<String>` - can repeat: `-t work -t urgent`
+
+**`due` field:**
+
+```rust
+#[arg(long, value_name = "DATE", value_parser = clap::value_parser!(NaiveDate))]
+due: Option<NaiveDate>,
+```
+
+- `value_parser!(NaiveDate)` - **THIS IS MAGIC**
+- Clap automatically parses string → NaiveDate
+- Returns helpful error if invalid format
+
+**Example usage:**
+
+```bash
+todo add "Deploy to production" \
+    --priority high \
+    --tag work \
+    --tag deployment \
+    --tag urgent \
+    --due 2026-02-15
+```
+
+**Parsed into:**
+
+```rust
+AddArgs {
+    text: "Deploy to production".to_string(),
+    priority: Priority::High,
+    tag: vec!["work".to_string(), "deployment".to_string(), "urgent".to_string()],
+    due: Some(NaiveDate::from_ymd_opt(2026, 2, 15).unwrap()),
+}
+```
+
+**All automatic!**
+
+#### Automatic NaiveDate parsing
+
+**Before v1.6.0 - manual:**
+
+```rust
+"--due" => {
+    if i + 1 >= args.len() {
+        return Err("--due requires a date in format YYYY-MM-DD".into());
+    }
+    
+    let date_str = &args[i + 1];
+    match NaiveDate::parse_from_str(date_str, "%Y-%m-%d") {
+        Ok(date) => due_date = Some(date),
+        Err(_) => {
+            return Err(format!(
+                "Invalid date format: '{}'. Use YYYY-MM-DD",
+                date_str
+            ).into());
+        }
+    }
+    
+    i += 1;
+}
+```
+
+**8 lines of code!**
+
+**After v1.6.0 - clap parser:**
+
+```rust
+#[arg(long, value_parser = clap::value_parser!(NaiveDate))]
+due: Option<NaiveDate>,
+```
+
+**1 line!**
+
+**How `value_parser!` works:**
+
+```rust
+value_parser!(NaiveDate)
+```
+
+Clap looks for `FromStr` implementation:
+
+```rust
+impl FromStr for NaiveDate {
+    type Err = ParseError;
+    
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        // chrono implements this
+    }
+}
+```
+
+**Clap automatically:**
+
+1. Takes CLI string
+2. Calls `NaiveDate::from_str()`
+3. Returns parsed value or error
+
+**Error handling:**
+
+```bash
+$ todo add "Task" --due 2026-13-50
+error: invalid value '2026-13-50' for '--due <DATE>': input is out of range
+
+$ todo add "Task" --due tomorrow
+error: invalid value 'tomorrow' for '--due <DATE>': premature end of input
+```
+
+**Professional errors for free!**
+
+#### Command aliases
+
+**Before - single command name:**
+
+```rust
+"add" => { /* ... */ }
+```
+
+**After - multiple names:**
+
+```rust
+#[command(visible_alias = "a")]
+Add(AddArgs),
+
+#[command(visible_alias = "ls")]
+List { /* ... */ },
+
+#[command(visible_aliases = ["rm", "delete"])]
+Remove { id: usize },
+```
+
+**Usage:**
+
+```bash
+# All equivalent:
+todo add "Task"
+todo a "Task"
+
+# All equivalent:
+todo list --status pending
+todo ls --status pending
+
+# All equivalent:
+todo remove 3
+todo rm 3
+todo delete 3
+```
+
+**Why `visible_alias`?**
+
+Shows in help:
+
+```
+Commands:
+  add      Add a new task [aliases: a]
+  list     List tasks [aliases: ls]
+  remove   Remove task [aliases: rm, delete]
+```
+
+**Improves UX without code duplication!**
+
+#### Auto-generated help
+
+**Command-level help:**
+
+```rust
+#[command(long_about = "Add a new task to your todo list\n\n\
+    Creates a new task with the specified text and optional metadata like priority,\n\
+    tags, and due date. Tasks are saved immediately to todos.json.")]
+Add(AddArgs),
+```
+
+**Result:**
+
+```bash
+$ todo add --help
+Add a new task to your todo list
+
+Creates a new task with the specified text and optional metadata like priority,
+tags, and due date. Tasks are saved immediately to todos.json.
+
+Usage: todo add <DESCRIPTION> [OPTIONS]
+
+Arguments:
+  <DESCRIPTION>  Task description
+
+Options:
+      --priority <PRIORITY>  Task priority level [default: medium]
+  -t, --tag <TAG>           Add tags (can be repeated)
+      --due <DATE>          Due date in format YYYY-MM-DD
+  -h, --help                Print help
+```
+
+**All from struct attributes!**
+
+**Top-level examples:**
+
+```rust
+#[command(after_help = "EXAMPLES:
+    # Add a high priority task
+    todo add \"Task\" --priority high
+
+    # List pending tasks
+    todo list --status pending
+")]
+struct Cli { /* ... */ }
+```
+
+**Shows after main help:**
+
+```bash
+$ todo --help
+...
+
+EXAMPLES:
+    # Add a high priority task
+    todo add "Task" --priority high
+
+    # List pending tasks
+    todo list --status pending
+```
+
+**No manual help writing needed!**
+
+#### Combining filters elegantly
+
+**Before - manual validation:**
+
+```rust
+// Can't combine these:
+if overdue && due_soon {
+    return Err("Can't use both --overdue and --due-soon".into());
+}
+if overdue && with_due {
+    return Err("Can't use both --overdue and --with-due".into());
+}
+// ... 6 more checks
+```
+
+**After - type system prevents it:**
+
+```rust
+List {
+    #[arg(long, value_enum)]
+    due: Option<DueFilter>,  // Can only be ONE value or None
+}
+```
+
+**Impossible to have conflicts:**
+
+```bash
+# Before - possible (needed manual check):
+todo list --overdue --due-soon  # ERROR (manual)
+
+# After - impossible (clap rejects):
+todo list --due overdue --due soon
+error: the argument '--due <DUE_FILTER>' cannot be used multiple times
+```
+
+**Combining different filter types:**
+
+```rust
+List {
+    status: StatusFilter,      // Always set (has default)
+    priority: Option<Priority>, // Optional filter
+    due: Option<DueFilter>,     // Optional filter
+    tag: Option<String>,        // Optional filter
+    sort: Option<SortBy>,       // Optional sorting
+}
+```
+
+**All can be combined:**
+
+```bash
+todo list \
+    --status pending \
+    --priority high \
+    --due soon \
+    --tag work \
+    --sort due
+```
+
+**Filtering logic:**
+
+```rust
+// 1. Status (always applied)
+indexed_tasks.retain(|(_, t)| t.matches_status(status));
+
+// 2. Priority (if Some)
+if let Some(pri) = priority {
+    indexed_tasks.retain(|(_, t)| t.priority == pri);
+}
+
+// 3. Due filter (if Some)
+if let Some(due_filter) = due {
+    indexed_tasks.retain(|(_, t)| t.matches_due_filter(due_filter));
+}
+
+// 4. Tag (if Some)
+if let Some(tag_name) = &tag {
+    indexed_tasks.retain(|(_, t)| t.tags.contains(tag_name));
+}
+
+// 5. Sort (if Some)
+if let Some(sort_by) = sort {
+    // Apply sorting
+}
+```
+
+**Clean, sequential, type-safe!**
+
+#### Main function with clap
+
+**Before - manual:**
+
+```rust
+fn main() {
+    if let Err(e) = run() {
+        eprintln!("Error: {}", e);
+        process::exit(1);
+    }
+}
+
+fn run() -> Result<(), Box<dyn Error>> {
+    let args: Vec<String> = env::args().collect();
+    
+    if args.len() < 2 {
+        return Err("Usage: ...".into());
+    }
+    
+    let command = &args[1];
+    
+    match command.as_str() {
+        // ... 100+ lines
+    }
+}
+```
+
+**After - clap:**
+
+```rust
+fn main() {
+    let cli = Cli::parse();  // ← Clap does EVERYTHING
+    
+    if let Err(e) = run(cli) {
+        eprintln!("Error: {}", e);
+        process::exit(1);
+    }
+}
+
+fn run(cli: Cli) -> Result<(), Box<dyn Error>> {
+    match cli.command {
+        Commands::Add(args) => { /* ... */ }
+        Commands::List { status, priority, due, tag, sort } => { /* ... */ }
+        Commands::Done { id } => { /* ... */ }
+        // ...
+    }
+}
+```
+
+**What `Cli::parse()` does:**
+
+1. Reads `std::env::args()`
+2. Parses all arguments
+3. Validates types
+4. Checks requirements
+5. Returns `Cli` struct OR exits with help/error
+
+**Automatic behaviors:**
+
+```bash
+$ todo
+error: 'todo' requires a subcommand but one was not provided
+
+$ todo --help
+# Shows full help
+
+$ todo --version
+todo-list 1.6.0
+
+$ todo add
+error: the following required arguments were not provided:
+  <DESCRIPTION>
+
+$ todo add "Task" --priority invalid
+error: invalid value 'invalid' for '--priority <PRIORITY>'
+  [possible values: high, medium, low]
+```
+
+**All automatic!**
+
+#### Testing the migration
+
+```bash
+# 1. Add tasks with new syntax
+$ todo add "Study Rust async" --priority high --tag learning -t rust --due 2026-02-20
+✓ Task added
+
+$ todo add "Team meeting" --priority medium --tag work --due 2026-02-10
+✓ Task added
+
+$ todo add "Buy groceries" --priority low --tag personal
+✓ Task added
+
+# 2. List with filters
+$ todo list --status pending --priority high
+
+High priority pending tasks:
+
+  ID  P  S  Task                Tags            Due
+────────────────────────────────────────────────────
+   1  H  ⏳  Study Rust async    learning, rust  in 16 days
+
+# 3. Date filters
+$ todo list --due soon --sort due
+
+Tasks due soon:
+
+  ID  P  S  Task            Tags  Due
+──────────────────────────────────────
+   2  M  ⏳  Team meeting    work  in 6 days
+
+# 4. Combine everything
+$ todo list --status pending --priority high --tag learning --sort due
+
+High priority pending tasks:
+
+  ID  P  S  Task                Tags            Due
+────────────────────────────────────────────────────
+   1  H  ⏳  Study Rust async    learning, rust  in 16 days
+
+# 5. Use aliases
+$ todo a "Quick task"  # alias for 'add'
+$ todo ls              # alias for 'list'
+$ todo rm 3            # alias for 'remove'
+
+# 6. Check help
+$ todo add --help
+Add a new task to your todo list
+...
+
+$ todo list --help
+List and filter tasks with powerful filtering options
+...
+```
+
+**Everything works with better UX!**
+
+**🔗 Resources:**
+
+- [Code v1.6.0](https://github.com/joaofelipegalvao/todo-cli/tree/v1.6.0)
+- [Full diff](https://github.com/joaofelipegalvao/todo-cli/compare/v1.5.0...v1.6.0)
+- [Clap documentation](https://docs.rs/clap/)
+- [Clap derive tutorial](https://docs.rs/clap/latest/clap/_derive/index.html)
+
+---
+
+**Built with ❤️ to learn Rust - Each commit represents a step in the learning journey**

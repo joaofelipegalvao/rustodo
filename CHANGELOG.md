@@ -13,8 +13,166 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Recurring tasks
 - Subtasks/nested tasks
 - Export/import commands
+- Shell completions (bash, zsh, fish)
 - Unit tests
 - TUI (Terminal User Interface)
+
+## [1.6.0] - 2026-02-04
+
+### Added
+
+- **Professional CLI framework** using `clap` crate (v4.5) with derive macros
+- **Type-safe filtering** with enum-based arguments
+- `StatusFilter` enum: `All`, `Pending`, `Done` (replaces boolean flags)
+- `DueFilter` enum: `Overdue`, `Soon`, `WithDue`, `NoDue` (replaces 4 boolean flags)
+- `SortBy` enum: `Priority`, `Due`, `Created` (replaces string-based sorting)
+- `ValueEnum` trait implementation on `Priority` for CLI value parsing
+- **Auto-generated help text** with `#[command()]` attributes
+- Command-level help with `long_about` descriptions
+- Argument-level help with doc comments (appear in `--help` output)
+- **Command aliases** for improved productivity:
+  - `a` for `add`
+  - `ls` for `list`
+  - `rm` and `delete` for `remove`
+- **Automatic argument parsing** with type safety and validation
+- **Automatic NaiveDate parsing** using `clap::value_parser!(NaiveDate)`
+- Professional error messages with context and suggestions
+- `Cli` struct with `#[derive(Parser)]` for top-level command handling
+- `Commands` enum with `#[derive(Subcommand)]` for subcommand routing
+- `AddArgs` struct with `#[derive(Args)]` for complex add command arguments
+- Short flags: `-t` for `--tag`, `-s` for `--sort`
+- Repeatable arguments: `--tag` can be used multiple times
+- `Task::matches_status()` helper method for status filtering
+- `Task::matches_due_filter()` helper method for due date filtering
+- Metadata in help output: program name, author, version, examples
+- `after_help` examples section showing common usage patterns
+
+### Changed
+
+- **BREAKING CHANGE:** Complete CLI interface redesigned with Clap
+- **BREAKING CHANGE:** Command syntax updated across all commands:
+  - `--high/--medium/--low` → `--priority high/medium/low`
+  - `--pending/--done` → `--status pending/done/all`
+  - `--overdue/--due-soon/--with-due/--without-due` → `--due overdue/soon/with-due/no-due`
+  - `--sort` → `--sort priority/due/created`
+- **BREAKING CHANGE:** Priority values in JSON now lowercase (`"high"`, `"medium"`, `"low"`)
+- `Priority` enum: Added `ValueEnum` derive for CLI integration
+- Argument parsing: Manual `env::args()` parsing → Clap derive macros
+- Help generation: Manual help strings → Automatic from struct attributes
+- Validation: Manual conflict checking → Automatic with type system
+- Error messages: Generic strings → Contextual clap-generated errors
+- `main()` function: Simplified with `Cli::parse()` handling all parsing
+- Filter mutual exclusion: Runtime checks → Compile-time type safety with enums
+- Boolean filter flags (4 for dates) → Single `Option<DueFilter>` enum
+- Parsing complexity: ~100 lines of manual parsing → ~20 lines of declarative structs
+- Code organization: Flat argument handling → Structured with dedicated types
+
+### Removed
+
+- Manual argument parsing with `env::args().collect()`
+- Manual flag conflict validation (15+ lines)
+- Manual help text construction
+- Generic "Usage: ..." error messages
+- Manual `NaiveDate` parsing and error handling (8 lines → 1 line with `value_parser!`)
+- Boolean flags for status filters (`--pending`, `--done`)
+- Boolean flags for priority filters (`--high`, `--medium`, `--low`)
+- Boolean flags for date filters (`--overdue`, `--due-soon`, `--with-due`, `--without-due`)
+- String-based sorting validation
+
+### Fixed
+
+- Eliminated possibility of conflicting filter flags (enforced by type system)
+- Improved error messages with suggestions for typos (e.g., "did you mean 'high'?")
+- Consistent argument naming across all commands
+- Professional command-line interface matching industry standards
+
+### Technical Details
+
+- **Dependencies:**
+  - Added: `clap = { version = "4.5", features = ["derive"] }`
+  - Enables derive macros for declarative CLI definition
+- **Code reduction:** ~100 lines of parsing code → ~20 lines of struct definitions
+- **Type safety improvements:**
+  - `StatusFilter` enum prevents invalid status values at compile time
+  - `DueFilter` enum ensures only one date filter used (via `Option<T>`)
+  - `SortBy` enum validates sort fields at compile time
+  - `Priority` as `ValueEnum` enables automatic CLI parsing
+- **Derive macros used:**
+  - `#[derive(Parser)]` on `Cli` - top-level command parsing
+  - `#[derive(Subcommand)]` on `Commands` - subcommand routing
+  - `#[derive(Args)]` on `AddArgs` - grouped arguments for complex commands
+  - `#[derive(ValueEnum)]` on enums - enables use as CLI values
+- **Attribute annotations:**
+  - `#[command(name, author, version, about, after_help)]` - metadata
+  - `#[arg(long, short, value_enum, default_value_t)]` - argument configuration
+  - `#[command(visible_alias)]` - command aliases
+  - Doc comments (`///`) automatically become help text
+- **Pattern matching:**
+  - `Option<DueFilter>` enables `if let Some(filter)` pattern for optional filters
+  - `match` on enums is exhaustive (compiler enforces handling all cases)
+- **Automatic behaviors:**
+  - `--help` and `-h` flags generated automatically
+  - `--version` and `-V` flags generated automatically
+  - Error handling with exit codes (0 for success, non-zero for errors)
+  - Suggestions for typos in values (e.g., "hgh" suggests "high")
+  - Color-coded help output in supported terminals
+- **Integration points:**
+  - `Cli::parse()` consumes `std::env::args()` automatically
+  - `value_parser!(NaiveDate)` uses `FromStr` trait from chrono
+  - Enums with `ValueEnum` get case-insensitive parsing by default
+
+### Migration Notes
+
+Upgrading from v1.5.0:
+
+**Command syntax changes required:**
+
+```bash
+# Old (v1.5.0):
+todo add "Task" --high --tag work
+todo list --pending --high --overdue --sort
+
+# New (v1.6.0):
+todo add "Task" --priority high --tag work
+todo list --status pending --priority high --due overdue --sort priority
+```
+
+**Complete syntax mapping:**
+
+| Old Flag (v1.5.0) | New Argument (v1.6.0) |
+|-------------------|----------------------|
+| `--high` | `--priority high` |
+| `--medium` | `--priority medium` |
+| `--low` | `--priority low` |
+| `--pending` | `--status pending` |
+| `--done` | `--status done` |
+| `--overdue` | `--due overdue` |
+| `--due-soon` | `--due soon` |
+| `--with-due` | `--due with-due` |
+| `--without-due` | `--due no-due` |
+| `--sort` (bool) | `--sort priority\|due\|created` |
+
+**Data compatibility:**
+
+- JSON file format (`todos.json`) remains fully compatible
+- Priority values in JSON change from `"High"` to `"high"` (lowercase)
+- Existing tasks automatically migrate on first load
+- No manual data migration needed
+- All task data, tags, and dates preserved
+
+**New features available:**
+
+- Use `todo --help` for comprehensive command help
+- Use `todo <command> --help` for command-specific help
+- Try command aliases: `todo a`, `todo ls`, `todo rm`
+- Explore short flags: `-t` for tags, `-s` for sort
+
+**Breaking changes to address:**
+
+1. Update any scripts using the old flag syntax
+2. Priority values in JSON will be lowercase after first save
+3. Sorting now requires explicit field name (not just `--sort`)
+4. Status filter now explicit (no implicit "all" without flag)
 
 ## [1.5.0] - 2026-02-03
 
@@ -355,7 +513,8 @@ Users need to migrate from `todos.txt` to `todos.json`:
 - Pattern matching for subcommands
 - Error handling with `?` operator
 
-[Unreleased]: https://github.com/joaofelipegalvao/todo-cli/compare/v1.5.0...HEAD
+[Unreleased]: https://github.com/joaofelipegalvao/todo-cli/compare/v1.6.0...HEAD
+[1.6.0]: https://github.com/joaofelipegalvao/todo-cli/compare/v1.5.0...v1.6.0
 [1.5.0]: https://github.com/joaofelipegalvao/todo-cli/compare/v1.4.0...v1.5.0
 [1.4.0]: https://github.com/joaofelipegalvao/todo-cli/compare/v1.3.0...v1.4.0
 [1.3.0]: https://github.com/joaofelipegalvao/todo-cli/compare/v1.2.0...v1.3.0

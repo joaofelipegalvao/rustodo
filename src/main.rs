@@ -1,12 +1,19 @@
-use std::{env, error::Error, fs, process};
+use std::{
+    error::Error,
+    fs,
+    process::{self},
+};
 
 use chrono::{Local, NaiveDate};
+use clap::{Args, Parser, Subcommand, ValueEnum};
 use colored::{ColoredString, Colorize};
 use serde::{Deserialize, Serialize};
 
 fn main() {
-    if let Err(e) = run() {
-        eprintln!("Error: {}", e);
+    let cli = Cli::parse();
+
+    if let Err(e) = run(cli) {
+        eprintln!("Erro: {}", e);
         process::exit(1);
     }
 }
@@ -21,11 +28,189 @@ struct Task {
     created_at: NaiveDate,
 }
 
-#[derive(Debug, Clone, PartialEq, Copy, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, ValueEnum)]
+#[serde(rename_all = "lowercase")]
 enum Priority {
+    /// High priority - urgent and important tasks
     High,
+    /// Medium priority - default for most tasks
     Medium,
+    /// Low priority - nice to have, not urgent
     Low,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
+enum StatusFilter {
+    /// Show only pending tasks
+    Pending,
+    /// Show only completed tasks
+    Done,
+    /// Show all tasks (default)
+    All,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
+enum DueFilter {
+    /// Tasks past their due date
+    Overdue,
+    /// Tasks due in the next 7 days
+    Soon,
+    /// Tasks with any due date set
+    WithDue,
+    /// Tasks without a due date
+    NoDue,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
+enum SortBy {
+    /// Sort by priority (High -> Medium -> Low)
+    Priority,
+    /// Sort by due date (earliest first)
+    Due,
+    /// Sort by creation date (oldest first)
+    Created,
+}
+
+#[derive(Parser)]
+#[command(name = "todo-list")]
+#[command(author = "github.com/joaofelipegalvao")]
+#[command(version = "1.6.0")]
+#[command(about = "A modern, powerful task manager built with Rust", long_about = None)]
+#[command(after_help = "EXAMPLES:\n    \
+    # Add a high priority task\n    \
+    todo add \"Complete Rust project\" --priority high --tag work --due 2025-02-15\n\n    \
+    # List pending high priority tasks\n    \
+    todo list --status pending --priority high\n\n    \
+    # List overdue tasks sorted by due date\n    \
+    todo list --due overdue --sort due\n\n    \
+    # Search for tasks\n    \
+    todo search rust\n\n    \
+    # Mark task as completed\n    \
+    todo done 3\n\n\
+For more information, visit: https://github.com/joaofelipegalvao/todo-cli
+")]
+struct Cli {
+    #[command(subcommand)]
+    command: Commands,
+}
+
+#[derive(Subcommand)]
+enum Commands {
+    /// Add a new task to your todo list
+    #[command(visible_alias = "a")]
+    #[command(long_about = "Add a new task to your todo list\n\n\
+        Creates a new task with the specified text and optional metadata like priority,\n\
+        tags, and due date. Tasks are saved immediately to todos.json.")]
+    Add(AddArgs),
+
+    /// List and filter tasks
+    #[command(visible_alias = "ls")]
+    #[command(
+        long_about = "List and filter tasks with powerful filtering options\n\n\
+        Display your tasks with filtering and sorting capabilities.\n\
+        All filters can be combined to find exactly what you need."
+    )]
+    List {
+        /// Filter by completion status
+        #[arg(long, value_enum, default_value_t = StatusFilter::All)]
+        status: StatusFilter,
+
+        /// Filter by priority level
+        #[arg(long, value_enum)]
+        priority: Option<Priority>,
+
+        /// Filter by due date
+        #[arg(long, value_enum)]
+        due: Option<DueFilter>,
+
+        /// Sort results by field
+        #[arg(long, short = 's', value_enum)]
+        sort: Option<SortBy>,
+
+        /// Filter by tag name
+        #[arg(long, short = 't')]
+        tag: Option<String>,
+    },
+
+    /// Mark a task as completed
+    #[command(visible_alias = "complete")]
+    #[command(long_about = "Mark a task as completed\n\n\
+        Marks the specified task as done. The task will be shown with a ✓ symbol\n\
+        and appear in green when listing tasks.")]
+    Done {
+        /// Task ID number (from 'list' command)
+        #[arg(value_name = "ID")]
+        id: usize,
+    },
+
+    /// Mark a completed task as pending
+    #[command(visible_alias = "undo")]
+    #[command(long_about = "Mark a completed task as pending\n\n\
+        Reverts a task back to pending status. Useful if you accidentally marked\n\
+        a task as done or need to redo it.")]
+    Undone {
+        /// Task ID number
+        #[arg(value_name = "ID")]
+        id: usize,
+    },
+
+    /// Remove a task permanently
+    #[command(visible_aliases = ["rm", "delete"])]
+    #[command(long_about = "Remove a task permanently from your list\n\n\
+        WARNING: This action cannot be undone. The task will be permanently deleted\n\
+        from your todos.json file.")]
+    Remove {
+        /// Task ID number
+        #[arg(value_name = "ID")]
+        id: usize,
+    },
+
+    /// Clear all tasks
+    #[command(visible_alias = "reset")]
+    #[command(long_about = "Clear all tasks (removes todos.json file)\n\n\
+        WARNING: This will permanently delete ALL tasks. This action cannot be undone.\n\
+        You will lose all your tasks, tags, and metadata.")]
+    Clear,
+
+    /// Search for tasks by text content
+    #[command(visible_alias = "find")]
+    #[command(long_about = "Search for tasks by text content\n\n\
+        Performs a case-insensitive search through all task descriptions.\n\
+        Returns all tasks that contain the search term.")]
+    Search {
+        /// The text to search for in task descriptions
+        #[arg(value_name = "QUERY")]
+        query: String,
+
+        /// Filter results by tag
+        #[arg(long, short = 't')]
+        tag: Option<String>,
+    },
+
+    /// List all tags
+    #[command(long_about = "List all tags used across your tasks\n\n\
+        Shows a summary of all tags you've created, along with the count\n\
+        of tasks associated with each tag.")]
+    Tags,
+}
+
+#[derive(Args)]
+struct AddArgs {
+    /// Task description
+    #[arg(value_name = "DESCRIPTION")]
+    text: String,
+
+    /// Task priority level
+    #[arg(long, value_enum, default_value_t = Priority::Medium)]
+    priority: Priority,
+
+    /// Add tags (can be repeated: -t work -t urgent)
+    #[arg(long, short = 't', value_name = "TAG")]
+    tag: Vec<String>,
+
+    /// Due date in format YYYY-MM-DD (example: --due 2025-12-31)
+    #[arg(long, value_name = "DATE", value_parser = clap::value_parser!(NaiveDate))]
+    due: Option<NaiveDate>,
 }
 
 impl Task {
@@ -69,6 +254,23 @@ impl Task {
             days_until >= 0 && days_until <= days && !self.completed
         } else {
             false
+        }
+    }
+
+    fn matches_status(&self, status: StatusFilter) -> bool {
+        match status {
+            StatusFilter::Pending => !self.completed,
+            StatusFilter::Done => self.completed,
+            StatusFilter::All => true,
+        }
+    }
+
+    fn matches_due_filter(&self, filter: DueFilter) -> bool {
+        match filter {
+            DueFilter::Overdue => self.is_overdue(),
+            DueFilter::Soon => self.is_due_soon(7),
+            DueFilter::WithDue => self.due_date.is_some(),
+            DueFilter::NoDue => self.due_date.is_none(),
         }
     }
 }
@@ -288,201 +490,23 @@ fn display_lists(tasks: &[(usize, &Task)], title: &str) {
     println!();
 }
 
-fn run() -> Result<(), Box<dyn Error>> {
-    let args: Vec<String> = env::args().collect();
-
-    if args.len() < 2 {
-        return Err("Usage: todo <command> [arguments]\n\
-         Commands: add, list [--pending|--done|--high|--medium|--low|\
-         --sort <field>|--overdue|--due-soon|--with-due|--without-due], \
-         done, undone, remove, clear, search, tags"
-            .into());
-    }
-
-    let command = &args[1];
-
-    match command.as_str() {
-        "add" => {
-            if args.len() < 3 {
-                return Err(
-                    "Usage: todo add <task> [--high|--medium|--low] [--tag <n>] [--due YYYY-MM-DD]"
-                        .into(),
-                );
-            }
-
-            let text = args[2].clone();
-
-            let mut priority = Priority::Medium;
-            let mut tags: Vec<String> = Vec::new();
-            let mut due_date: Option<NaiveDate> = None;
-
-            let mut i = 3;
-
-            while i < args.len() {
-                match args[i].as_str() {
-                    "--high" => priority = Priority::High,
-                    "--medium" => priority = Priority::Medium,
-                    "--low" => priority = Priority::Low,
-                    "--tag" => {
-                        if i + 1 >= args.len() {
-                            return Err("--tag requires a value".into());
-                        }
-                        tags.push(args[i + 1].clone());
-                        i += 1;
-                    }
-
-                    "--due" => {
-                        if i + 1 >= args.len() {
-                            return Err("--due requires a date in format YYYY-MM-DD".into());
-                        }
-
-                        let date_str = &args[i + 1];
-                        match NaiveDate::parse_from_str(date_str, "%Y-%m-%d") {
-                            Ok(date) => due_date = Some(date),
-                            Err(_) => {
-                                return Err(format!(
-                                    "Invalid date format: '{}'. Use YYYY-MM-DD",
-                                    date_str
-                                )
-                                .into());
-                            }
-                        }
-
-                        i += 1;
-                    }
-
-                    _ => {
-                        return Err(format!("Invalid flag: {}", args[i]).into());
-                    }
-                }
-
-                i += 1;
-            }
-
-            let task = Task::new(text, priority, tags, due_date);
-
+fn run(cli: Cli) -> Result<(), Box<dyn Error>> {
+    match cli.command {
+        Commands::Add(args) => {
+            let task = Task::new(args.text, args.priority, args.tag, args.due);
             let mut tasks = load_tasks()?;
             tasks.push(task);
             save_tasks(&tasks)?;
-
-            println!("{}", "✓ Task added".green());
+            println!("{}", "✓ Task added".green())
         }
 
-        "list" => {
-            let mut status_filter = "all";
-            let mut priority_filter: Option<Priority> = None;
-            let mut tag_filter: Option<String> = None;
-            let mut sort_by = "none";
-            let mut overdue = false;
-            let mut due_soon = false;
-            let mut with_due = false;
-            let mut without_due = false;
-
-            let mut i = 2;
-
-            while i < args.len() {
-                match args[i].as_str() {
-                    "--pending" => {
-                        if status_filter != "all" {
-                            return Err("Use only one status filter (--pending or --done)".into());
-                        }
-                        status_filter = "pending";
-                    }
-                    "--done" => {
-                        if status_filter != "all" {
-                            return Err("Use only one status filter (--done or --pending)".into());
-                        }
-                        status_filter = "done";
-                    }
-                    "--high" => {
-                        if priority_filter.is_some() {
-                            return Err(
-                                "Use only one priority filter (--high, --medium or --low)".into()
-                            );
-                        }
-                        priority_filter = Some(Priority::High);
-                    }
-                    "--medium" => {
-                        if priority_filter.is_some() {
-                            return Err(
-                                "Use only one priority filter (--high, --medium or --low)".into()
-                            );
-                        }
-                        priority_filter = Some(Priority::Medium);
-                    }
-                    "--low" => {
-                        if priority_filter.is_some() {
-                            return Err(
-                                "Use only one priority filter (--high, --medium or --low)".into()
-                            );
-                        }
-                        priority_filter = Some(Priority::Low);
-                    }
-                    "--sort" => {
-                        if sort_by != "none" {
-                            return Err("Use --sort only once".into());
-                        }
-
-                        if i + 1 < args.len() && !args[i + 1].starts_with("--") {
-                            match args[i + 1].as_str() {
-                                "priority" => sort_by = "priority",
-                                "due" => sort_by = "due",
-                                "created" => sort_by = "created",
-                                _ => {
-                                    return Err(format!(
-                                        "Invalid sort field: '{}'. Use: priority, due, or created",
-                                        args[i + 1]
-                                    )
-                                    .into());
-                                }
-                            }
-                            i += 1;
-                        } else {
-                            sort_by = "priority";
-                        }
-                    }
-                    "--tag" => {
-                        if tag_filter.is_some() {
-                            return Err("Use only one --tag filter".into());
-                        }
-
-                        if i + 1 >= args.len() {
-                            return Err("--tag requires a value".into());
-                        }
-                        tag_filter = Some(args[i + 1].clone());
-                        i += 1;
-                    }
-                    "--overdue" => {
-                        if overdue || due_soon || with_due || without_due {
-                            return Err("Use only one date filter".into());
-                        }
-                        overdue = true;
-                    }
-                    "--due-soon" => {
-                        if overdue || due_soon || with_due || without_due {
-                            return Err("Use only one date filter".into());
-                        }
-                        due_soon = true;
-                    }
-
-                    "--with-due" => {
-                        if overdue || due_soon || with_due || without_due {
-                            return Err("Use only one date filter".into());
-                        }
-                        with_due = true;
-                    }
-
-                    "--without-due" => {
-                        if overdue || due_soon || with_due || without_due {
-                            return Err("Use only one date filter".into());
-                        }
-                        without_due = true;
-                    }
-                    _ => return Err(format!("Invalid filter: {}", args[i]).into()),
-                }
-                i += 1;
-            }
-
+        Commands::List {
+            status,
+            priority,
+            due,
+            sort,
+            tag,
+        } => {
             let all_tasks = load_tasks()?;
 
             if all_tasks.is_empty() {
@@ -496,31 +520,19 @@ fn run() -> Result<(), Box<dyn Error>> {
                 .map(|(i, task)| (i + 1, task))
                 .collect();
 
-            match status_filter {
-                "pending" => indexed_tasks.retain(|(_, t)| !t.completed),
-                "done" => indexed_tasks.retain(|(_, t)| t.completed),
-                _ => {}
-            }
+            // Apply filters
+            indexed_tasks.retain(|(_, t)| t.matches_status(status));
 
-            if let Some(pri) = priority_filter {
+            if let Some(pri) = priority {
                 indexed_tasks.retain(|(_, t)| t.priority == pri);
             }
 
-            if let Some(tag) = &tag_filter {
-                indexed_tasks.retain(|(_, t)| t.tags.contains(tag));
+            if let Some(due_filter) = due {
+                indexed_tasks.retain(|(_, t)| t.matches_due_filter(due_filter));
             }
 
-            if overdue {
-                indexed_tasks.retain(|(_, t)| t.is_overdue());
-            }
-            if due_soon {
-                indexed_tasks.retain(|(_, t)| t.is_due_soon(7));
-            }
-            if with_due {
-                indexed_tasks.retain(|(_, t)| t.due_date.is_some());
-            }
-            if without_due {
-                indexed_tasks.retain(|(_, t)| t.due_date.is_none());
+            if let Some(tag_name) = &tag {
+                indexed_tasks.retain(|(_, t)| t.tags.contains(tag_name));
             }
 
             if indexed_tasks.is_empty() {
@@ -528,132 +540,112 @@ fn run() -> Result<(), Box<dyn Error>> {
                 return Ok(());
             }
 
-            match sort_by {
-                "priority" => {
-                    indexed_tasks
-                        .sort_by(|(_, a), (_, b)| a.priority.order().cmp(&b.priority.order()));
+            // Apply sorting
+            if let Some(sort_by) = sort {
+                match sort_by {
+                    SortBy::Priority => {
+                        indexed_tasks
+                            .sort_by(|(_, a), (_, b)| a.priority.order().cmp(&b.priority.order()));
+                    }
+                    SortBy::Due => {
+                        indexed_tasks.sort_by(|(_, a), (_, b)| match (a.due_date, b.due_date) {
+                            (Some(date_a), Some(date_b)) => date_a.cmp(&date_b),
+                            (Some(_), None) => std::cmp::Ordering::Less,
+                            (None, Some(_)) => std::cmp::Ordering::Greater,
+                            (None, None) => std::cmp::Ordering::Equal,
+                        });
+                    }
+                    SortBy::Created => {
+                        indexed_tasks.sort_by(|(_, a), (_, b)| a.created_at.cmp(&b.created_at));
+                    }
                 }
-                "due" => {
-                    indexed_tasks.sort_by(|(_, a), (_, b)| match (a.due_date, b.due_date) {
-                        (Some(date_a), Some(date_b)) => date_a.cmp(&date_b),
-                        (Some(_), None) => std::cmp::Ordering::Less,
-                        (None, Some(_)) => std::cmp::Ordering::Greater,
-                        (None, None) => std::cmp::Ordering::Equal,
-                    });
-                }
-                "created" => {
-                    indexed_tasks.sort_by(|(_, a), (_, b)| a.created_at.cmp(&b.created_at));
-                }
-                _ => {}
             }
 
-            let title = if with_due {
-                "Tasks with due date"
-            } else if without_due {
-                "Tasks without due date"
-            } else if overdue {
-                "Overdue tasks"
-            } else if due_soon {
-                "Due soon (next 7 days)"
-            } else {
-                match (status_filter, priority_filter) {
-                    ("pending", Some(Priority::High)) => "High priority pending tasks",
-                    ("pending", Some(Priority::Medium)) => "Medium priority pending tasks",
-                    ("pending", Some(Priority::Low)) => "Low priority pending tasks",
-                    ("pending", None) => "Pending tasks",
-                    ("done", Some(Priority::High)) => "High priority completed tasks",
-                    ("done", Some(Priority::Medium)) => "Medium priority completed tasks",
-                    ("done", Some(Priority::Low)) => "Low priority completed tasks",
-                    ("done", None) => "Completed tasks",
-                    (_, Some(Priority::High)) => "High priority",
-                    (_, Some(Priority::Medium)) => "Medium priority",
-                    (_, Some(Priority::Low)) => "Low priority",
-                    _ => "Tasks",
+            // Determine title
+            let title = match (status, priority, due) {
+                (StatusFilter::Pending, Some(Priority::High), None) => {
+                    "High priority pending tasks"
                 }
+                (StatusFilter::Pending, Some(Priority::Medium), None) => {
+                    "Medium priority pending tasks"
+                }
+                (StatusFilter::Pending, Some(Priority::Low), None) => "Low priority pending tasks",
+                (StatusFilter::Pending, None, Some(DueFilter::Overdue)) => "Pending overdue tasks",
+                (StatusFilter::Pending, None, Some(DueFilter::Soon)) => "Pending tasks due soon",
+                (StatusFilter::Pending, None, None) => "Pending tasks",
+                (StatusFilter::Done, _, _) => "Completed tasks",
+                (StatusFilter::All, Some(Priority::High), _) => "High priority tasks",
+                (StatusFilter::All, Some(Priority::Medium), _) => "Medium priority tasks",
+                (StatusFilter::All, Some(Priority::Low), _) => "Low priority tasks",
+                (StatusFilter::All, None, Some(DueFilter::Overdue)) => "Overdue tasks",
+                (StatusFilter::All, None, Some(DueFilter::Soon)) => "Tasks due soon",
+                (StatusFilter::All, None, Some(DueFilter::WithDue)) => "Tasks with due date",
+                (StatusFilter::All, None, Some(DueFilter::NoDue)) => "Tasks without due date",
+                _ => "Tasks",
             };
 
             display_lists(&indexed_tasks, title);
         }
 
-        "done" => {
-            if args.len() < 3 {
-                return Err("Usage: todo done <number>".into());
-            }
-
-            let number: usize = args[2].parse()?;
-
+        Commands::Done { id } => {
             let mut tasks = load_tasks()?;
 
-            if number == 0 || number > tasks.len() {
+            if id == 0 || id > tasks.len() {
                 return Err("Invalid task number".into());
             }
 
-            let index = number - 1;
+            let index = id - 1;
 
             if tasks[index].completed {
                 return Err("Task is already marked as completed".into());
             }
 
             tasks[index].mark_done();
-
             save_tasks(&tasks)?;
-
             println!("{}", "✓ Task marked as completed".green());
         }
 
-        "undone" => {
-            if args.len() < 3 {
-                return Err("Usage: todo undone <number>".into());
-            }
-
-            let number: usize = args[2].parse()?;
-
+        Commands::Undone { id } => {
             let mut tasks = load_tasks()?;
 
-            if number == 0 || number > tasks.len() {
+            if id == 0 || id > tasks.len() {
                 return Err("Invalid task number".into());
             }
 
-            let index = number - 1;
+            let index = id - 1;
 
             if !tasks[index].completed {
                 return Err("Task is already unmarked".into());
             }
 
             tasks[index].mark_undone();
-
             save_tasks(&tasks)?;
-
             println!("{}", "✓ Task unmarked".yellow());
         }
 
-        "search" => {
-            if args.len() < 3 {
-                return Err("Usage: todo search <term> [--tag <n>]".into());
+        Commands::Remove { id } => {
+            let mut tasks = load_tasks()?;
+
+            if id == 0 || id > tasks.len() {
+                return Err("This task doesn't exist or was already removed".into());
             }
 
-            let term = &args[2];
-            let mut tag_filter: Option<String> = None;
+            let index = id - 1;
+            tasks.remove(index);
+            save_tasks(&tasks)?;
+            println!("{}", "✓ Task removed".red());
+        }
 
-            let mut i = 3;
-
-            while i < args.len() {
-                match args[i].as_str() {
-                    "--tag" => {
-                        if i + 1 >= args.len() {
-                            return Err("--tag requires a value".into());
-                        }
-
-                        tag_filter = Some(args[i + 1].clone());
-                        i += 1;
-                    }
-
-                    _ => return Err(format!("Invalid flag: {}", args[i]).into()),
-                }
-
-                i += 1;
+        Commands::Clear => {
+            if fs::metadata("todos.json").is_ok() {
+                fs::remove_file("todos.json")?;
+                println!("{}", "✓ All tasks have been removed".red().bold());
+            } else {
+                println!("No tasks to remove");
             }
+        }
 
+        Commands::Search { query, tag } => {
             let tasks = load_tasks()?;
 
             if tasks.is_empty() {
@@ -664,22 +656,22 @@ fn run() -> Result<(), Box<dyn Error>> {
             let mut results: Vec<(usize, &Task)> = tasks
                 .iter()
                 .enumerate()
-                .filter(|(_, task)| task.text.to_lowercase().contains(&term.to_lowercase()))
+                .filter(|(_, task)| task.text.to_lowercase().contains(&query.to_lowercase()))
                 .map(|(i, task)| (i + 1, task))
                 .collect();
 
-            if let Some(tag) = &tag_filter {
-                results.retain(|(_, task)| task.tags.contains(tag));
+            if let Some(tag_name) = &tag {
+                results.retain(|(_, task)| task.tags.contains(tag_name));
             }
 
             if results.is_empty() {
-                println!("No results for '{}'", term);
+                println!("No results for '{}'", query);
             } else {
-                display_lists(&results, &format!("Search results for \"{}\"", term));
+                display_lists(&results, &format!("Search results for \"{}\"", query));
             }
         }
 
-        "tags" => {
+        Commands::Tags => {
             let tasks = load_tasks()?;
 
             if tasks.is_empty() {
@@ -715,40 +707,6 @@ fn run() -> Result<(), Box<dyn Error>> {
             }
 
             println!()
-        }
-
-        "remove" => {
-            if args.len() < 3 {
-                return Err("Usage: todo remove <number>".into());
-            }
-
-            let number: usize = args[2].parse()?;
-
-            let mut tasks = load_tasks()?;
-
-            if number == 0 || number > tasks.len() {
-                return Err("This task doesn't exist or was already removed".into());
-            }
-
-            let index = number - 1;
-            tasks.remove(index);
-
-            save_tasks(&tasks)?;
-
-            println!("{}", "✓ Task removed".red());
-        }
-
-        "clear" => {
-            if fs::metadata("todos.json").is_ok() {
-                fs::remove_file("todos.json")?;
-                println!("{}", "✓ All tasks have been removed".red().bold());
-            } else {
-                println!("No tasks to remove");
-            }
-        }
-
-        _ => {
-            return Err(format!("Unknown command: {}", command).into());
         }
     }
 

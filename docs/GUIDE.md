@@ -29,78 +29,91 @@ sudo cp target/release/todo-cli /usr/local/bin/todo
 # Add task with default priority (medium)
 todo add "Learn Rust"
 
-# Add high priority task
-todo add "Important meeting" --high
+# Add with specific priority
+todo add "Important meeting" --priority high
+todo add "Organize desk" --priority low
 
-# Add low priority task
-todo add "Organize desk" --low
-
-# Add task with tags
+# Add task with tags (repeatable flag)
 todo add "Study Rust" --tag programming --tag learning
+todo add "Study Rust" -t programming -t learning  # short form
 
 # Add task with due date
 todo add "Submit report" --due 2026-02-15
 
-# Add high priority task with tags and due date
-todo add "Fix critical bug" --high --tag work --tag urgent --due 2026-02-05
-
 # Combine all features
-todo add "Project deadline" --high --tag work --tag client --due 2026-02-10
+todo add "Fix critical bug" --priority high --tag work --tag urgent --due 2026-02-05
+todo add "Project deadline" --priority high -t work -t client --due 2026-02-10
+
+# Using alias
+todo a "Quick task"  # 'a' is alias for 'add'
 ```
 
 **Notes:**
 
-- Default priority is `medium` (M)
+- Default priority is `medium`
 - Tasks are stored in `todos.json` in JSON format
-- Multiple tags can be added with multiple `--tag` flags
+- Multiple tags can be added with multiple `--tag` (or `-t`) flags
 - Due dates use format `YYYY-MM-DD` (e.g., `2026-02-15`)
 - Tasks automatically get a `created_at` timestamp
 - Tags help categorize and filter tasks
+
+**Priority values:**
+
+- `high` - Urgent and important tasks
+- `medium` - Default for most tasks (default)
+- `low` - Nice to have, not urgent
 
 **Due date format:**
 
 - ✅ Valid: `2026-02-15`, `2026-12-31`, `2025-01-01`
 - ❌ Invalid: `02/15/2026`, `15-02-2026`, `tomorrow`, `next week`
 
+**Getting help:**
+
+```bash
+todo add --help
+# Shows all available options with detailed descriptions
+```
+
 ### Listing Tasks
 
 ```bash
-# List all tasks (tabular format)
+# List all tasks (default: all statuses)
 todo list
-
-# Sort by priority (high → medium → low)
-todo list --sort priority
-
-# Sort by due date (earliest first)
-todo list --sort due
-
-# Sort by creation date (oldest first)
-todo list --sort created
+todo ls  # alias for 'list'
 
 # Filter by status
-todo list --pending        # Only incomplete tasks
-todo list --done          # Only completed tasks
+todo list --status pending   # Only incomplete tasks
+todo list --status done      # Only completed tasks
+todo list --status all       # All tasks (default)
 
 # Filter by priority
-todo list --high          # Only high priority
-todo list --medium        # Only medium priority
-todo list --low           # Only low priority
+todo list --priority high    # Only high priority
+todo list --priority medium  # Only medium priority
+todo list --priority low     # Only low priority
 
 # Filter by tag
-todo list --tag work      # Only tasks with "work" tag
-todo list --tag urgent    # Only tasks with "urgent" tag
+todo list --tag work         # Only tasks with "work" tag
+todo list --tag urgent       # Only tasks with "urgent" tag
 
 # Filter by due date
-todo list --overdue       # Tasks past their due date
-todo list --due-soon      # Tasks due in next 7 days
-todo list --with-due      # Tasks that have a due date
-todo list --without-due   # Tasks without a due date
+todo list --due overdue      # Tasks past their due date
+todo list --due soon         # Tasks due in next 7 days
+todo list --due with-due     # Tasks that have a due date
+todo list --due no-due       # Tasks without a due date
+
+# Sort results
+todo list --sort priority    # Sort by priority (High → Medium → Low)
+todo list --sort due         # Sort by due date (earliest first)
+todo list --sort created     # Sort by creation date (oldest first)
+todo list -s priority        # short form
 
 # Combine filters
-todo list --pending --high                    # Pending high priority
-todo list --pending --tag work --sort due     # Pending work tasks, sorted by due date
-todo list --high --overdue                    # High priority overdue tasks
-todo list --due-soon --tag urgent --sort due  # Urgent tasks due soon
+todo list --status pending --priority high
+todo list --status pending --tag work --sort due
+todo list --priority high --due overdue
+todo list --due soon --tag urgent --sort due
+todo list --status pending --priority high --tag work --sort due
 ```
 
 **Visual indicators:**
@@ -143,7 +156,14 @@ Tasks:
 - Task numbers preserve original numbering in filtered views
 - Due dates are hidden for completed tasks
 - Column widths adjust dynamically to content
-- Only one date filter can be used at a time (e.g., can't use `--overdue` with `--due-soon`)
+- Only one due date filter can be used at a time
+
+**Getting help:**
+
+```bash
+todo list --help
+# Shows all filtering and sorting options
+```
 
 ### Searching Tasks
 
@@ -197,6 +217,8 @@ todo undone 1
 
 # Remove task permanently
 todo remove 1
+todo rm 1      # alias for 'remove'
+todo delete 1  # also an alias for 'remove'
 
 # Remove all tasks
 todo clear
@@ -216,13 +238,13 @@ todo clear
 
 ```bash
 # Start your day
-todo add "Review pull requests" --high --tag work --due 2026-02-03
+todo add "Review pull requests" --priority high --tag work --due 2026-02-03
 todo add "Write documentation" --tag work --tag documentation --due 2026-02-05
-todo add "Team meeting at 3pm" --high --tag work --due 2026-02-03
-todo add "Refactor old code" --low --tag programming
+todo add "Team meeting at 3pm" --priority high --tag work --due 2026-02-03
+todo add "Refactor old code" --priority low --tag programming
 
 # Check what's urgent
-todo list --pending --high --sort due
+todo list --status pending --priority high --sort due
 # Output:
 #   ID  P  S  Task                      Tags  Due
 # ────────────────────────────────────────────────
@@ -230,11 +252,11 @@ todo list --pending --high --sort due
 #    3  H  ⏳  Team meeting at 3pm       work  due today
 
 # See what's overdue
-todo list --overdue
+todo list --due overdue
 # Shows tasks past their due date in red
 
 # See what's coming up
-todo list --due-soon
+todo list --due soon
 # Shows tasks due in the next 7 days
 
 # Complete tasks
@@ -250,7 +272,7 @@ todo list
 
 ```bash
 # Add tasks with various due dates
-todo add "Submit tax documents" --high --due 2026-04-15
+todo add "Submit tax documents" --priority high --due 2026-04-15
 todo add "Dentist appointment" --due 2026-02-10
 todo add "Birthday gift for mom" --due 2026-03-05
 
@@ -259,19 +281,19 @@ todo list --sort due
 # Output shows tasks in order: overdue → today → soon → future
 
 # Focus on immediate deadlines
-todo list --due-soon
+todo list --due soon
 # Shows only tasks due in next 7 days
 
 # Find tasks that are late
-todo list --overdue
+todo list --due overdue
 # Shows tasks with due dates in the past (in red)
 
 # Find tasks without deadlines
-todo list --without-due
+todo list --due no-due
 # Shows tasks you can schedule later
 
 # Find tasks with deadlines
-todo list --with-due
+todo list --due with-due
 # Shows all tasks that have a due date set
 ```
 
@@ -279,28 +301,28 @@ todo list --with-due
 
 ```bash
 # Focus on what matters
-todo list --pending --high              # Today's priorities
-todo list --pending --high --sort due   # Today's priorities by deadline
+todo list --status pending --priority high              # Today's priorities
+todo list --status pending --priority high --sort due   # Today's priorities by deadline
 
 # Focus on work tasks
-todo list --tag work                    # All work-related tasks
-todo list --pending --tag work --sort due  # Pending work tasks by deadline
+todo list --tag work                                # All work-related tasks
+todo list --status pending --tag work --sort due    # Pending work tasks by deadline
 
 # Review achievements
-todo list --done                        # What you've completed
-todo list --done --tag programming      # Completed programming tasks
+todo list --status done                        # What you've completed
+todo list --status done --tag programming      # Completed programming tasks
 
 # Clean up low priority items
-todo list --low
+todo list --priority low
 todo remove 5
 todo remove 7
 
 # Critical: high priority + overdue
-todo list --high --overdue
+todo list --priority high --due overdue
 # Shows urgent tasks you're behind on
 
 # Planning: medium priority + no due date
-todo list --medium --without-due
+todo list --priority medium --due no-due
 # Shows tasks you need to schedule
 ```
 
@@ -329,7 +351,7 @@ todo done 5  # Marks the correct task even in filtered view
 # Create tasks with meaningful tags
 todo add "Learn Rust macros" --tag learning --tag rust --due 2026-02-20
 todo add "Team standup" --tag work --tag meetings --due 2026-02-03
-todo add "Fix navbar bug" --high --tag work --tag frontend --due 2026-02-05
+todo add "Fix navbar bug" --priority high --tag work --tag frontend --due 2026-02-05
 
 # See all your tags
 todo tags
@@ -342,34 +364,34 @@ todo tags
 #   work (2 tasks)
 
 # Focus on specific areas
-todo list --tag learning               # All learning tasks
-todo list --tag work --pending         # Pending work tasks
-todo list --tag frontend --high        # High priority frontend work
-todo list --tag work --due-soon        # Work tasks due soon
+todo list --tag learning                       # All learning tasks
+todo list --tag work --status pending          # Pending work tasks
+todo list --tag frontend --priority high       # High priority frontend work
+todo list --tag work --due soon                # Work tasks due soon
 ```
 
 ### Advanced Deadline Management
 
 ```bash
 # Morning routine: what needs attention today?
-todo list --overdue           # What's already late
-todo list --due-soon          # What's coming up this week
-todo list --high --sort due   # High priority sorted by deadline
+todo list --due overdue           # What's already late
+todo list --due soon              # What's coming up this week
+todo list --priority high --sort due   # High priority sorted by deadline
 
 # Weekly planning
-todo list --without-due       # Tasks that need scheduling
-todo list --sort due          # See entire timeline
+todo list --due no-due            # Tasks that need scheduling
+todo list --sort due              # See entire timeline
 todo list --tag project-x --sort due  # Project timeline
 
 # End of day review
-todo list --done              # What you accomplished
-todo list --overdue           # What still needs attention
+todo list --status done           # What you accomplished
+todo list --due overdue           # What still needs attention
 
 # Project deadline tracking
 todo add "Design phase complete" --tag project-x --due 2026-02-10
 todo add "Development complete" --tag project-x --due 2026-02-20
 todo add "Testing complete" --tag project-x --due 2026-02-25
-todo add "Deployment" --high --tag project-x --due 2026-03-01
+todo add "Deployment" --priority high --tag project-x --due 2026-03-01
 
 # See project timeline
 todo list --tag project-x --sort due
@@ -379,7 +401,7 @@ todo list --tag project-x --sort due
 
 ### Priority Guidelines
 
-**H - High Priority (--high):**
+**high - High Priority (--priority high):**
 
 - Urgent and important
 - Deadlines today or tomorrow
@@ -387,14 +409,14 @@ todo list --tag project-x --sort due
 - Critical bugs
 - Client deliverables
 
-**M - Medium Priority (default):**
+**medium - Medium Priority (default):**
 
 - Important but not urgent
 - This week's tasks
 - Regular work items
 - Most tasks should be here
 
-**L - Low Priority (--low):**
+**low - Low Priority (--priority low):**
 
 - Nice to have
 - No deadline
@@ -413,10 +435,10 @@ todo list --tag project-x --sort due
 
 **Tips:**
 
-- Use `--due-soon` daily to stay on top of upcoming deadlines
-- Check `--overdue` regularly to catch slipping tasks
+- Use `--due soon` daily to stay on top of upcoming deadlines
+- Check `--due overdue` regularly to catch slipping tasks
 - Combine due dates with high priority for critical deadlines
-- Use `--without-due` to find tasks that need scheduling
+- Use `--due no-due` to find tasks that need scheduling
 - Sort by due date (`--sort due`) for timeline view
 - Don't over-schedule: leave some tasks flexible
 
@@ -425,15 +447,15 @@ todo list --tag project-x --sort due
 1. **Daily check:**
 
    ```bash
-   todo list --overdue        # Fix what's late
-   todo list --due-soon       # Prepare for upcoming
+   todo list --due overdue        # Fix what's late
+   todo list --due soon           # Prepare for upcoming
    ```
 
 2. **Weekly planning:**
 
    ```bash
-   todo list --without-due    # Schedule flexible tasks
-   todo list --sort due       # Review timeline
+   todo list --due no-due         # Schedule flexible tasks
+   todo list --sort due           # Review timeline
    ```
 
 3. **Project tracking:**
@@ -466,10 +488,10 @@ todo list --tag project-x --sort due
 1. **Morning routine:**
 
    ```bash
-   todo list --overdue               # What's late
-   todo list --due-soon              # What's coming up
-   todo list --pending --high --sort due  # Today's priorities
-   todo list --tag work --pending --sort due  # Work focus
+   todo list --due overdue                           # What's late
+   todo list --due soon                              # What's coming up
+   todo list --status pending --priority high --sort due  # Today's priorities
+   todo list --tag work --status pending --sort due  # Work focus
    ```
 
 2. **Quick capture:**
@@ -485,56 +507,56 @@ todo list --tag project-x --sort due
 3. **End of day:**
 
    ```bash
-   todo list --done              # Review accomplishments
-   todo list --done --tag work   # Work achievements
-   todo list --overdue           # What needs attention
+   todo list --status done              # Review accomplishments
+   todo list --status done --tag work   # Work achievements
+   todo list --due overdue              # What needs attention
    ```
 
 4. **Weekly review:**
 
    ```bash
-   todo tags                     # See all categories
-   todo list --low               # Review low priority items
-   todo list --without-due       # Schedule flexible tasks
-   todo list --tag project-x --sort due  # Check project timeline
+   todo tags                            # See all categories
+   todo list --priority low             # Review low priority items
+   todo list --due no-due               # Schedule flexible tasks
+   todo list --tag project-x --sort due # Check project timeline
    ```
 
 5. **Weekly cleanup:**
 
    ```bash
-   todo list --done --tag learning  # Review completed learning
-   todo list --low                  # Clean up low priority
+   todo list --status done --tag learning  # Review completed learning
+   todo list --priority low                # Clean up low priority
    ```
 
 ### Combining Filters Effectively
 
 ```bash
 # Critical work
-todo list --high --overdue --tag work
+todo list --priority high --due overdue --tag work
 # High priority work that's already late
 
 # This week's focus
-todo list --pending --due-soon --sort due
+todo list --status pending --due soon --sort due
 # What needs attention soon
 
 # Project deadlines
-todo list --tag project-x --with-due --sort due
+todo list --tag project-x --due with-due --sort due
 # Project tasks with deadlines, in timeline order
 
 # Flexible work
-todo list --tag work --without-due
+todo list --tag work --due no-due
 # Work tasks you can schedule when you have time
 
 # What to do next
-todo list --pending --high --sort due
+todo list --status pending --priority high --sort due
 # High priority tasks in deadline order
 
 # Tag + deadline combination
-todo list --tag frontend --due-soon
+todo list --tag frontend --due soon
 # Frontend work due soon
 
 # Review by category
-todo list --done --tag learning
+todo list --status done --tag learning
 # Completed learning tasks
 ```
 
@@ -558,6 +580,23 @@ todo list --done --tag learning
 - Shows: Oldest → Newest
 - Use when: Finding long-standing tasks
 
+### Command Aliases
+
+Save time with built-in aliases:
+
+```bash
+# Add command
+todo a "Task"              # Same as: todo add "Task"
+
+# List command
+todo ls                    # Same as: todo list
+todo ls --status pending   # Same as: todo list --status pending
+
+# Remove command
+todo rm 3                  # Same as: todo remove 3
+todo delete 3              # Same as: todo remove 3
+```
+
 ## File Format
 
 Tasks are stored in `todos.json` as JSON:
@@ -567,7 +606,7 @@ Tasks are stored in `todos.json` as JSON:
   {
     "text": "Study Rust",
     "completed": false,
-    "priority": "High",
+    "priority": "high",
     "tags": ["programming", "learning"],
     "due_date": "2026-02-15",
     "created_at": "2026-02-03"
@@ -575,7 +614,7 @@ Tasks are stored in `todos.json` as JSON:
   {
     "text": "Fix bug",
     "completed": true,
-    "priority": "Medium",
+    "priority": "medium",
     "tags": ["work", "urgent"],
     "due_date": "2026-02-01",
     "created_at": "2026-01-28"
@@ -583,7 +622,7 @@ Tasks are stored in `todos.json` as JSON:
   {
     "text": "Buy coffee",
     "completed": false,
-    "priority": "Low",
+    "priority": "low",
     "tags": [],
     "due_date": null,
     "created_at": "2026-02-03"
@@ -595,7 +634,7 @@ Tasks are stored in `todos.json` as JSON:
 
 - `text`: Task description (string)
 - `completed`: Status (boolean - `false` = pending, `true` = completed)
-- `priority`: Priority level (string - "High", "Medium", or "Low")
+- `priority`: Priority level (string - "high", "medium", or "low" in lowercase)
 - `tags`: List of tags (array of strings, can be empty)
 - `due_date`: Due date in YYYY-MM-DD format (string or `null`)
 - `created_at`: Creation date in YYYY-MM-DD format (string, always present)
@@ -605,6 +644,7 @@ Tasks are stored in `todos.json` as JSON:
 - JSON format enables automatic serialization with `serde`
 - `due_date` can be `null` (no deadline)
 - `created_at` is set automatically when task is added
+- Priority values are stored in lowercase in JSON
 - File can be edited manually if needed, but be careful with syntax
 - Backup recommended before manual edits
 - Invalid JSON will cause the app to fail to load tasks
@@ -628,8 +668,9 @@ If you get a JSON parsing error:
 1. Check `todos.json` for syntax errors
 2. Ensure proper JSON format (commas, quotes, brackets)
 3. Verify date format is `YYYY-MM-DD` or `null`
-4. Restore from backup if available
-5. Use `todo clear` to start fresh (deletes all tasks)
+4. Verify priority is lowercase: "high", "medium", or "low"
+5. Restore from backup if available
+6. Use `todo clear` to start fresh (deletes all tasks)
 
 ### Invalid date format error
 
@@ -645,6 +686,22 @@ todo add "Task" --due tomorrow    # ❌
 todo add "Task" --due 2026-02-15  # ✅
 
 # Format: YYYY-MM-DD (year-month-day)
+```
+
+### Invalid priority value error
+
+```bash
+# Wrong values:
+todo add "Task" --priority urgent  # ❌
+todo add "Task" --priority HIGH    # ❌
+
+# Correct values:
+todo add "Task" --priority high    # ✅
+todo add "Task" --priority medium  # ✅
+todo add "Task" --priority low     # ✅
+
+# Possible values shown in help:
+todo add --help
 ```
 
 ### Wrong priority colors
@@ -680,16 +737,17 @@ todo list --tag work   # Will match "work"
 ### Date filters not working
 
 ```bash
-# Can't use multiple date filters together:
-todo list --overdue --due-soon  # ❌ Error
+# Can't use multiple due date values:
+todo list --due overdue --due soon  # ❌ Error: can't use argument multiple times
 
 # Use one at a time:
-todo list --overdue             # ✅
-todo list --due-soon            # ✅
+todo list --due overdue             # ✅
+todo list --due soon                # ✅
 
-# But you can combine date filter with other filters:
-todo list --overdue --high      # ✅
-todo list --due-soon --tag work # ✅
+# But you can combine due filter with other filters:
+todo list --due overdue --priority high      # ✅
+todo list --due soon --tag work              # ✅
+todo list --status pending --due soon        # ✅
 ```
 
 ### Due date colors not showing
@@ -702,6 +760,24 @@ todo list --due-soon --tag work # ✅
   - Cyan = due in 8+ days
 - Completed tasks don't show due dates
 
+### Getting help for any command
+
+Every command has built-in help:
+
+```bash
+todo --help           # Main help
+todo add --help       # Help for add command
+todo list --help      # Help for list command
+todo search --help    # Help for search command
+
+# Shows:
+# - Available options
+# - Possible values for enums
+# - Default values
+# - Short and long forms
+# - Detailed descriptions
+```
+
 ## Development Usage
 
 If running from source with Cargo:
@@ -710,8 +786,8 @@ If running from source with Cargo:
 # All commands work with cargo run --
 cargo run -- add "Task"
 cargo run -- add "Task" --tag work --due 2026-02-15
-cargo run -- list --pending
-cargo run -- list --overdue
+cargo run -- list --status pending
+cargo run -- list --due overdue
 cargo run -- list --sort due
 cargo run -- list --tag work
 cargo run -- tags
@@ -724,29 +800,29 @@ cargo run -- done 1
 
 ```bash
 # Add multiple related tasks with deadlines
-todo add "Setup project" --high --tag project-x --due 2026-02-10
+todo add "Setup project" --priority high --tag project-x --due 2026-02-10
 todo add "Design database" --tag project-x --tag backend --due 2026-02-12
 todo add "Create API endpoints" --tag project-x --tag backend --due 2026-02-18
 todo add "Build frontend" --tag project-x --tag frontend --due 2026-02-20
 todo add "Testing" --tag project-x --due 2026-02-25
-todo add "Deployment" --high --tag project-x --due 2026-03-01
+todo add "Deployment" --priority high --tag project-x --due 2026-03-01
 
 # Review project timeline
 todo list --tag project-x --sort due
 
 # Focus on what's next
-todo list --tag project-x --pending --sort due
+todo list --tag project-x --status pending --sort due
 ```
 
 ### Context Switching
 
 ```bash
 # Switch to work mode
-alias work="todo list --tag work --pending --sort due"
+alias work="todo list --tag work --status pending --sort due"
 work
 
 # Switch to learning mode
-alias learn="todo list --tag learning --pending"
+alias learn="todo list --tag learning --status pending"
 learn
 
 # Review personal tasks
@@ -754,11 +830,11 @@ alias personal="todo list --tag personal --sort due"
 personal
 
 # Check what's urgent across all contexts
-alias urgent="todo list --overdue"
+alias urgent="todo list --due overdue"
 urgent
 
 # See this week's deadlines
-alias thisweek="todo list --due-soon --sort due"
+alias thisweek="todo list --due soon --sort due"
 thisweek
 ```
 
@@ -766,18 +842,18 @@ thisweek
 
 ```bash
 # Sprint planning (2-week cycle)
-todo add "Feature A" --high --tag sprint-5 --due 2026-02-15
+todo add "Feature A" --priority high --tag sprint-5 --due 2026-02-15
 todo add "Feature B" --tag sprint-5 --due 2026-02-15
 todo add "Bug fixes" --tag sprint-5 --due 2026-02-12
 
 # Track sprint progress
 todo list --tag sprint-5 --sort due
-todo list --tag sprint-5 --pending
+todo list --tag sprint-5 --status pending
 
 # Daily standup prep
-todo list --done --tag sprint-5        # What I did
-todo list --pending --tag sprint-5 --sort due  # What I'm doing
-todo list --tag sprint-5 --overdue     # Blockers/issues
+todo list --status done --tag sprint-5              # What I did
+todo list --status pending --tag sprint-5 --sort due  # What I'm doing
+todo list --tag sprint-5 --due overdue              # Blockers/issues
 ```
 
 ### Recurring Tasks Simulation
@@ -796,9 +872,36 @@ todo add "Monthly review" --tag personal --due 2026-03-01
 todo add "Expense report" --tag work --due 2026-03-05
 ```
 
-### Migration from v1.4.0
+### Migration from Previous Versions
 
-If upgrading from v1.4.0 (without due dates):
+**From v1.5.0 (manual parsing):**
+
+The command syntax has changed significantly in v1.6.0:
+
+```bash
+# Old syntax (v1.5.0):
+todo add "Task" --high --tag work --tag urgent
+todo list --pending --high --overdue
+
+# New syntax (v1.6.0):
+todo add "Task" --priority high --tag work --tag urgent
+todo list --status pending --priority high --due overdue
+```
+
+**Key changes:**
+
+- `--high/--medium/--low` → `--priority high/medium/low`
+- `--pending/--done` → `--status pending/done`
+- `--overdue/--due-soon/--with-due/--without-due` → `--due overdue/soon/with-due/no-due`
+- Sorting: `--sort` → `--sort priority/due/created`
+
+**Data compatibility:**
+
+- Your `todos.json` file remains fully compatible
+- No data migration needed
+- All existing tasks, tags, and dates work as-is
+
+**From v1.4.0 (without due dates):**
 
 1. Backup your `todos.json` file
 2. The new version adds `due_date` (optional) and `created_at` (required)
@@ -806,34 +909,13 @@ If upgrading from v1.4.0 (without due dates):
 4. `created_at` will be set to current date on first load
 5. No data loss - all tasks, tags, and priorities preserved
 
-**Example migration:**
-
-```json
-// Old format (v1.4.0):
-{
-  "text": "Task",
-  "completed": false,
-  "priority": "High",
-  "tags": ["work"]
-}
-
-// New format (v1.5.0):
-{
-  "text": "Task",
-  "completed": false,
-  "priority": "High",
-  "tags": ["work"],
-  "due_date": null,
-  "created_at": "2026-02-03"
-}
-```
-
 ## Next Steps
 
 - Check [LEARNING.md](LEARNING.md) to understand how it was built
 - Read [CHANGELOG.md](../CHANGELOG.md) for version history
-- Try the new due date features and sorting options
-- Use the tabular display for better task management
+- Explore the new Clap-powered CLI features
+- Use auto-generated help: `todo --help` and `todo <command> --help`
+- Try command aliases for faster workflow
 - Contribute improvements on GitHub
 - Share your productivity workflows!
 
@@ -841,23 +923,32 @@ If upgrading from v1.4.0 (without due dates):
 
 ```bash
 # Essential commands
-todo add "Task" [--high|--low] [--tag TAG] [--due YYYY-MM-DD]
-todo list [--pending|--done] [--high|--medium|--low] [--tag TAG]
-todo list [--overdue|--due-soon|--with-due|--without-due]
+todo add "Task" [--priority high|medium|low] [--tag TAG]... [--due YYYY-MM-DD]
+todo list [--status pending|done|all] [--priority high|medium|low]
+todo list [--due overdue|soon|with-due|no-due] [--tag TAG]
 todo list [--sort priority|due|created]
 todo done NUMBER
 todo search "keyword" [--tag TAG]
 
+# Aliases
+todo a "Task"              # add
+todo ls                    # list
+todo rm NUMBER             # remove
+
 # Powerful combinations
-todo list --pending --high --sort due     # Today's priorities by deadline
-todo list --overdue --tag work            # Late work tasks
-todo list --due-soon --sort due           # This week's deadlines
-todo list --tag project --sort due        # Project timeline
-todo list --without-due --medium          # Tasks to schedule
+todo list --status pending --priority high --sort due     # Today's priorities
+todo list --due overdue --tag work                        # Late work tasks
+todo list --due soon --sort due                           # This week's deadlines
+todo list --tag project --sort due                        # Project timeline
+todo list --due no-due --priority medium                  # Tasks to schedule
 
 # Daily routine
-todo list --overdue                       # What's late
-todo list --due-soon                      # What's coming
-todo list --pending --high --sort due     # What to do now
-todo list --done                          # What you accomplished
+todo list --due overdue                           # What's late
+todo list --due soon                              # What's coming
+todo list --status pending --priority high --sort due  # What to do now
+todo list --status done                           # What you accomplished
+
+# Get help
+todo --help                # Main help
+todo add --help            # Command-specific help
 ```
