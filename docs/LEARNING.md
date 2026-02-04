@@ -4215,6 +4215,807 @@ $ cat todos.json
 
 ---
 
+### v1.5.0 - Due Dates and Tabular Display
+
+**🎯 Goal:** Add due date tracking with `chrono` and improve visual display with tabular format
+
+**📦 What We're Adding:**
+
+**Due dates for deadline management:**
+
+```bash
+# Before - no deadline tracking:
+todo add "Submit report" --high
+# When is it due? No way to know!
+
+# After - with due dates:
+todo add "Submit report" --high --due 2026-02-15
+todo list --overdue        # See what's late
+todo list --due-soon       # See what's coming up
+todo list --sort due       # Sort by deadline
+```
+
+**Why due dates matter:**
+
+✅ **Deadline awareness** - Never miss important dates  
+✅ **Smart filtering** - `--overdue`, `--due-soon`  
+✅ **Flexible sorting** - By priority, due date, or creation  
+✅ **Visual urgency** - Color-coded warnings  
+✅ **Automatic timestamps** - `created_at` tracks when task was added  
+
+**🧠 Key Concepts:**
+
+#### Adding the `chrono` crate
+
+**In `Cargo.toml`:**
+
+```toml
+[dependencies]
+colored = "2.1"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+chrono = { version = "0.4", features = ["serde"] }  # ← ADD
+```
+
+**Why chrono?**
+
+- Rust's standard library has basic `std::time` but no date parsing
+- `chrono` is the de-facto standard for dates/times in Rust
+- Feature `serde` enables automatic serialization
+
+**Import:**
+
+```rust
+use chrono::{Local, NaiveDate};
+```
+
+**What's `NaiveDate`?**
+
+- "Naive" = no timezone information
+- Just year-month-day (2026-02-15)
+- Perfect for due dates (we care about the day, not the hour)
+
+**Alternative: `DateTime`**
+
+```rust
+// If we wanted time + timezone:
+use chrono::{DateTime, Utc};
+let timestamp: DateTime<Utc> = Utc::now();
+
+// But for due dates, we just need the day:
+use chrono::NaiveDate;
+let due_date = NaiveDate::from_ymd(2026, 2, 15);
+```
+
+#### Adding date fields to `Task`
+
+**Updated struct:**
+
+```rust
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct Task {
+    text: String,
+    completed: bool,
+    priority: Priority,
+    tags: Vec<String>,
+    due_date: Option<NaiveDate>,  // ← NEW: Optional due date
+    created_at: NaiveDate,         // ← NEW: Creation timestamp
+}
+```
+
+**Why `Option<NaiveDate>`?**
+
+```rust
+// Not all tasks have deadlines:
+due_date: Option<NaiveDate>
+
+// Some(...) = has due date
+// None = no due date
+```
+
+**Why `NaiveDate` for `created_at` (not `Option`)?**
+
+```rust
+created_at: NaiveDate  // Always has a value
+```
+
+Every task has a creation time, so no `Option` needed.
+
+**Updated constructor:**
+
+```rust
+fn new(
+    text: String,
+    priority: Priority,
+    tags: Vec<String>,
+    due_date: Option<NaiveDate>,  // ← NEW parameter
+) -> Self {
+    Task {
+        text,
+        completed: false,
+        priority,
+        tags,
+        due_date,
+        created_at: Local::now().naive_local().date(),  // ← AUTO
+    }
+}
+```
+
+**Breaking down `created_at`:**
+
+```rust
+Local::now()           // Get current local time (with timezone)
+    .naive_local()     // Convert to naive (remove timezone)
+    .date()            // Extract just the date (no time)
+```
+
+**Result:** `NaiveDate` like `2026-02-03`
+
+#### Date methods on `Task`
+
+**Check if overdue:**
+
+```rust
+fn is_overdue(&self) -> bool {
+    if let Some(due) = self.due_date {
+        let today = Local::now().naive_local().date();
+        due < today && !self.completed
+    } else {
+        false  // No due date = can't be overdue
+    }
+}
+```
+
+**Breakdown:**
+
+```rust
+if let Some(due) = self.due_date  // Only if task has due date
+```
+
+Pattern matching on `Option`:
+
+- If `Some(date)` → extract date, continue
+- If `None` → skip to `else { false }`
+
+```rust
+let today = Local::now().naive_local().date();
+due < today && !self.completed
+```
+
+Task is overdue if:
+
+1. Due date is before today (`due < today`)
+2. AND task is not completed (`!self.completed`)
+
+**Example:**
+
+```rust
+// Today: 2026-02-03
+// Due: 2026-02-01
+// Completed: false
+// Result: true (overdue!)
+
+// Today: 2026-02-03
+// Due: 2026-02-01
+// Completed: true
+// Result: false (was overdue, but done now)
+```
+
+**Check if due soon:**
+
+```rust
+fn is_due_soon(&self, days: i64) -> bool {
+    if let Some(due) = self.due_date {
+        let today = Local::now().naive_local().date();
+        let days_until = (due - today).num_days();
+        days_until >= 0 && days_until <= days && !self.completed
+    } else {
+        false
+    }
+}
+```
+
+**New concept: Date arithmetic**
+
+```rust
+let days_until = (due - today).num_days();
+```
+
+**What's happening:**
+
+```rust
+// Today: 2026-02-03
+// Due: 2026-02-10
+let days_until = (2026-02-10) - (2026-02-03);
+// Result: Duration of 7 days
+.num_days()  // Extract as i64: 7
+```
+
+**The condition:**
+
+```rust
+days_until >= 0 && days_until <= days && !self.completed
+```
+
+Task is "due soon" if:
+
+1. Due date is not in the past (`days_until >= 0`)
+2. AND due within N days (`days_until <= days`)
+3. AND not completed
+
+**Example:**
+
+```rust
+// Today: 2026-02-03
+// Due: 2026-02-08
+// days_until = 5
+// is_due_soon(7) → true (within 7 days)
+// is_due_soon(3) → false (more than 3 days away)
+```
+
+#### Parsing dates from command line
+
+**In `add` command:**
+
+```rust
+"--due" => {
+    if i + 1 >= args.len() {
+        return Err("--due requires a date in format YYYY-MM-DD".into());
+    }
+
+    let date_str = &args[i + 1];
+    match NaiveDate::parse_from_str(date_str, "%Y-%m-%d") {
+        Ok(date) => due_date = Some(date),
+        Err(_) => {
+            return Err(format!(
+                "Invalid date format: '{}'. Use YYYY-MM-DD",
+                date_str
+            )
+            .into());
+        }
+    }
+
+    i += 1;
+}
+```
+
+**What's `parse_from_str`?**
+
+```rust
+NaiveDate::parse_from_str(date_str, "%Y-%m-%d")
+```
+
+**Parameters:**
+
+- `date_str`: String to parse ("2026-02-15")
+- `"%Y-%m-%d"`: Format pattern
+  - `%Y` = 4-digit year (2026)
+  - `%m` = 2-digit month (02)
+  - `%d` = 2-digit day (15)
+
+**Returns:** `Result<NaiveDate, ParseError>`
+
+**Error handling:**
+
+```rust
+match NaiveDate::parse_from_str(...) {
+    Ok(date) => due_date = Some(date),  // Success
+    Err(_) => return Err("Invalid date format...".into()),  // Failure
+}
+```
+
+**Examples:**
+
+```bash
+# Valid:
+todo add "Task" --due 2026-02-15  ✅
+
+# Invalid:
+todo add "Task" --due 02/15/2026  ❌ Wrong format
+todo add "Task" --due 2026-13-01  ❌ Invalid month
+todo add "Task" --due tomorrow    ❌ Not a date
+```
+
+#### Enhanced sorting
+
+**New sort options:**
+
+```rust
+match sort_by {
+    "priority" => {
+        indexed_tasks.sort_by(|(_, a), (_, b)| 
+            a.priority.order().cmp(&b.priority.order())
+        );
+    }
+    "due" => {
+        indexed_tasks.sort_by(|(_, a), (_, b)| 
+            match (a.due_date, b.due_date) {
+                (Some(date_a), Some(date_b)) => date_a.cmp(&date_b),
+                (Some(_), None) => std::cmp::Ordering::Less,
+                (None, Some(_)) => std::cmp::Ordering::Greater,
+                (None, None) => std::cmp::Ordering::Equal,
+            }
+        );
+    }
+    "created" => {
+        indexed_tasks.sort_by(|(_, a), (_, b)| 
+            a.created_at.cmp(&b.created_at)
+        );
+    }
+    _ => {}
+}
+```
+
+**Understanding the `due` sort:**
+
+```rust
+match (a.due_date, b.due_date) {
+    (Some(date_a), Some(date_b)) => date_a.cmp(&date_b),
+    (Some(_), None) => std::cmp::Ordering::Less,
+    (None, Some(_)) => std::cmp::Ordering::Greater,
+    (None, None) => std::cmp::Ordering::Equal,
+}
+```
+
+**Pattern matching on two `Option`s:**
+
+| Case | a.due_date | b.due_date | Result | Why |
+|------|------------|------------|--------|-----|
+| 1 | `Some(date_a)` | `Some(date_b)` | Compare dates | Both have dates |
+| 2 | `Some(_)` | `None` | a comes first (`Less`) | Tasks with dates come first |
+| 3 | `None` | `Some(_)` | b comes first (`Greater`) | Tasks with dates come first |
+| 4 | `None` | `None` | Equal | Neither has date |
+
+**Why tasks with dates come first?**
+
+```rust
+(Some(_), None) => std::cmp::Ordering::Less
+```
+
+**Logic:** Tasks with deadlines are more important than tasks without deadlines.
+
+**Result:**
+
+```
+Sorted list:
+1. Task due 2026-02-05
+2. Task due 2026-02-10
+3. Task due 2026-02-20
+4. Task with no due date
+5. Task with no due date
+```
+
+**Created sort is simpler:**
+
+```rust
+"created" => {
+    indexed_tasks.sort_by(|(_, a), (_, b)| 
+        a.created_at.cmp(&b.created_at)
+    );
+}
+```
+
+No `Option` to handle since `created_at` always has a value.
+
+#### Date filters
+
+**Four new filters:**
+
+```rust
+if overdue {
+    indexed_tasks.retain(|(_, t)| t.is_overdue());
+}
+if due_soon {
+    indexed_tasks.retain(|(_, t)| t.is_due_soon(7));
+}
+if with_due {
+    indexed_tasks.retain(|(_, t)| t.due_date.is_some());
+}
+if without_due {
+    indexed_tasks.retain(|(_, t)| t.due_date.is_none());
+}
+```
+
+**Mutual exclusion:**
+
+```rust
+if overdue || due_soon || with_due || without_due {
+    return Err("Use only one date filter".into());
+}
+```
+
+Only one date filter allowed at a time.
+
+**Examples:**
+
+```bash
+todo list --overdue        # Only late tasks
+todo list --due-soon       # Due in next 7 days
+todo list --with-due       # Any task with a due date
+todo list --without-due    # Tasks with no deadline
+```
+
+#### Tabular display format
+
+**Major visual change:**
+
+**Before (v1.4.0):**
+
+```
+1. 🔴 ⏳ Study Rust [learning, programming]
+2. 🟡 ✅ Fix bug [work, urgent]
+```
+
+**After (v1.5.0):**
+
+```
+  ID  P  S  Task                Tags            Due
+─────────────────────────────────────────────────────
+   1  H  ⏳  Study Rust          learning, ...   in 5 days
+   2  M  ✅  Fix bug             work, urgent
+```
+
+**Why the change?**
+
+- ✅ More professional
+- ✅ Easier to scan
+- ✅ Aligned columns
+- ✅ Better for many tasks
+
+**New display function:**
+
+```rust
+fn display_task_tabular(
+    number: usize,
+    task: &Task,
+    task_width: usize,
+    tags_width: usize
+) {
+    let number_str = format!("{:>3}", number);
+    let letter = task.priority.letter();
+    let checkbox = if task.completed { "✅".green() } else { "⏳".bright_white() };
+
+    // Truncate if too long
+    let task_text = if task.text.len() > task_width {
+        format!("{}...", &task.text[..task_width - 3])
+    } else {
+        task.text.clone()
+    };
+
+    // Format tags
+    let tags_str = if task.tags.is_empty() {
+        String::new()
+    } else {
+        let joined = task.tags.join(", ");
+        if joined.len() > tags_width {
+            format!("{}...", &joined[..tags_width - 3])
+        } else {
+            joined
+        }
+    };
+
+    // Get due date text and color
+    let due_text = get_due_text(task);
+    let due_colored = get_due_colored(task, &due_text);
+
+    // Print with alignment
+    if task.completed {
+        print!("{:>4} ", number_str.dimmed());
+        print!(" {} ", letter);
+        print!(" {} ", checkbox);
+        print!("{:<width$}", task_text.green(), width = task_width);
+        print!("  {:<width$}", tags_str.dimmed(), width = tags_width);
+        println!("  {}", due_colored);
+    } else {
+        print!("{:>4} ", number_str.dimmed());
+        print!(" {} ", letter);
+        print!(" {} ", checkbox);
+        print!("{:<width$}", task_text.bright_white(), width = task_width);
+        print!("  {:<width$}", tags_str.cyan(), width = tags_width);
+        println!("  {}", due_colored);
+    }
+}
+```
+
+**Formatting tricks:**
+
+```rust
+format!("{:>3}", number)   // Right-align in 3 chars: "  1"
+format!("{:<40}", text)    // Left-align in 40 chars: "Task text             "
+```
+
+**String slicing for truncation:**
+
+```rust
+if task.text.len() > task_width {
+    format!("{}...", &task.text[..task_width - 3])
+}
+```
+
+**Example:**
+
+```rust
+// task_width = 20
+// task.text = "This is a very long task name"
+// Length: 30 > 20
+&task.text[..17]  // "This is a very lo"
+format!("{}...", ...)  // "This is a very lo..."
+```
+
+#### Dynamic column widths
+
+**Calculate optimal widths:**
+
+```rust
+fn calculate_column_widths(tasks: &[(usize, &Task)]) -> (usize, usize, usize) {
+    let mut max_task_len = 10;   // Minimum width
+    let mut max_tags_len = 4;
+    let mut max_due_len = 3;
+
+    for (_, task) in tasks {
+        max_task_len = max_task_len.max(task.text.len());
+        
+        if !task.tags.is_empty() {
+            let tags_str = task.tags.join(", ");
+            max_tags_len = max_tags_len.max(tags_str.len());
+        }
+        
+        let due_text = get_due_text(task);
+        if !due_text.is_empty() {
+            max_due_len = max_due_len.max(due_text.len());
+        }
+    }
+
+    // Enforce maximum widths
+    max_task_len = max_task_len.min(40);
+    max_tags_len = max_tags_len.min(20);
+    max_due_len = max_due_len.min(20);
+
+    (max_task_len, max_tags_len, max_due_len)
+}
+```
+
+**Why dynamic widths?**
+
+```bash
+# Few tasks, short names:
+  ID  P  S  Task    Tags  Due
+────────────────────────────────
+   1  H  ⏳  Code    work  in 2 days
+
+# Many tasks, long names:
+  ID  P  S  Task                              Tags              Due
+──────────────────────────────────────────────────────────────────────
+   1  H  ⏳  Implement authentication sys...  backend, secur... in 5 days
+```
+
+Columns adjust to content!
+
+#### Due date text and colors
+
+**Format due date:**
+
+```rust
+fn get_due_text(task: &Task) -> String {
+    if let Some(due) = task.due_date {
+        let today = Local::now().naive_local().date();
+        let days_until = (due - today).num_days();
+
+        if task.completed {
+            String::new()  // Don't show for completed tasks
+        } else if days_until < 0 {
+            format!("late {} day{}", -days_until, if -days_until == 1 { "" } else { "s" })
+        } else if days_until == 0 {
+            "due today".to_string()
+        } else if days_until <= 7 {
+            format!("in {} day{}", days_until, if days_until == 1 { "" } else { "s" })
+        } else {
+            format!("in {} day{}", days_until, if days_until == 1 { "" } else { "s" })
+        }
+    } else {
+        String::new()  // No due date
+    }
+}
+```
+
+**Examples:**
+
+```rust
+// days_until = -3
+"late 3 days"
+
+// days_until = 0
+"due today"
+
+// days_until = 1
+"in 1 day"
+
+// days_until = 5
+"in 5 days"
+
+// days_until = 30
+"in 30 days"
+```
+
+**Grammar handling:**
+
+```rust
+if -days_until == 1 { "" } else { "s" }
+```
+
+Result: "1 day" vs "2 days" (correct grammar!)
+
+**Apply colors:**
+
+```rust
+fn get_due_colored(task: &Task, text: &str) -> ColoredString {
+    if text.is_empty() {
+        return "".normal();
+    }
+
+    if let Some(due) = task.due_date {
+        let today = Local::now().naive_local().date();
+        let days_until = (due - today).num_days();
+
+        if days_until < 0 {
+            text.red().bold()         // Overdue: RED + BOLD
+        } else if days_until == 0 {
+            text.yellow().bold()      // Due today: YELLOW + BOLD
+        } else if days_until <= 7 {
+            text.yellow()             // Due soon: YELLOW
+        } else {
+            text.cyan()               // Future: CYAN
+        }
+    } else {
+        text.normal()
+    }
+}
+```
+
+**Color scheme:**
+
+| Days Until | Color | Style | Urgency |
+|------------|-------|-------|---------|
+| < 0 | Red | Bold | 🚨 LATE! |
+| 0 | Yellow | Bold | ⚠️ TODAY! |
+| 1-7 | Yellow | Normal | 📅 Soon |
+| > 7 | Cyan | Normal | 🗓️ Future |
+
+**Visual hierarchy guides attention to urgent items!**
+
+#### Priority display change
+
+**Before (v1.4.0):**
+
+```rust
+fn emoji(&self) -> ColoredString {
+    match self {
+        Priority::High => "🔴".red(),
+        Priority::Medium => "🟡".yellow(),
+        Priority::Low => "🟢".green(),
+    }
+}
+```
+
+**After (v1.5.0):**
+
+```rust
+fn letter(&self) -> ColoredString {
+    match self {
+        Priority::High => "H".red(),
+        Priority::Medium => "M".yellow(),
+        Priority::Low => "L".green(),
+    }
+}
+```
+
+**Why letters instead of emojis?**
+
+- ✅ More professional/terminal-friendly
+- ✅ Consistent width (emojis can be double-width)
+- ✅ Works better in table format
+- ✅ Easier to grep/search in output
+
+#### Testing the feature
+
+```bash
+# Add tasks with due dates
+$ todo add "Submit report" --high --due 2026-02-05
+✓ Task added
+
+$ todo add "Team meeting" --due 2026-02-03  # Today!
+✓ Task added
+
+$ todo add "Review PR" --due 2026-01-30  # Overdue
+✓ Task added
+
+$ todo add "Plan vacation" --low --due 2026-03-15
+✓ Task added
+
+$ todo add "Read email"  # No due date
+✓ Task added
+
+# List all tasks
+$ todo list
+
+Tasks:
+
+  ID  P  S  Task            Tags  Due
+────────────────────────────────────────
+   1  H  ⏳  Submit report         in 2 days
+   2  M  ⏳  Team meeting          due today
+   3  M  ⏳  Review PR             late 4 days
+   4  L  ⏳  Plan vacation         in 40 days
+   5  M  ⏳  Read email
+
+# See overdue tasks
+$ todo list --overdue
+
+Overdue tasks:
+
+  ID  P  S  Task        Tags  Due
+──────────────────────────────────
+   3  M  ⏳  Review PR         late 4 days
+
+# See what's due soon
+$ todo list --due-soon
+
+Due soon (next 7 days):
+
+  ID  P  S  Task            Tags  Due
+────────────────────────────────────────
+   1  H  ⏳  Submit report         in 2 days
+   2  M  ⏳  Team meeting          due today
+
+# Sort by due date
+$ todo list --sort due
+
+Tasks:
+
+  ID  P  S  Task            Tags  Due
+────────────────────────────────────────
+   3  M  ⏳  Review PR             late 4 days
+   2  M  ⏳  Team meeting          due today
+   1  H  ⏳  Submit report         in 2 days
+   4  L  ⏳  Plan vacation         in 40 days
+   5  M  ⏳  Read email
+
+# Mark task as done
+$ todo done 2
+✓ Task marked as completed
+
+# Check JSON
+$ cat todos.json
+[
+  {
+    "text": "Submit report",
+    "completed": false,
+    "priority": "High",
+    "tags": [],
+    "due_date": "2026-02-05",
+    "created_at": "2026-02-03"
+  },
+  {
+    "text": "Team meeting",
+    "completed": true,
+    "priority": "Medium",
+    "tags": [],
+    "due_date": "2026-02-03",
+    "created_at": "2026-02-03"
+  }
+]
+```
+
+**Everything works!** ✨
+
+**🔗 Resources:**
+
+- [Code v1.5.0](https://github.com/joaofelipegalvao/todo-cli/tree/v1.5.0)
+- [Full diff](https://github.com/joaofelipegalvao/todo-cli/compare/v1.4.0...v1.5.0)
+- [chrono documentation](https://docs.rs/chrono/)
+
+---
+
 ## Concepts Learned
 
 ### File Manipulation
@@ -4355,6 +5156,43 @@ $ cat todos.json
 - **Sequential filtering** - Applying multiple filters to same vector
 - **Backward compatibility** - Using `#[serde(default)]` for optional fields
 - **Graceful degradation** - Handling missing fields in old data
+
+### Date and Time (v1.5.0+)
+
+- **`chrono` crate** - De-facto standard for dates/times in Rust
+- **`NaiveDate`** - Date without timezone information
+- **`Local::now()`** - Get current local time
+- **`.naive_local()`** - Convert DateTime to naive (remove timezone)
+- **`.date()`** - Extract date from DateTime
+- **Date parsing** - `parse_from_str()` with format patterns (`%Y-%m-%d`)
+- **Date arithmetic** - Subtracting dates to get Duration
+- **`.num_days()`** - Extract days from Duration
+- **`Option<NaiveDate>`** - Optional dates (not all tasks have due dates)
+- **Date comparison** - Using `<`, `>`, `==` with dates
+- **Timestamp fields** - `created_at` for automatic tracking
+- **ISO 8601 format** - Standard YYYY-MM-DD date format
+
+### Sorting and Comparison (v1.5.0+)
+
+- **Multi-field sorting** - Sort by priority, due date, or created date
+- **`std::cmp::Ordering`** - Less, Equal, Greater for comparisons
+- **Sorting with `Option`** - Handling `Some`/`None` in sort comparisons
+- **Custom sort order** - Tasks with dates come before tasks without
+- **`.sort_by()`** - Custom comparison logic
+- **Pattern matching in sort** - Match on `(Option, Option)` tuples
+- **Comparison priorities** - Deciding sort order for None values
+
+### String Formatting and Display (v1.5.0+)
+
+- **Format alignment** - `{:>3}` (right), `{:<40}` (left)
+- **String slicing** - `&str[..n]` to truncate
+- **Truncation with ellipsis** - "Long text..." for readability
+- **Dynamic column widths** - Calculate based on content
+- **`.max()` and `.min()`** - Enforce width constraints
+- **Tabular output** - Professional table formatting
+- **Grammar in output** - Singular/plural handling ("1 day" vs "2 days")
+- **Conditional text** - Different text based on logic
+- **Color-coded urgency** - Visual hierarchy with colors
 
 ### CLI Patterns and UX (v1.4.0+)
 
@@ -4719,6 +5557,7 @@ This project taught me:
 - **v1.2:** Type safety and architecture (make it right)
 - **v1.3:** Automatic serialization (make it maintainable)
 - **v1.4:** Tags and bug fixes (make it reliable)
+- **v1.5:** Due dates and professional display (make it practical)
 
 **Evolution of the codebase:**
 
@@ -4730,6 +5569,8 @@ v1.2: Type-safe structs and enums (36% reduction)
 v1.3: Automatic JSON serialization (91% I/O reduction)
   ↓
 v1.4: Extensible with tags (1 line = new feature)
+  ↓
+v1.5: Due dates + tabular display (deadline tracking + professional UX)
   ↓
 Next: Even more powerful features with minimal code
 ```
@@ -4757,7 +5598,7 @@ Next: Even more powerful features with minimal code
 | Version | Feature | Rust Concepts |
 |---------|---------|---------------|
 | ~~v1.4~~ | ~~Tags~~ | ~~`Vec<String>`, `.retain()`, `#[serde(default)]`~~ ✅
-| v1.5 | Due dates | `chrono` crate, `DateTime<Utc>`, `Option<DateTime>` |
+| ~~v1.5~~ | ~~Due dates~~ | ~~`chrono`, `NaiveDate`, date arithmetic, sorting with `Option`~~ ✅
 | v1.6 | Recurring | Pattern matching, date arithmetic, custom types |
 | v1.7 | Subtasks | Recursive data structures, `Box<T>`, tree traversal |
 | v1.8 | Projects | Multiple files, better organization, workspace |
@@ -4777,7 +5618,8 @@ struct Task {
     completed: bool,
     priority: Priority,
     tags: Vec<String>,        // ✅ v1.4: DONE
-    due_date: Option<String>, // ← v1.5: Add ONE line
+    due_date: Option<NaiveDate>, // ✅ v1.5: DONE
+    created_at: NaiveDate,    // ✅ v1.5: DONE
     recurring: Option<Recurrence>, // ← v1.6: Add ONE line
     subtasks: Vec<Task>,      // ← v1.7: Add ONE line
     project: String,          // ← v1.8: Add ONE line

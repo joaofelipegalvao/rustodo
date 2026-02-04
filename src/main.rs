@@ -1,5 +1,6 @@
 use std::{env, error::Error, fs, process};
 
+use chrono::{Local, NaiveDate};
 use colored::{ColoredString, Colorize};
 use serde::{Deserialize, Serialize};
 
@@ -16,6 +17,8 @@ struct Task {
     completed: bool,
     priority: Priority,
     tags: Vec<String>,
+    due_date: Option<NaiveDate>,
+    created_at: NaiveDate,
 }
 
 #[derive(Debug, Clone, PartialEq, Copy, Serialize, Deserialize)]
@@ -26,12 +29,19 @@ enum Priority {
 }
 
 impl Task {
-    fn new(text: String, priority: Priority, tags: Vec<String>) -> Self {
+    fn new(
+        text: String,
+        priority: Priority,
+        tags: Vec<String>,
+        due_date: Option<NaiveDate>,
+    ) -> Self {
         Task {
             text,
             completed: false,
             priority,
             tags,
+            due_date,
+            created_at: Local::now().naive_local().date(),
         }
     }
 
@@ -41,6 +51,25 @@ impl Task {
 
     fn mark_undone(&mut self) {
         self.completed = false;
+    }
+
+    fn is_overdue(&self) -> bool {
+        if let Some(due) = self.due_date {
+            let today = Local::now().naive_local().date();
+            due < today && !self.completed
+        } else {
+            false
+        }
+    }
+
+    fn is_due_soon(&self, days: i64) -> bool {
+        if let Some(due) = self.due_date {
+            let today = Local::now().naive_local().date();
+            let days_until = (due - today).num_days();
+            days_until >= 0 && days_until <= days && !self.completed
+        } else {
+            false
+        }
     }
 }
 
@@ -53,11 +82,11 @@ impl Priority {
         }
     }
 
-    fn emoji(&self) -> ColoredString {
+    fn letter(&self) -> ColoredString {
         match self {
-            Priority::High => "".red(),
-            Priority::Medium => "".yellow(),
-            Priority::Low => "".green(),
+            Priority::High => "H".red(),
+            Priority::Medium => "M".yellow(),
+            Priority::Low => "L".green(),
         }
     }
 }
@@ -78,52 +107,167 @@ fn save_tasks(tasks: &[Task]) -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-fn display_task(number: usize, task: &Task) {
-    let number_fmt = format!("{}.", number);
-    let emoji = task.priority.emoji();
+fn calculate_column_widths(tasks: &[(usize, &Task)]) -> (usize, usize, usize) {
+    let mut max_task_len = 10;
+    let mut max_tags_len = 4;
+    let mut max_due_len = 3;
+
+    for (_, task) in tasks {
+        max_task_len = max_task_len.max(task.text.len());
+
+        if !task.tags.is_empty() {
+            let tags_str = task.tags.join(", ");
+            max_tags_len = max_tags_len.max(tags_str.len());
+        }
+
+        let due_text = get_due_text(task);
+        if !due_text.is_empty() {
+            max_due_len = max_due_len.max(due_text.len());
+        }
+    }
+
+    max_task_len = max_task_len.min(40);
+    max_tags_len = max_tags_len.min(20);
+    max_due_len = max_due_len.min(20);
+
+    (max_task_len, max_tags_len, max_due_len)
+}
+
+fn get_due_text(task: &Task) -> String {
+    if let Some(due) = task.due_date {
+        let today = Local::now().naive_local().date();
+        let days_until = (due - today).num_days();
+
+        if task.completed {
+            String::new()
+        } else if days_until < 0 {
+            format!(
+                "late {} day{}",
+                -days_until,
+                if -days_until == 1 { "" } else { "s" }
+            )
+        } else if days_until == 0 {
+            "due today".to_string()
+        } else if days_until <= 7 {
+            format!(
+                "in {} day{}",
+                days_until,
+                if days_until == 1 { "" } else { "s" }
+            )
+        } else {
+            format!(
+                "in {} day{}",
+                days_until,
+                if days_until == 1 { "" } else { "s" }
+            )
+        }
+    } else {
+        String::new()
+    }
+}
+
+fn get_due_colored(task: &Task, text: &str) -> ColoredString {
+    if text.is_empty() {
+        return "".normal();
+    }
+
+    if let Some(due) = task.due_date {
+        let today = Local::now().naive_local().date();
+        let days_until = (due - today).num_days();
+
+        if days_until < 0 {
+            text.red().bold()
+        } else if days_until == 0 {
+            text.yellow().bold()
+        } else if days_until <= 7 {
+            text.yellow()
+        } else {
+            text.cyan()
+        }
+    } else {
+        text.normal()
+    }
+}
+
+fn display_task_tabular(number: usize, task: &Task, task_width: usize, tags_width: usize) {
+    let number_str = format!("{:>3}", number);
+    let letter = task.priority.letter();
+    let checkbox = if task.completed {
+        "".green()
+    } else {
+        "".bright_white()
+    };
+
+    let task_text = if task.text.len() > task_width {
+        format!("{}...", &task.text[..task_width - 3])
+    } else {
+        task.text.clone()
+    };
 
     let tags_str = if task.tags.is_empty() {
         String::new()
     } else {
-        format!(" [{}]", task.tags.join(", "))
+        let joined = task.tags.join(", ");
+        if joined.len() > tags_width {
+            format!("{}...", &joined[..tags_width - 3])
+        } else {
+            joined
+        }
     };
 
+    let due_text = get_due_text(task);
+    let due_colored = get_due_colored(task, &due_text);
+
     if task.completed {
-        println!(
-            "{} {} {} {}{}",
-            number_fmt.dimmed(),
-            emoji,
-            "󰄵".green(),
-            task.text.green().strikethrough(),
-            tags_str.dimmed()
-        );
+        print!("{:>4} ", number_str.dimmed());
+        print!(" {} ", letter);
+        print!(" {} ", checkbox);
+        print!("{:<width$}", task_text.green(), width = task_width);
+        print!("  {:<width$}", tags_str.dimmed(), width = tags_width);
+        println!("  {}", due_colored);
     } else {
-        println!(
-            "{} {} {} {}{}",
-            number_fmt.dimmed(),
-            emoji,
-            "".yellow(),
-            task.text.bright_white(),
-            tags_str.cyan()
-        );
+        print!("{:>4} ", number_str.dimmed());
+        print!(" {} ", letter);
+        print!(" {} ", checkbox);
+        print!("{:<width$}", task_text.bright_white(), width = task_width);
+        print!("  {:<width$}", tags_str.cyan(), width = tags_width);
+        println!("  {}", due_colored);
     }
 }
 
 fn display_lists(tasks: &[(usize, &Task)], title: &str) {
-    println!("\n {}:\n", title);
+    println!("\n{}:\n", title);
+
+    if tasks.is_empty() {
+        println!("No tasks");
+        return;
+    }
+
+    let (task_width, tags_width, due_width) = calculate_column_widths(tasks);
+
+    print!("{:>4} ", "ID".dimmed());
+    print!(" {} ", "P".dimmed());
+    print!(" {} ", "S".dimmed());
+    print!("{:<width$}", "Task".dimmed(), width = task_width);
+    print!("  {:<width$}", "Tags".dimmed(), width = tags_width);
+    println!("  {}", "Due".dimmed());
+
+    let total_width = task_width + tags_width + due_width + 19;
+
+    println!("{}", "─".repeat(total_width).dimmed());
 
     let mut completed = 0;
     let total = tasks.len();
 
     for (number, task) in tasks {
-        display_task(*number, task);
+        display_task_tabular(*number, task, task_width, tags_width);
 
         if task.completed {
             completed += 1;
         }
     }
 
-    println!("\n{}", "─".repeat(30).dimmed());
+    println!("\n{}", "─".repeat(total_width).dimmed());
 
     let percentage = if total > 0 {
         (completed as f32 / total as f32 * 100.0) as u32
@@ -148,10 +292,11 @@ fn run() -> Result<(), Box<dyn Error>> {
     let args: Vec<String> = env::args().collect();
 
     if args.len() < 2 {
-        return Err(
-            "Usage: todo <command> [arguments]\nCommands: add, list [--pending|--done|--high|--medium|--low|--sort], done, undone, remove, clear, search"
-                .into(),
-        );
+        return Err("Usage: todo <command> [arguments]\n\
+         Commands: add, list [--pending|--done|--high|--medium|--low|\
+         --sort <field>|--overdue|--due-soon|--with-due|--without-due], \
+         done, undone, remove, clear, search, tags"
+            .into());
     }
 
     let command = &args[1];
@@ -160,7 +305,8 @@ fn run() -> Result<(), Box<dyn Error>> {
         "add" => {
             if args.len() < 3 {
                 return Err(
-                    "Usage: todo add <task> [--high|--medium|--low] [--tag <name>]...".into(),
+                    "Usage: todo add <task> [--high|--medium|--low] [--tag <n>] [--due YYYY-MM-DD]"
+                        .into(),
                 );
             }
 
@@ -168,6 +314,7 @@ fn run() -> Result<(), Box<dyn Error>> {
 
             let mut priority = Priority::Medium;
             let mut tags: Vec<String> = Vec::new();
+            let mut due_date: Option<NaiveDate> = None;
 
             let mut i = 3;
 
@@ -184,6 +331,26 @@ fn run() -> Result<(), Box<dyn Error>> {
                         i += 1;
                     }
 
+                    "--due" => {
+                        if i + 1 >= args.len() {
+                            return Err("--due requires a date in format YYYY-MM-DD".into());
+                        }
+
+                        let date_str = &args[i + 1];
+                        match NaiveDate::parse_from_str(date_str, "%Y-%m-%d") {
+                            Ok(date) => due_date = Some(date),
+                            Err(_) => {
+                                return Err(format!(
+                                    "Invalid date format: '{}'. Use YYYY-MM-DD",
+                                    date_str
+                                )
+                                .into());
+                            }
+                        }
+
+                        i += 1;
+                    }
+
                     _ => {
                         return Err(format!("Invalid flag: {}", args[i]).into());
                     }
@@ -192,7 +359,7 @@ fn run() -> Result<(), Box<dyn Error>> {
                 i += 1;
             }
 
-            let task = Task::new(text, priority, tags);
+            let task = Task::new(text, priority, tags, due_date);
 
             let mut tasks = load_tasks()?;
             tasks.push(task);
@@ -205,7 +372,11 @@ fn run() -> Result<(), Box<dyn Error>> {
             let mut status_filter = "all";
             let mut priority_filter: Option<Priority> = None;
             let mut tag_filter: Option<String> = None;
-            let mut sort = false;
+            let mut sort_by = "none";
+            let mut overdue = false;
+            let mut due_soon = false;
+            let mut with_due = false;
+            let mut without_due = false;
 
             let mut i = 2;
 
@@ -248,10 +419,27 @@ fn run() -> Result<(), Box<dyn Error>> {
                         priority_filter = Some(Priority::Low);
                     }
                     "--sort" => {
-                        if sort {
+                        if sort_by != "none" {
                             return Err("Use --sort only once".into());
                         }
-                        sort = true;
+
+                        if i + 1 < args.len() && !args[i + 1].starts_with("--") {
+                            match args[i + 1].as_str() {
+                                "priority" => sort_by = "priority",
+                                "due" => sort_by = "due",
+                                "created" => sort_by = "created",
+                                _ => {
+                                    return Err(format!(
+                                        "Invalid sort field: '{}'. Use: priority, due, or created",
+                                        args[i + 1]
+                                    )
+                                    .into());
+                                }
+                            }
+                            i += 1;
+                        } else {
+                            sort_by = "priority";
+                        }
                     }
                     "--tag" => {
                         if tag_filter.is_some() {
@@ -263,6 +451,32 @@ fn run() -> Result<(), Box<dyn Error>> {
                         }
                         tag_filter = Some(args[i + 1].clone());
                         i += 1;
+                    }
+                    "--overdue" => {
+                        if overdue || due_soon || with_due || without_due {
+                            return Err("Use only one date filter".into());
+                        }
+                        overdue = true;
+                    }
+                    "--due-soon" => {
+                        if overdue || due_soon || with_due || without_due {
+                            return Err("Use only one date filter".into());
+                        }
+                        due_soon = true;
+                    }
+
+                    "--with-due" => {
+                        if overdue || due_soon || with_due || without_due {
+                            return Err("Use only one date filter".into());
+                        }
+                        with_due = true;
+                    }
+
+                    "--without-due" => {
+                        if overdue || due_soon || with_due || without_due {
+                            return Err("Use only one date filter".into());
+                        }
+                        without_due = true;
                     }
                     _ => return Err(format!("Invalid filter: {}", args[i]).into()),
                 }
@@ -296,28 +510,66 @@ fn run() -> Result<(), Box<dyn Error>> {
                 indexed_tasks.retain(|(_, t)| t.tags.contains(tag));
             }
 
+            if overdue {
+                indexed_tasks.retain(|(_, t)| t.is_overdue());
+            }
+            if due_soon {
+                indexed_tasks.retain(|(_, t)| t.is_due_soon(7));
+            }
+            if with_due {
+                indexed_tasks.retain(|(_, t)| t.due_date.is_some());
+            }
+            if without_due {
+                indexed_tasks.retain(|(_, t)| t.due_date.is_none());
+            }
+
             if indexed_tasks.is_empty() {
                 println!("No tasks found with these filters");
                 return Ok(());
             }
 
-            if sort {
-                indexed_tasks.sort_by(|(_, a), (_, b)| a.priority.order().cmp(&b.priority.order()));
+            match sort_by {
+                "priority" => {
+                    indexed_tasks
+                        .sort_by(|(_, a), (_, b)| a.priority.order().cmp(&b.priority.order()));
+                }
+                "due" => {
+                    indexed_tasks.sort_by(|(_, a), (_, b)| match (a.due_date, b.due_date) {
+                        (Some(date_a), Some(date_b)) => date_a.cmp(&date_b),
+                        (Some(_), None) => std::cmp::Ordering::Less,
+                        (None, Some(_)) => std::cmp::Ordering::Greater,
+                        (None, None) => std::cmp::Ordering::Equal,
+                    });
+                }
+                "created" => {
+                    indexed_tasks.sort_by(|(_, a), (_, b)| a.created_at.cmp(&b.created_at));
+                }
+                _ => {}
             }
 
-            let title = match (status_filter, priority_filter) {
-                ("pending", Some(Priority::High)) => "High priority pending tasks",
-                ("pending", Some(Priority::Medium)) => "Medium priority pending tasks",
-                ("pending", Some(Priority::Low)) => "Low priority pending tasks",
-                ("pending", None) => "Pending tasks",
-                ("done", Some(Priority::High)) => "High priority completed tasks",
-                ("done", Some(Priority::Medium)) => "Medium priority completed tasks",
-                ("done", Some(Priority::Low)) => "Low priority completed tasks",
-                ("done", None) => "Completed tasks",
-                (_, Some(Priority::High)) => "High priority",
-                (_, Some(Priority::Medium)) => "Medium priority",
-                (_, Some(Priority::Low)) => "Low priority",
-                _ => "Tasks",
+            let title = if with_due {
+                "Tasks with due date"
+            } else if without_due {
+                "Tasks without due date"
+            } else if overdue {
+                "Overdue tasks"
+            } else if due_soon {
+                "Due soon (next 7 days)"
+            } else {
+                match (status_filter, priority_filter) {
+                    ("pending", Some(Priority::High)) => "High priority pending tasks",
+                    ("pending", Some(Priority::Medium)) => "Medium priority pending tasks",
+                    ("pending", Some(Priority::Low)) => "Low priority pending tasks",
+                    ("pending", None) => "Pending tasks",
+                    ("done", Some(Priority::High)) => "High priority completed tasks",
+                    ("done", Some(Priority::Medium)) => "Medium priority completed tasks",
+                    ("done", Some(Priority::Low)) => "Low priority completed tasks",
+                    ("done", None) => "Completed tasks",
+                    (_, Some(Priority::High)) => "High priority",
+                    (_, Some(Priority::Medium)) => "Medium priority",
+                    (_, Some(Priority::Low)) => "Low priority",
+                    _ => "Tasks",
+                }
             };
 
             display_lists(&indexed_tasks, title);
@@ -377,7 +629,7 @@ fn run() -> Result<(), Box<dyn Error>> {
 
         "search" => {
             if args.len() < 3 {
-                return Err("Usage: todo search <term> [--tag <name>]".into());
+                return Err("Usage: todo search <term> [--tag <n>]".into());
             }
 
             let term = &args[2];
@@ -423,13 +675,7 @@ fn run() -> Result<(), Box<dyn Error>> {
             if results.is_empty() {
                 println!("No results for '{}'", term);
             } else {
-                println!("\n󱎸 Results for \"{}\":\n", term);
-
-                for (number, task) in &results {
-                    display_task(*number, task);
-                }
-
-                println!("\n{} result(s) found\n", results.len());
+                display_lists(&results, &format!("Search results for \"{}\"", term));
             }
         }
 
@@ -457,7 +703,7 @@ fn run() -> Result<(), Box<dyn Error>> {
 
             all_tags.sort();
 
-            println!("\n Tags:\n");
+            println!("\nTags:\n");
             for tag in &all_tags {
                 let count = tasks.iter().filter(|t| t.tags.contains(tag)).count();
                 println!(

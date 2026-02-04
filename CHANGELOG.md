@@ -10,13 +10,98 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Planned
 
 - Edit command
-- Due dates with `chrono`
-- Sort by date (`--sort date`)
 - Recurring tasks
 - Subtasks/nested tasks
 - Export/import commands
 - Unit tests
 - TUI (Terminal User Interface)
+
+## [1.5.0] - 2026-02-03
+
+### Added
+
+- **Due date tracking** with `chrono` crate
+- `due_date` field in `Task` struct (`Option<NaiveDate>`)
+- `created_at` field in `Task` struct (`NaiveDate`) - automatic timestamp on task creation
+- `--due YYYY-MM-DD` flag for `add` command to set task deadlines
+- `--overdue` filter to list tasks past their due date
+- `--due-soon` filter to list tasks due in the next 7 days
+- `--with-due` filter to list tasks that have a due date
+- `--without-due` filter to list tasks without a due date
+- `--sort due` option to sort tasks by due date (earliest first)
+- `--sort created` option to sort tasks by creation date (oldest first)
+- `Task::is_overdue()` method to check if task is past due date
+- `Task::is_due_soon(days: i64)` method to check if task is due within N days
+- Date parsing with `NaiveDate::parse_from_str()` using format `%Y-%m-%d`
+- Color-coded due date display:
+  - Red + Bold: Overdue (e.g., "late 3 days")
+  - Yellow + Bold: Due today (e.g., "due today")
+  - Yellow: Due soon, 1-7 days (e.g., "in 5 days")
+  - Cyan: Future, 8+ days (e.g., "in 30 days")
+- **Tabular display format** for professional task listing
+- Dynamic column width calculation based on content
+- `display_task_tabular()` function for formatted output
+- `calculate_column_widths()` function for optimal column sizing
+- `get_due_text()` function for human-readable due date formatting
+- `get_due_colored()` function for urgency-based coloring
+- Header row with column labels: `ID`, `P` (Priority), `S` (Status), `Task`, `Tags`, `Due`
+- Separator line for visual clarity
+- String truncation with ellipsis for long task names and tags
+- Date arithmetic using `chrono::Duration` for calculating days until due
+
+### Changed
+
+- **BREAKING CHANGE:** Priority display changed from emojis (🔴🟡🟢) to letters (H/M/L)
+  - `Priority::emoji()` renamed to `Priority::letter()`
+  - More professional and terminal-friendly appearance
+  - Consistent column width in tabular format
+- **BREAKING CHANGE:** Task display format completely redesigned
+  - Old: `1. 🔴 ⏳ Study Rust [learning, programming]`
+  - New: Tabular format with aligned columns
+
+  ```
+    ID  P  S  Task           Tags              Due
+  ────────────────────────────────────────────────────
+     1  H  ⏳  Study Rust     learning, prog... in 5 days
+  ```
+
+- `Task::new()` signature: now accepts `due_date: Option<NaiveDate>` parameter
+- `Task` JSON format: includes `due_date` (nullable) and `created_at` (required)
+- `--sort` flag: renamed from boolean to value-based (`priority`, `due`, `created`)
+- Due date sorting: tasks with dates come before tasks without dates
+- Completed tasks no longer display due date information
+- Maximum column widths enforced (task: 40 chars, tags: 20 chars, due: 20 chars)
+- Minimum column widths enforced (task: 10 chars, tags: 4 chars, due: 3 chars)
+
+### Fixed
+
+- Mutual exclusion validation for date filters (can't use multiple date filters together)
+- Proper handling of `None` values in due date sorting
+- Grammar in due date text ("1 day" vs "2 days")
+- Visual hierarchy with color-coding guides attention to urgent items
+
+### Technical Details
+
+- `chrono` crate added with `serde` feature for automatic date serialization
+- `NaiveDate` used for dates (no timezone information needed for due dates)
+- Date creation: `Local::now().naive_local().date()` for current date
+- Date comparison: direct comparison operators (`<`, `>`, `==`) work on `NaiveDate`
+- Pattern matching on `Option<NaiveDate>` for flexible due date handling
+- Format specifiers: `{:>3}` (right-align), `{:<40}` (left-align with width)
+- String slicing for truncation: `&text[..width-3]` with "..." suffix
+- Four-way pattern matching in due date sort for handling `Option` combinations
+- Tabular format uses `print!()` for inline formatting and `println!()` for line breaks
+- Date filters use `retain()` to preserve task indices
+
+### Migration Notes
+
+Upgrading from v1.4.0:
+
+- Old tasks remain compatible - `due_date` defaults to `null`
+- `created_at` will be set to current date on first load for existing tasks
+- No data loss - all existing fields preserved
+- New fields can be added manually to JSON if needed
+- Priority indicators will display as letters instead of emojis
 
 ## [1.4.0] - 2026-01-31
 
@@ -270,7 +355,8 @@ Users need to migrate from `todos.txt` to `todos.json`:
 - Pattern matching for subcommands
 - Error handling with `?` operator
 
-[Unreleased]: https://github.com/joaofelipegalvao/todo-cli/compare/v1.4.0...HEAD
+[Unreleased]: https://github.com/joaofelipegalvao/todo-cli/compare/v1.5.0...HEAD
+[1.5.0]: https://github.com/joaofelipegalvao/todo-cli/compare/v1.4.0...v1.5.0
 [1.4.0]: https://github.com/joaofelipegalvao/todo-cli/compare/v1.3.0...v1.4.0
 [1.3.0]: https://github.com/joaofelipegalvao/todo-cli/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/joaofelipegalvao/todo-cli/compare/v1.1.0...v1.2.0
@@ -287,4 +373,4 @@ Users need to migrate from `todos.txt` to `todos.json`:
 [0.4.0]: https://github.com/joaofelipegalvao/todo-cli/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/joaofelipegalvao/todo-cli/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/joaofelipegalvao/todo-cli/compare/v0.1.0...v0.2.0
-[0.1.0]: <https://github.com/joaofelipegalvao/todo-cli/releases/tag/v0.1.0> Changelog
+[0.1.0]: https://github.com/joaofelipegalvao/todo-cli/releases/tag/v0.1.0
