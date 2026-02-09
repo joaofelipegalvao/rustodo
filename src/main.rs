@@ -220,6 +220,11 @@ enum Commands {
         Shows a summary of all tags you've created, along with the count\n\
         of tasks associated with each tag.")]
     Tags,
+
+    /// Show information about data file location
+    #[command(long_about = "Show information about where your tasks are stored\n\n\
+    Displays the path to the todos.json file and its status.")]
+    Info,
 }
 
 #[derive(Args)]
@@ -739,6 +744,31 @@ fn run(cli: Cli) -> Result<()> {
             }
 
             println!()
+        }
+
+        Commands::Info => {
+            let path = get_data_file_path()?;
+            let exists = path.exists();
+
+            println!("\n{}\n", "Todo-List Information".bold());
+            println!("{} {}", "Data file:".dimmed(), path.display());
+            println!(
+                "{} {}",
+                "Status:".dimmed(),
+                if exists {
+                    "exists ✓".green()
+                } else {
+                    "not created yet".yellow()
+                }
+            );
+
+            if exists {
+                let metadata = fs::metadata(&path)?;
+                let size = metadata.len();
+                println!("{} {} bytes", "Size:".dimmed(), size);
+            }
+
+            println!();
         }
     }
 
