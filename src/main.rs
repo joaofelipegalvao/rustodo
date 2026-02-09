@@ -1,9 +1,11 @@
+use std::path::PathBuf;
 use std::{fs, process};
 
 use anyhow::{Context, Result};
 use chrono::{Local, NaiveDate};
 use clap::{Args, Parser, Subcommand, ValueEnum};
 use colored::{ColoredString, Colorize};
+use directories::ProjectDirs;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
@@ -100,7 +102,7 @@ enum SortBy {
 #[derive(Parser)]
 #[command(name = "todo-list")]
 #[command(author = "github.com/joaofelipegalvao")]
-#[command(version = "1.6.0")]
+#[command(version = "1.8.0")]
 #[command(about = "A modern, powerful task manager built with Rust", long_about = None)]
 #[command(after_help = "EXAMPLES:\n    \
     # Add a high priority task\n    \
@@ -320,22 +322,28 @@ impl Priority {
 }
 
 fn load_tasks() -> Result<Vec<Task>> {
-    match fs::read_to_string("todos.json") {
+    let path = get_data_file_path()?;
+
+    match fs::read_to_string(&path) {
         Ok(content) => serde_json::from_str(&content)
             .context("Failed to parse todos.json - file may be corrupted"),
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(Vec::new()),
         Err(e) => Err(e).context(format!(
-            "Failed to read todos.json from current directory: {}",
-            std::env::current_dir().unwrap_or_default().display()
+            "Failed to read todos.json from: {}",
+            path.display()
         )),
     }
 }
 
 fn save_tasks(tasks: &[Task]) -> Result<()> {
+    let path = get_data_file_path()?;
+
     let json = serde_json::to_string_pretty(tasks).context("Failed to serialize tasks to JSON")?;
 
-    fs::write("todos.json", json)
-        .context("Failed to write to todos.json - check file permissions")?;
+    fs::write(&path, json).context(format!(
+        "Failed to write to {} - check file permission",
+        path.display()
+    ))?;
 
     Ok(())
 }
@@ -512,6 +520,24 @@ fn display_lists(tasks: &[(usize, &Task)], title: &str) {
     println!();
 }
 
+fn get_data_file_path() -> Result<PathBuf> {
+    let project_dirs =
+        ProjectDirs::from("", "", "todo-cli").context("Failed to determine project directories")?;
+
+    let data_dir = project_dirs.data_dir();
+
+    // Create directory if it doesn't exist
+    fs::create_dir_all(data_dir).context(format!(
+        "Failed to create data directory: {}",
+        data_dir.display()
+    ))?;
+
+    let mut path = data_dir.to_path_buf();
+    path.push("todos.json");
+
+    Ok(path)
+}
+
 fn run(cli: Cli) -> Result<()> {
     match cli.command {
         Commands::Add(args) => {
@@ -652,8 +678,10 @@ fn run(cli: Cli) -> Result<()> {
         }
 
         Commands::Clear => {
-            if fs::metadata("todos.json").is_ok() {
-                fs::remove_file("todos.json")?;
+            let path = get_data_file_path()?;
+
+            if path.exists() {
+                fs::remove_file(&path).context(format!("Failed to remove {}", path.display()))?;
                 println!("{}", "✓ All tasks have been removed".red().bold());
             } else {
                 println!("No tasks to remove");
