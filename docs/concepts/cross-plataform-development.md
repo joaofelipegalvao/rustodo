@@ -245,9 +245,33 @@ let base = PathBuf::from("/home/user");
 let full = base.join("documents").join("file.txt");
 // Result: /home/user/documents/file.txt
 
-// Works with different separators on each platform
+// Alternative method (used in actual todo-cli implementation):
+let mut path = base_dir.to_path_buf();
+path.push("documents");
+path.push("file.txt");
+// Result: /home/user/documents/file.txt
+
+// Both work, push() modifies in-place, join() creates new PathBuf
+```
+
+**Works with different separators on each platform:**
+
+```rust
 // Linux/macOS: /home/user/documents/file.txt
 // Windows: C:\Users\user\documents\file.txt
+```
+
+**Difference between `.join()` and `.push()`:**
+
+```rust
+// .join() - creates new PathBuf
+let path1 = base.join("file.txt");  // base unchanged
+
+// .push() - modifies existing PathBuf (used in todo-cli)
+let mut path2 = base.clone();
+path2.push("file.txt");  // path2 modified
+
+// Both work, choose based on whether you need the original
 ```
 
 **Path components:**
@@ -310,38 +334,53 @@ fs::create_dir_all("/home/user/deeply/nested/path")?;
 ### Idempotent Directory Creation
 
 ```rust
-use std::path::Path;
-
-fn ensure_dir_exists(path: &Path) -> std::io::Result<()> {
-    if !path.exists() {
-        fs::create_dir_all(path)?;
-    }
-    Ok(())
-}
-
-// Safe to call multiple times
-ensure_dir_exists(config_dir)?;  // Creates directory
-ensure_dir_exists(config_dir)?;  // Does nothing (dir exists)
-ensure_dir_exists(config_dir)?;  // Still fine
+fs::create_dir_all(data_dir)?;
 ```
 
-**Common pattern:**
+**What it does:**
+
+```bash
+# Creates all parent directories if they don't exist
+# Like 'mkdir -p' on Unix
+
+# If this doesn't exist:
+/home/user/.config/todo-cli/
+
+# create_dir_all() creates:
+/home/user/.config/          # If needed
+/home/user/.config/todo-cli/ # Always (or does nothing if exists)
+```
+
+**Error handling:**
+
+- Returns `io::Result<()>`
+- Fails if:
+  - Path exists but is a file, not directory
+  - Insufficient permissions
+  - Disk full
+  - Path contains null bytes (invalid)
+
+**Idempotency:**
 
 ```rust
-fn get_config_path() -> Result<PathBuf> {
-    let proj_dirs = ProjectDirs::from("", "", "myapp")
-        .context("Failed to determine config directory")?;
-    
-    let config_dir = proj_dirs.config_dir();
-    
-    // Ensure directory exists
-    if !config_dir.exists() {
-        fs::create_dir_all(config_dir)
-            .context(format!("Failed to create {}", config_dir.display()))?;
-    }
-    
-    Ok(config_dir.join("config.json"))
+// Safe to call multiple times - the actual implementation
+fs::create_dir_all(data_dir)?;  // Creates directory
+fs::create_dir_all(data_dir)?;  // No error - directory already exists
+
+// Note: Our implementation calls this EVERY time, not conditionally
+// This is actually more robust than checking first
+```
+
+**Why unconditional is better:**
+
+```rust
+// ❌ Race condition possible
+if !data_dir.exists() {
+    fs::create_dir_all(data_dir)?;  // Another process might delete between check and create
 }
+
+// ✅ No race condition - actual implementation
+fs::create_dir_all(data_dir)?;  // Atomic - always safe
 ```
 
 ---
