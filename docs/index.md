@@ -38,14 +38,15 @@ For experienced developers:
 - [v1.4.0 - Tags System](advanced/v1.4.0-tags-system.md) - Add categorization with tags
 - [v1.5.0 - Due Dates + Tabular Display](advanced/v1.5.0-due-dates-tabular.md) - Deadline tracking with chrono
 - [v1.6.0 - Professional CLI with Clap](advanced/v1.6.0-professional-cli-clap.md) - Industry-standard CLI framework
-- [v1.7.0 - Professional Error Handling](advanced/v1.7.0-professional-error-handling.md) - ⭐ **NEW:** anyhow + thiserror
+- [v1.7.0 - Professional Error Handling](advanced/v1.7.0-professional-error-handling.md) - anyhow + thiserror
+- [v1.8.0 - Global Data Directory](advanced/v1.8.0-global-data-directory.md) - ⭐ **NEW:** OS-appropriate storage
 
 ### Cross-Cutting Concepts
 
 Key patterns and best practices used throughout the project:
 
 - [Error Handling](concepts/error-handling.md) - From basic `?` to professional error messages
-- [Advanced Error Handling](concepts/advanced-error-handling.md) - ⭐ **NEW:** Deep dive into anyhow + thiserror
+- [Advanced Error Handling](concepts/advanced-error-handling.md) - Deep dive into anyhow + thiserror
 - [File Operations](concepts/file-operations.md) - File I/O patterns and JSON serialization
 - [CLI Design](concepts/cli-design.md) - Command-line interface patterns and user experience
 - [Type Safety](concepts/type-safety.md) - Using Rust's type system to prevent bugs
@@ -67,7 +68,9 @@ v1.5: Due dates + tabular display (deadline tracking + professional UX)
    ↓
 v1.6: Clap + ValueEnum (zero manual parsing, compile-time safety)
    ↓
-v1.7: anyhow + thiserror (professional error handling) ⭐ NEW
+v1.7: anyhow + thiserror (professional error handling)
+   ↓
+v1.8: Global data directory (OS-appropriate storage) ⭐ NEW
 
 ```
 
@@ -91,7 +94,8 @@ v1.7: anyhow + thiserror (professional error handling) ⭐ NEW
 | v1.4.0 | Tags System | `Vec<String>`, `.retain()`, bug fixes | ~120 |
 | v1.5.0 | Due Dates | `chrono`, date arithmetic, tabular display | ~150 |
 | v1.6.0 | Professional CLI | Clap, `ValueEnum`, zero manual parsing | ~80 |
-| v1.7.0 | Error Handling | `anyhow`, `thiserror`, error chains | ~85 | ⭐
+| v1.7.0 | Error Handling | `anyhow`, `thiserror`, error chains | ~85 |
+| v1.8.0 | Global Data Directory | `directories` crate, `PathBuf`, XDG compliance | ~95 | ⭐
 
 ---
 
@@ -108,29 +112,29 @@ Start here if you're new to Rust:
 **Time:** 2-3 weeks  
 **Outcome:** Comfortable with Rust fundamentals
 
-### Path 2: Architecture Focus (1.2 → 1.7)
+### Path 2: Architecture Focus (1.2 → 1.8)
 
 For those wanting to learn professional Rust patterns:
 
 1. **Type Safety (v1.2)** - Structs and enums
 2. **Serialization (v1.3)** - Serde patterns
 3. **CLI Frameworks (v1.6)** - Clap derive macros
-4. **Error Handling (v1.7)** - anyhow + thiserror ⭐
+4. **Error Handling (v1.7)** - anyhow + thiserror
+5. **System Integration (v1.8)** - Platform-specific paths ⭐ NEW
 
 **Time:** 1-2 weeks  
 **Outcome:** Production-ready Rust architecture
 
-### Path 3: Error Handling Deep Dive (NEW)
+### Path 3: Platform Development (NEW)
 
-Focus on professional error management:
+Focus on cross-platform CLI development:
 
-1. **Basic errors (v0.1-v0.4)** - `?` operator, validation
-2. **Generic errors (v1.2-v1.6)** - `Box<dyn Error>`
-3. **Professional errors (v1.7)** - anyhow + thiserror ⭐
-4. **Concepts** - [Advanced Error Handling](concepts/advanced-error-handling.md)
+1. **Basic file operations (v0.1-v1.3)** - Local file handling
+2. **Path manipulation (v1.8)** - `PathBuf`, platform detection ⭐
+3. **Concepts** - [File Operations](concepts/file-operations.md)
 
 **Time:** 3-4 days  
-**Outcome:** Master Rust error handling
+**Outcome:** Master cross-platform file handling
 
 ---
 
@@ -142,7 +146,8 @@ Focus on professional error management:
 - **91% reduction** in I/O code after JSON migration
 - **Zero manual parsing** after adopting clap
 - **Type safety** from command line to storage
-- **Professional error handling** with context chains (v1.7.0) ⭐
+- **Professional error handling** with context chains (v1.7.0)
+- **Platform-aware storage** following OS conventions (v1.8.0) ⭐ NEW
 
 ### Features
 
@@ -153,7 +158,8 @@ Focus on professional error management:
 - ✅ Due dates with deadline tracking
 - ✅ Professional CLI with auto-help
 - ✅ Type-safe architecture throughout
-- ✅ Rich error messages with context ⭐ NEW
+- ✅ Rich error messages with context
+- ✅ Global data directory (OS-appropriate) ⭐ NEW
 
 ### Learning Outcomes
 
@@ -162,6 +168,7 @@ Focus on professional error management:
 3. **Type safety** - using compiler to prevent bugs
 4. **Refactoring strategy** - evolve code without breaking it
 5. **Professional development** - industry-standard patterns
+6. **Cross-platform development** - handling OS differences ⭐ NEW
 
 ---
 
@@ -172,20 +179,22 @@ Focus on professional error management:
 - **Serialization:** Serde + JSON
 - **Colors:** Colored crate
 - **Dates:** Chrono
+- **Platform Directories:** directories crate (v1.8.0+) ⭐
 - **File Format:** JSON (v1.3.0+)
 
 ---
 
 ## Potential Future Versions
 
-- **v1.8:** Subtasks/nested tasks with recursive data structures
-- **v1.9:** Multiple projects/contexts
-- **v2.0:** TUI with `ratatui`
-- **v2.1:** Configuration file with `config` crate
-- **v2.2:** Shell completions (bash, zsh, fish)
-- **v2.3:** Export/import (CSV, JSON, Markdown)
-- **v2.4:** Sync with cloud storage
-- **v2.5:** Web API with `axum`
+- **v1.9:** Edit command with interactive editor
+- **v2.0:** Subtasks/nested tasks with recursive data structures
+- **v2.1:** Multiple projects/contexts
+- **v2.2:** TUI with `ratatui`
+- **v2.3:** Configuration file with `config` crate
+- **v2.4:** Shell completions (bash, zsh, fish)
+- **v2.5:** Export/import (CSV, JSON, Markdown)
+- **v2.6:** Sync with cloud storage
+- **v2.7:** Web API with `axum`
 - **v3.0:** Plugin system
 
 ---
@@ -206,6 +215,7 @@ Focus on professional error management:
 - **Type safety**: How to use Rust's type system to prevent bugs
 - **Refactoring**: How to evolve code without breaking functionality
 - **Professional development**: Industry-standard patterns and tools
+- **Cross-platform development**: Handling OS-specific requirements ⭐ NEW
 
 ### For Each Version
 
@@ -225,6 +235,6 @@ Each future version would teach new Rust concepts while building on the solid fo
 
 ---
 
-**The beauty of this architecture:** All new features benefit from the type-safe, extensible foundation built through careful refactoring.
+**The beauty of this architecture:** All new features benefit from the type-safe, extensible, platform-aware foundation built through careful refactoring.
 
 **🦀 Happy learning!**

@@ -6,6 +6,7 @@ A simple, colorful, and functional task manager developed to learn Rust in pract
 
 ## Features
 
+- **Global Data Directory**
 - **Error Handling with `anyhow` and `thiserror`**
 - **Professional CLI with Clap** - Auto-generated help, type-safe parsing, shell completions
 - **Type-safe architecture** with structs and enums
@@ -135,6 +136,7 @@ This project was developed as a Rust learning exercise, documenting each increme
 | v1.5.0 | Due dates | `chrono`, `NaiveDate`, date validation |
 | v1.6.0 | Professional CLI | `clap`, derive macros, type-safe enums, auto-help |
 | v1.7.0 | Error Handling | `anyhow`, `thiserror`, error chains |
+| v1.8.0 | Global Data Directory | `directories` crate, `PathBuf`, XDG compliance |
 
 [See full evolution →](/CHANGELOG.md)
 

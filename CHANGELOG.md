@@ -5,17 +5,54 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.8.0] - 2026-02-08
 
-### Planned
+### Added
 
-- Edit command
-- Recurring tasks
-- Subtasks/nested tasks
-- Export/import commands
-- Shell completions (bash, zsh, fish)
-- Unit tests
-- TUI (Terminal User Interface)
+- **Global data directory** using `directories` crate for OS-appropriate storage
+- `get_date_file_path()` function for platform-specific data file location
+- **New command: `info`** - Shows data file location and status
+- Platform-specific configuration directory support:
+  - Linux: `~/.config/todo-cli/todos.json`
+  - macOS: `~/Library/Application Support/todo-cli/todos.json`
+  - Windows: `%APPDATA%\todo-cli\todos.json`
+- Automatic directory creation with `fs::create_dir_all()`
+- XDG Base Directory Specification compliance on Linux
+- Rich error messages with actual file paths in context
+
+### Changed
+
+- **BREAKING CHANGE:** Data file location moved from current working directory to OS config directory
+- `load_tasks()`: Now uses `get_date_file_path()` instead of hardcoded `"todos.json"`
+- `save_tasks()`: Now uses `get_date_file_path()` instead of hardcoded `"todos.json"`
+- `clear` command: Uses dynamic path from `get_date_file_path()`
+- Error messages: Now include full path to data file for clarity
+- All file operations now working-directory independent
+
+### Fixed
+
+- Task lists no longer fragment across different working directories
+- Consistent task state regardless of where CLI is run
+- Standard CLI behavior matching professional applications
+- Single backup location instead of multiple scattered files
+
+### Technical Details
+
+- **Dependencies:**
+  - Added: `directories = "5.0"` - Cross-platform system directories
+- **New concepts:**
+  - `PathBuf` for owned, mutable paths
+  - `ProjectDirs::from()` for platform detection
+  - `create_dir_all()` for recursive directory creation
+  - Platform-specific path joining with `.join()`
+- **Platform detection:**
+  - Automatic at compile time via `cfg` attributes
+  - No runtime overhead
+  - Single binary works on all platforms
+- **Migration:**
+  - Old `todos.json` files not automatically migrated
+  - User must manually copy to new location if desired
+  - Use `todo info` command to find new data directory
 
 ## [1.7.0] - 2026-02-07
 
@@ -59,15 +96,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - User confusion about error causes - Shows root cause with "Caused by:"
 - Missing context in file operations - All I/O now includes file path context
 - State validation gaps - All state transitions now validated
-
-### Changed
-
-- Migrated project documentation to MkDocs
-- Replaced legacy markdown docs with structured MkDocs layout
-
-### Removed
-
-- Deprecated `LEARNING.md`
 
 ## [1.6.0] - 2026-02-04
 
@@ -565,7 +593,9 @@ Users need to migrate from `todos.txt` to `todos.json`:
 - Pattern matching for subcommands
 - Error handling with `?` operator
 
-[Unreleased]: https://github.com/joaofelipegalvao/todo-cli/compare/v1.7.0...HEAD
+[Unreleased]:
+https://github.com/joaofelipegalvao/todo-cli/compare/v1.8.0...HEAD
+[1.8.0]: https://github.com/joaofelipegalvao/todo-cli/compare/v1.7.0...v1.8.0
 [1.7.0]: https://github.com/joaofelipegalvao/todo-cli/compare/v1.6.0...v1.7.0
 [1.6.0]: https://github.com/joaofelipegalvao/todo-cli/compare/v1.5.0...v1.6.0
 [1.5.0]: https://github.com/joaofelipegalvao/todo-cli/compare/v1.4.0...v1.5.0
