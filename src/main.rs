@@ -1,3 +1,10 @@
+/*
+A morden, powerful task manager built with Rust.
+
+This CLI application provides a simple yet feature-rich interface for managing
+todo tasks with support for priorities, tags, due dates, and advanced filtering.
+*/
+
 use std::path::PathBuf;
 use std::{fs, process};
 
@@ -9,6 +16,10 @@ use directories::ProjectDirs;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
+/// Custom error types for the todo application.
+///
+/// These erros provide specific, user-friendly messages for common
+/// error conditions that can occur during task management.
 #[derive(Error, Debug)]
 pub enum TodoError {
     #[error("Task ID {id} is invalid (valid range: 1-{max})")]
@@ -30,12 +41,18 @@ pub enum TodoError {
     NoSearchResults(String),
 }
 
+/// Main entry point for the todo-list application.
+///
+/// Parses command-line arguments and executes the requested command.
+/// If an error occurs, it prints a formatted error message and exits
+/// with a non-zero status code.
 fn main() {
     let cli = Cli::parse();
 
     if let Err(e) = run(cli) {
         eprintln!("{} {}", "Error:".red().bold(), format!("{}", e).red());
 
+        // Print the full error chain for better debugging
         let mut source = e.source();
         while let Some(cause) = source {
             eprintln!("{} {}", "Caused by:".red(), cause);
@@ -46,16 +63,30 @@ fn main() {
     }
 }
 
+/// Represents a single task in the todo list.
+///
+/// Each task contains a description, completion status, priority level,
+/// optional tags for organization, and optional due date for deadline
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct Task {
+    /// The task description/content
     text: String,
+    /// Wheter the task has been completed
     completed: bool,
+    /// Priority level of the task
     priority: Priority,
+    /// List of tags for categorization
     tags: Vec<String>,
+    /// Optional due date for deadline tracking
     due_date: Option<NaiveDate>,
+    /// Date when the task was created
     created_at: NaiveDate,
 }
 
+/// Priority levels for tasks.
+///
+/// Tasks can be categorized as High, Medium, or Low priority,
+/// which affects their sorting order and visual presentation.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, ValueEnum)]
 #[serde(rename_all = "lowercase")]
 enum Priority {
@@ -67,6 +98,7 @@ enum Priority {
     Low,
 }
 
+/// Filter for task completion status.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
 enum StatusFilter {
     /// Show only pending tasks
@@ -77,6 +109,7 @@ enum StatusFilter {
     All,
 }
 
+/// Filter for task due dates.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
 enum DueFilter {
     /// Tasks past their due date
@@ -89,6 +122,7 @@ enum DueFilter {
     NoDue,
 }
 
+/// Sorting options for task lines.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
 enum SortBy {
     /// Sort by priority (High -> Medium -> Low)
@@ -246,6 +280,17 @@ struct AddArgs {
     due: Option<NaiveDate>,
 }
 
+/// Creates a new task with the given parameters.
+///
+/// The task is initially marked as not completed and the creation date
+/// is set to the current date.
+///
+/// # Arguments
+///
+/// * `text` - The task description
+/// * `priority` - Priority level of the task
+/// * `tags` -  List of tags for categorization
+/// * `due_date` - Optional due date for the task
 impl Task {
     fn new(
         text: String,
@@ -263,14 +308,20 @@ impl Task {
         }
     }
 
+    /// Marks this task as completed.
     fn mark_done(&mut self) {
         self.completed = true;
     }
 
+    /// Marks this task as pending (not completed).
     fn mark_undone(&mut self) {
         self.completed = false;
     }
 
+    /// Checks if this is overdue.
+    ///
+    /// A task is considered overdue if it has a due in the past
+    /// and is not yet completed.
     fn is_overdue(&self) -> bool {
         if let Some(due) = self.due_date {
             let today = Local::now().naive_local().date();
@@ -280,6 +331,16 @@ impl Task {
         }
     }
 
+    /// Checks if this task is due soon (within the specified number of days).
+    ///
+    /// # Arguments
+    ///
+    /// * `days` - Number of days to look ahead
+    ///
+    /// # Returns
+    ///
+    /// `true` if the task is due within the specified number of days and
+    /// is not yet completed, `false` otherwise.
     fn is_due_soon(&self, days: i64) -> bool {
         if let Some(due) = self.due_date {
             let today = Local::now().naive_local().date();
@@ -290,6 +351,7 @@ impl Task {
         }
     }
 
+    /// Checks if this task matches the given status filter.
     fn matches_status(&self, status: StatusFilter) -> bool {
         match status {
             StatusFilter::Pending => !self.completed,
@@ -298,6 +360,7 @@ impl Task {
         }
     }
 
+    /// Checks if this task matches the given due date filter.
     fn matches_due_filter(&self, filter: DueFilter) -> bool {
         match filter {
             DueFilter::Overdue => self.is_overdue(),
@@ -309,6 +372,9 @@ impl Task {
 }
 
 impl Priority {
+    /// Returns the sort order for this priority level.
+    ///
+    /// Lower numbers indicate higher priority.
     fn order(&self) -> u8 {
         match self {
             Priority::High => 0,
@@ -317,6 +383,11 @@ impl Priority {
         }
     }
 
+    /// Returns a colored single-letter representation of this priority.
+    ///
+    /// - High: Red 'H'
+    /// - Medium: Yellow 'M'
+    /// - Low: Green 'L'
     fn letter(&self) -> ColoredString {
         match self {
             Priority::High => "H".red(),
@@ -326,6 +397,16 @@ impl Priority {
     }
 }
 
+/// Loads tasks from the todos.json file.
+///
+/// If the file doesn't exist, returns an empty vector.
+/// If the file exists but is corrupted, returns an error.
+///
+/// # Errors
+///
+/// Returns an error if:
+/// - The file exists but cannot be read
+/// - The file contains invalid JSON
 fn load_tasks() -> Result<Vec<Task>> {
     let path = get_data_file_path()?;
 
@@ -340,6 +421,15 @@ fn load_tasks() -> Result<Vec<Task>> {
     }
 }
 
+/// Saves tasks to the todos.json file.
+///
+/// The tasks are serialized to pretty-printed JSON format.
+///
+/// # Errors
+///
+/// Returns an error if:
+/// - The tasks cannot be serialized to JSON
+/// - The file cannot be written (e.g., permission issues)
 fn save_tasks(tasks: &[Task]) -> Result<()> {
     let path = get_data_file_path()?;
 
@@ -353,6 +443,16 @@ fn save_tasks(tasks: &[Task]) -> Result<()> {
     Ok(())
 }
 
+/// Validates that a task ID is within the valid range.
+///
+/// # Arguments
+///
+/// * `id` - The task ID to validate (1-based indexing)
+/// * `max` - The maximum valid ID (total number of tasks)
+///
+/// # Errors
+///
+/// Returns `TodoError::InvalidTaskId` if the ID is 0 or greater than max.
 fn validate_task_id(id: usize, max: usize) -> Result<(), TodoError> {
     if id == 0 || id > max {
         return Err(TodoError::InvalidTaskId { id, max });
@@ -360,6 +460,14 @@ fn validate_task_id(id: usize, max: usize) -> Result<(), TodoError> {
     Ok(())
 }
 
+/// Calculates optimal column widths for tabular display.
+///
+/// Analyzes all tasks to determine the maximum width needed for each column,
+/// with upper limits to prevent excessively wide output.
+///
+/// # Returns
+///
+/// A tuple of (task_width, tags_width, due_width)
 fn calculate_column_widths(tasks: &[(usize, &Task)]) -> (usize, usize, usize) {
     let mut max_task_len = 10;
     let mut max_tags_len = 4;
@@ -379,6 +487,7 @@ fn calculate_column_widths(tasks: &[(usize, &Task)]) -> (usize, usize, usize) {
         }
     }
 
+    // Cap maximum widths to keep output reasonable
     max_task_len = max_task_len.min(40);
     max_tags_len = max_tags_len.min(20);
     max_due_len = max_due_len.min(20);
@@ -386,6 +495,11 @@ fn calculate_column_widths(tasks: &[(usize, &Task)]) -> (usize, usize, usize) {
     (max_task_len, max_tags_len, max_due_len)
 }
 
+/// Generates a human-readable due date description.
+///
+/// # Returns
+///
+/// A string like "in 3 days", "due today", or "late 2 days"
 fn get_due_text(task: &Task) -> String {
     let Some(due) = task.due_date else {
         return String::new();
@@ -404,6 +518,14 @@ fn get_due_text(task: &Task) -> String {
     }
 }
 
+/// Returns a colored version of the due date text based on urgency.
+///
+/// Color coding:
+/// - Red (bold): Overdue
+/// - Yellow (bold): Due today
+/// - Yellow: Due within 7 days
+/// - Cyan: Due later
+/// - Dimmed: Completed tasks
 fn get_due_colored(task: &Task, text: &str) -> ColoredString {
     if text.is_empty() {
         return "".normal();
@@ -431,6 +553,14 @@ fn get_due_colored(task: &Task, text: &str) -> ColoredString {
     }
 }
 
+/// Displays a single task in tabular format.
+///
+/// # Arguments
+///
+/// * `number` - The task number (1-based index)
+/// * `task` - The task to display
+/// * `task_width` - Column width for task text
+/// * `tags_width` - Column width for tags
 fn display_task_tabular(number: usize, task: &Task, task_width: usize, tags_width: usize) {
     let number_str = format!("{:>3}", number);
     let letter = task.priority.letter();
@@ -440,12 +570,14 @@ fn display_task_tabular(number: usize, task: &Task, task_width: usize, tags_widt
         "".bright_white()
     };
 
+    // Truncate task text if it exceeds the column width
     let task_text = if task.text.len() > task_width {
         format!("{}...", &task.text[..task_width - 3])
     } else {
         task.text.to_owned()
     };
 
+    // Format tags for display
     let tags_str = if task.tags.is_empty() {
         String::new()
     } else {
@@ -460,6 +592,7 @@ fn display_task_tabular(number: usize, task: &Task, task_width: usize, tags_widt
     let due_text = get_due_text(task);
     let due_colored = get_due_colored(task, &due_text);
 
+    // Apply different styling for completed vs pending tasks
     if task.completed {
         print!("{:>4} ", number_str.dimmed());
         print!(" {} ", letter);
@@ -477,11 +610,18 @@ fn display_task_tabular(number: usize, task: &Task, task_width: usize, tags_widt
     }
 }
 
+/// Displays a list of tasks in a formatted table with statistics.
+///
+/// # Arguments
+///
+/// * `tasks` - List of (task_number, task) tuples to display
+/// * `title` - Title to show above the table
 fn display_lists(tasks: &[(usize, &Task)], title: &str) {
     println!("\n{}:\n", title);
 
     let (task_width, tags_width, due_width) = calculate_column_widths(tasks);
 
+    // Print table header
     print!("{:>4} ", "ID".dimmed());
     print!(" {} ", "P".dimmed());
     print!(" {} ", "S".dimmed());
@@ -493,6 +633,7 @@ fn display_lists(tasks: &[(usize, &Task)], title: &str) {
 
     println!("{}", "─".repeat(total_width).dimmed());
 
+    // Print each task
     let mut completed = 0;
     let total = tasks.len();
 
@@ -504,6 +645,7 @@ fn display_lists(tasks: &[(usize, &Task)], title: &str) {
         }
     }
 
+    // Print footer with statistics
     println!("\n{}", "─".repeat(total_width).dimmed());
 
     let percentage = if total > 0 {
@@ -514,6 +656,7 @@ fn display_lists(tasks: &[(usize, &Task)], title: &str) {
 
     let stats = format!("{} of {} completed ({}%)", completed, total, percentage);
 
+    // Color-code the statistics based on completion percentage
     if percentage == 100 {
         println!("{}", stats.green().bold());
     } else if percentage >= 50 {
@@ -525,6 +668,14 @@ fn display_lists(tasks: &[(usize, &Task)], title: &str) {
     println!();
 }
 
+/// Returns the path to the todos.json file in the user's config directory.
+///
+/// Creates the config directory if it doesn't exist.
+///
+/// # Platform-specific locations:
+/// - Linux: `~/.config/todo-cli/todos.json`
+/// - macOS: `~/Library/Application Support/todo-cli/todos.json`
+/// - Windows: `C:\Users\{user}\AppData\Roaming\todo-cli\todos.json`
 fn get_data_file_path() -> Result<PathBuf> {
     let project_dirs =
         ProjectDirs::from("", "", "todo-cli").context("Failed to determine project directories")?;
@@ -543,6 +694,18 @@ fn get_data_file_path() -> Result<PathBuf> {
     Ok(path)
 }
 
+/// Main application logic dispatcher.
+///
+/// This function processes the parsed CLI arguments and executes the
+/// appropriate command. It handles all the core functionality of the
+/// todo application including adding, listing, completing, and managing tasks.
+///
+/// # Errors
+///
+/// Returns an error if:
+/// - File I/O operations fail
+/// - Task validation fails
+/// - No tasks match the specified filters
 fn run(cli: Cli) -> Result<()> {
     match cli.command {
         Commands::Add(args) => {
@@ -562,12 +725,14 @@ fn run(cli: Cli) -> Result<()> {
         } => {
             let all_tasks = load_tasks()?;
 
+            // Create indexed view of tasks (1-based numbering)
             let mut indexed_tasks: Vec<(usize, &Task)> = all_tasks
                 .iter()
                 .enumerate()
                 .map(|(i, task)| (i + 1, task))
                 .collect();
 
+            // Apply filters sequentially
             indexed_tasks.retain(|(_, t)| t.matches_status(status));
 
             if let Some(pri) = priority {
@@ -591,6 +756,7 @@ fn run(cli: Cli) -> Result<()> {
                 return Err(TodoError::NoTasksFound.into());
             }
 
+            // Apply sorting if requested
             if let Some(sort_by) = sort {
                 match sort_by {
                     SortBy::Priority => {
@@ -611,6 +777,7 @@ fn run(cli: Cli) -> Result<()> {
                 }
             }
 
+            // Determine appropriate title based on active filters
             let title = match (status, priority, due) {
                 (StatusFilter::Pending, Some(Priority::High), None) => {
                     "High priority pending tasks"
@@ -696,6 +863,7 @@ fn run(cli: Cli) -> Result<()> {
         Commands::Search { query, tag } => {
             let tasks = load_tasks()?;
 
+            // Perform case-insensitive search on task text
             let mut results: Vec<(usize, &Task)> = tasks
                 .iter()
                 .enumerate()
@@ -703,6 +871,7 @@ fn run(cli: Cli) -> Result<()> {
                 .map(|(i, task)| (i + 1, task))
                 .collect();
 
+            // Apply tag filter if specified
             if let Some(tag_name) = &tag {
                 results.retain(|(_, task)| task.tags.contains(tag_name));
             }
@@ -717,6 +886,7 @@ fn run(cli: Cli) -> Result<()> {
         Commands::Tags => {
             let tasks = load_tasks()?;
 
+            // Collect all unique tags
             let mut all_tags: Vec<String> = Vec::new();
             for task in &tasks {
                 for tag in &task.tags {
