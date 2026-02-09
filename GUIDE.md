@@ -21,7 +21,56 @@ sudo cp target/release/todo-cli /usr/local/bin/todo
 - Rust 1.70 or higher
 - Cargo
 
+## Data Storage
+
+Your tasks are automatically stored in a single, OS-appropriate location:
+
+| Platform | Location |
+|----------|----------|
+| **Linux** | `~/.local/share/todo-cli/todos.json` |
+| **macOS** | `~/Library/Application Support/todo-cli/todos.json` |
+| **Windows** | `%APPDATA%\todo-cli\todos.json` |
+
+**Key Benefits:**
+
+- ✅ **Same tasks everywhere** - Your tasks are available regardless of which directory you run `todo` from
+- ✅ **Easy backups** - One file to backup, not scattered across directories
+- ✅ **Standard location** - Follows platform conventions (XDG on Linux, Apple guidelines on macOS, Microsoft on Windows)
+- ✅ **Automatic setup** - Directory created automatically on first use
+
+**Find your data:**
+
+```bash
+todo info
+# Shows: Data file location, status, and size
+```
+
 ## Commands Reference
+
+### Info Command
+
+```bash
+# Show where your tasks are stored
+todo info
+
+# Example output (Linux):
+# Todo-List Information
+#
+# Data file: /home/user/.local/share/todo-cli/todos.json
+# Status: exists ✓
+# Size: 1245 bytes
+
+# Example output (macOS):
+# Data file: /Users/user/Library/Application Support/todo-cli/todos.json
+# Status: not created yet
+```
+
+**When to use:**
+
+- Find where your tasks are stored
+- Verify data file exists
+- Get file path for backups
+- Troubleshoot issues
 
 ### Adding Tasks
 
@@ -51,11 +100,12 @@ todo a "Quick task"  # 'a' is alias for 'add'
 **Notes:**
 
 - Default priority is `medium`
-- Tasks are stored in `todos.json` in JSON format
+- Tasks are stored in global data directory (see `todo info`)
 - Multiple tags can be added with multiple `--tag` (or `-t`) flags
 - Due dates use format `YYYY-MM-DD` (e.g., `2026-02-15`)
 - Tasks automatically get a `created_at` timestamp
 - Tags help categorize and filter tasks
+- Works from any directory - tasks always saved to same location
 
 **Priority values:**
 
@@ -157,6 +207,7 @@ Tasks:
 - Due dates are hidden for completed tasks
 - Column widths adjust dynamically to content
 - Only one due date filter can be used at a time
+- Works from any directory - shows same tasks everywhere
 
 **Getting help:**
 
@@ -184,6 +235,7 @@ todo search "docs" --tag programming
 - Shows priority indicators, tags, and due dates
 - Tag filter narrows search results
 - Useful for large task lists
+- Works from any directory
 
 ### Managing Tags
 
@@ -231,19 +283,22 @@ todo clear
 - `done`/`undone` only change status, don't delete
 - `remove` and `clear` are permanent (no undo)
 - Completed tasks don't show due date information
+- Works from any directory - manages same global task list
 
 ## Examples
 
 ### Basic Workflow
 
 ```bash
-# Start your day
+# Start your day (works from any directory)
+cd ~/projects  # or any directory
 todo add "Review pull requests" --priority high --tag work --due 2026-02-03
 todo add "Write documentation" --tag work --tag documentation --due 2026-02-05
 todo add "Team meeting at 3pm" --priority high --tag work --due 2026-02-03
 todo add "Refactor old code" --priority low --tag programming
 
-# Check what's urgent
+# Move to different directory - same tasks available
+cd ~/documents
 todo list --status pending --priority high --sort due
 # Output:
 #   ID  P  S  Task                      Tags  Due
@@ -263,7 +318,8 @@ todo list --due soon
 todo done 1
 todo done 3
 
-# See progress
+# See progress from yet another directory
+cd /tmp
 todo list
 # Shows completed tasks with ✅ and no due date
 ```
@@ -399,6 +455,69 @@ todo list --tag project-x --sort due
 
 ## Tips and Best Practices
 
+### Data Management
+
+**Backups:**
+
+```bash
+# Find your data file location
+todo info
+
+# Linux backup
+cp ~/.config/todo-cli/todos.json ~/backups/todos-$(date +%Y%m%d).json
+
+# macOS backup
+cp ~/Library/Application\ Support/todo-cli/todos.json ~/backups/todos-$(date +%Y%m%d).json
+
+# Windows backup
+copy %APPDATA%\todo-cli\todos.json %USERPROFILE%\backups\todos-%date:~-4,4%%date:~-10,2%%date:~-7,2%.json
+
+# Automated daily backup (Linux cron)
+0 0 * * * cp ~/.config/todo-cli/todos.json ~/backups/todos-$(date +\%Y\%m\%d).json
+```
+
+**Syncing across machines:**
+
+```bash
+# Using Dropbox/Google Drive (Linux/macOS)
+# 1. Move data to cloud folder
+mv ~/.config/todo-cli/todos.json ~/Dropbox/todo-cli/todos.json
+
+# 2. Create symlink
+ln -s ~/Dropbox/todo-cli/todos.json ~/.config/todo-cli/todos.json
+
+# 3. Repeat on other machines
+# Now all machines share the same task list
+
+# Using Git
+cd ~/.config/todo-cli
+git init
+git add todos.json
+git commit -m "Initial tasks"
+git remote add origin git@github.com:user/todo-tasks.git
+git push -u origin main
+
+# On other machines
+git clone git@github.com:user/todo-tasks.git ~/.config/todo-cli
+```
+
+**Viewing data directly:**
+
+```bash
+# Linux/macOS
+cat ~/.config/todo-cli/todos.json
+nano ~/.config/todo-cli/todos.json
+
+# Open in file manager (Linux)
+xdg-open ~/.config/todo-cli/
+
+# Open in Finder (macOS)
+open ~/Library/Application\ Support/todo-cli/
+
+# Open in Explorer (Windows)
+explorer %APPDATA%\todo-cli
+```
+
 ### Priority Guidelines
 
 **high - High Priority (--priority high):**
@@ -494,7 +613,7 @@ todo list --tag project-x --sort due
    todo list --tag work --status pending --sort due  # Work focus
    ```
 
-2. **Quick capture:**
+2. **Quick capture (works from any directory):**
 
    ```bash
    todo add "Quick thought"
@@ -599,7 +718,7 @@ todo delete 3              # Same as: todo remove 3
 
 ## File Format
 
-Tasks are stored in `todos.json` as JSON:
+Tasks are stored in `todos.json` as JSON (location shown by `todo info`):
 
 ```json
 [
@@ -651,21 +770,51 @@ Tasks are stored in `todos.json` as JSON:
 
 ## Troubleshooting
 
+### Finding your data file
+
+```bash
+# Show exact location
+todo info
+
+# Example output:
+# Data file: /home/user/.config/todo-cli/todos.json
+# Status: exists ✓
+# Size: 1245 bytes
+```
+
 ### Tasks not showing up
 
 ```bash
-# Check if file exists
-cat todos.json
+# Verify file exists and check contents
+todo info
+
+# View raw JSON (Linux/macOS)
+cat ~/.config/todo-cli/todos.json
 
 # Verify JSON format (should be valid JSON array)
 # Use a JSON validator if needed
+```
+
+### Can't find data directory
+
+**The CLI creates the directory automatically**, but if you need to find it:
+
+```bash
+# Linux
+ls -la ~/.config/todo-cli/
+
+# macOS
+ls -la ~/Library/Application\ Support/todo-cli/
+
+# Windows
+dir %APPDATA%\todo-cli
 ```
 
 ### Invalid JSON error
 
 If you get a JSON parsing error:
 
-1. Check `todos.json` for syntax errors
+1. Check `todos.json` for syntax errors (use `todo info` to find file)
 2. Ensure proper JSON format (commas, quotes, brackets)
 3. Verify date format is `YYYY-MM-DD` or `null`
 4. Verify priority is lowercase: "high", "medium", or "low"
@@ -727,7 +876,8 @@ todo list --tag work  # Numbers won't be 1, 2, 3... if tasks are filtered
 
 ```bash
 # Verify task has tags in JSON
-cat todos.json
+todo info  # Find file location
+cat <path-from-info>
 
 # Tags are case-sensitive when filtering
 todo list --tag Work   # Won't match "work"
@@ -760,6 +910,19 @@ todo list --status pending --due soon        # ✅
   - Cyan = due in 8+ days
 - Completed tasks don't show due dates
 
+### Permission errors
+
+If you get permission errors:
+
+```bash
+# Check directory permissions (Linux/macOS)
+ls -la ~/.config/todo-cli/
+
+# Fix permissions if needed
+chmod 755 ~/.config/todo-cli/
+chmod 644 ~/.config/todo-cli/todos.json
+```
+
 ### Getting help for any command
 
 Every command has built-in help:
@@ -769,6 +932,7 @@ todo --help           # Main help
 todo add --help       # Help for add command
 todo list --help      # Help for list command
 todo search --help    # Help for search command
+todo info --help      # Help for info command
 
 # Shows:
 # - Available options
@@ -791,6 +955,7 @@ cargo run -- list --due overdue
 cargo run -- list --sort due
 cargo run -- list --tag work
 cargo run -- tags
+cargo run -- info
 cargo run -- done 1
 ```
 
@@ -807,7 +972,7 @@ todo add "Build frontend" --tag project-x --tag frontend --due 2026-02-20
 todo add "Testing" --tag project-x --due 2026-02-25
 todo add "Deployment" --priority high --tag project-x --due 2026-03-01
 
-# Review project timeline
+# Review project timeline (from any directory)
 todo list --tag project-x --sort due
 
 # Focus on what's next
@@ -817,7 +982,7 @@ todo list --tag project-x --status pending --sort due
 ### Context Switching
 
 ```bash
-# Switch to work mode
+# Switch to work mode (from any directory)
 alias work="todo list --tag work --status pending --sort due"
 work
 
@@ -874,16 +1039,66 @@ todo add "Expense report" --tag work --due 2026-03-05
 
 ### Migration from Previous Versions
 
+**From v1.7.0 and earlier (directory-based storage):**
+
+Your old `todos.json` files are **not automatically migrated**. To migrate:
+
+```bash
+# 1. Find your old todos.json files
+find ~ -name "todos.json" -type f 2>/dev/null
+
+# 2. Find new data directory
+todo info
+# Shows: Data file: ~/.config/todo-cli/todos.json
+
+# 3. Copy old file to new location (Linux/macOS)
+# Choose which old file to migrate (if you have multiple)
+cp /path/to/old/todos.json ~/.config/todo-cli/todos.json
+
+# 4. Verify migration worked
+todo list
+# Should show your old tasks
+
+# 5. (Optional) Remove old files
+rm /path/to/old/todos.json
+```
+
+**Windows migration:**
+
+```powershell
+# 1. Find new data directory
+todo info
+# Shows: Data file: C:\Users\Name\AppData\Roaming\todo-cli\todos.json
+
+# 2. Copy old file
+copy C:\path\to\old\todos.json %APPDATA%\todo-cli\todos.json
+
+# 3. Verify
+todo list
+```
+
+**Why not automatic?**
+
+- Multiple old files may exist
+- User should choose which to migrate
+- Old files remain untouched (safe)
+
+**Data compatibility:**
+
+- Your `todos.json` file format is fully compatible
+- No structural changes needed
+- All existing tasks, tags, and dates work as-is
+
 **From v1.5.0 (manual parsing):**
 
-The command syntax has changed significantly in v1.6.0:
+The command syntax changed in v1.6.0:
 
 ```bash
 # Old syntax (v1.5.0):
 todo add "Task" --high --tag work --tag urgent
 todo list --pending --high --overdue
 
-# New syntax (v1.6.0):
+# New syntax (v1.6.0+):
 todo add "Task" --priority high --tag work --tag urgent
 todo list --status pending --priority high --due overdue
 ```
@@ -895,27 +1110,14 @@ todo list --status pending --priority high --due overdue
 - `--overdue/--due-soon/--with-due/--without-due` → `--due overdue/soon/with-due/no-due`
 - Sorting: `--sort` → `--sort priority/due/created`
 
-**Data compatibility:**
-
-- Your `todos.json` file remains fully compatible
-- No data migration needed
-- All existing tasks, tags, and dates work as-is
-
-**From v1.4.0 (without due dates):**
-
-1. Backup your `todos.json` file
-2. The new version adds `due_date` (optional) and `created_at` (required)
-3. Old tasks are compatible - they'll get `due_date: null`
-4. `created_at` will be set to current date on first load
-5. No data loss - all tasks, tags, and priorities preserved
-
 ## Next Steps
 
-- Check [LEARNING.md](LEARNING.md) to understand how it was built
+- Check [Docs](https://joaofelipegalvao.github.io/todo-cli/) to understand how it was built
 - Read [CHANGELOG.md](../CHANGELOG.md) for version history
-- Explore the new Clap-powered CLI features
+- Explore the global data directory with `todo info`
 - Use auto-generated help: `todo --help` and `todo <command> --help`
 - Try command aliases for faster workflow
+- Set up automated backups
 - Contribute improvements on GitHub
 - Share your productivity workflows!
 
@@ -929,6 +1131,7 @@ todo list [--due overdue|soon|with-due|no-due] [--tag TAG]
 todo list [--sort priority|due|created]
 todo done NUMBER
 todo search "keyword" [--tag TAG]
+todo info                  # Show data file location
 
 # Aliases
 todo a "Task"              # add
@@ -942,11 +1145,15 @@ todo list --due soon --sort due                           # This week's deadline
 todo list --tag project --sort due                        # Project timeline
 todo list --due no-due --priority medium                  # Tasks to schedule
 
-# Daily routine
+# Daily routine (works from any directory)
 todo list --due overdue                           # What's late
 todo list --due soon                              # What's coming
 todo list --status pending --priority high --sort due  # What to do now
 todo list --status done                           # What you accomplished
+
+# Data management
+todo info                  # Where are my tasks?
+todo clear                 # Delete all tasks
 
 # Get help
 todo --help                # Main help

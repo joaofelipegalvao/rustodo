@@ -6,7 +6,7 @@ A simple, colorful, and functional task manager developed to learn Rust in pract
 
 ## Features
 
-- **Global Data Directory**
+- **Global Data Directory** - Tasks stored in OS-appropriate location (XDG-compliant)
 - **Error Handling with `anyhow` and `thiserror`**
 - **Professional CLI with Clap** - Auto-generated help, type-safe parsing, shell completions
 - **Type-safe architecture** with structs and enums
@@ -45,6 +45,7 @@ todo undone <id>                              # Mark task as pending
 todo remove <id>                              # Remove a task
 todo clear                                    # Remove all tasks
 todo tags                                     # List all tags with counts
+todo info                                     # Show data file location
 ```
 
 ### Add Command
@@ -93,6 +94,17 @@ todo list --due soon
 todo list --status pending --priority high --tag work --sort priority
 ```
 
+### Info Command
+
+```bash
+todo info
+
+# Shows where your tasks are stored
+# Linux:   ~/.local/share/todo-cli/todos.json
+# macOS:   ~/Library/Application Support/todo-cli/todos.json
+# Windows: %APPDATA%\todo-cli\todos.json
+```
+
 ### Command Aliases
 
 For faster typing:
@@ -110,6 +122,29 @@ todo delete 3          # also works for 'remove'
 todo --help            # Show all commands
 todo add --help        # Help for specific command
 todo list --help       # Detailed filtering options
+```
+
+## Data Storage
+
+Your tasks are stored in a single, OS-appropriate location:
+
+| Platform | Location |
+|----------|----------|
+| **Linux** | `~/.local/share/todo-cli/todos.json` |
+| **macOS** | `~/Library/Application Support/todo-cli/todos.json` |
+| **Windows** | `%APPDATA%\todo-cli\todos.json` |
+
+**Benefits:**
+
+- ✅ Same tasks regardless of working directory
+- ✅ Standard location for easy backups
+- ✅ XDG Base Directory compliant (Linux)
+- ✅ Follows platform conventions
+
+**Find your data:**
+
+```bash
+todo info  # Shows exact location and file status
 ```
 
 ## Documentation
@@ -165,11 +200,13 @@ This project was developed as a Rust learning exercise, documenting each increme
 - Type-safe architecture with structs/enums
 - JSON serialization with serde
 - Tags system for categorization
-- **Due dates with automatic validation**
-- **Professional CLI with Clap framework**
-- **Type-safe filtering with enums**
-- **Auto-generated help and documentation**
-- **Command aliases for productivity**
+- Due dates with automatic validation
+- Professional CLI with Clap framework
+- Type-safe filtering with enums
+- Auto-generated help and documentation
+- Command aliases for productivity
+- **Robust error handling with anyhow/thiserror**
+- **Global data directory (XDG-compliant)**
 
 ### Planned 🚀
 
