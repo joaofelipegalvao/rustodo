@@ -5,8 +5,7 @@ This CLI application provides a simple yet feature-rich interface for managing
 todo tasks with support for priorities, tags, due dates, and advanced filtering.
 */
 
-use std::path::PathBuf;
-use std::{fs, process};
+use std::{fs, path::PathBuf, process};
 
 use anyhow::{Context, Result};
 use chrono::{Local, NaiveDate};
@@ -136,7 +135,7 @@ enum SortBy {
 #[derive(Parser)]
 #[command(name = "todo-list")]
 #[command(author = "github.com/joaofelipegalvao")]
-#[command(version = "1.8.0")]
+#[command(version = "1.9.0")]
 #[command(about = "A modern, powerful task manager built with Rust", long_about = None)]
 #[command(after_help = "EXAMPLES:\n    \
     # Add a high priority task\n    \
@@ -225,6 +224,42 @@ enum Commands {
         /// Task ID number
         #[arg(value_name = "ID")]
         id: usize,
+
+        #[arg(long, short = 'y')]
+        yes: bool,
+    },
+
+    /// Edit an existing task
+    #[command(visible_alias = "e")]
+    #[command(long_about = "Edit an existing task\n\n\
+        Modify task properties like text, priority, tags, or due date.\n\
+        Only specify the fields you want to change.")]
+    Edit {
+        /// Task ID number
+        #[arg(value_name = "ID")]
+        id: usize,
+        /// New Task description
+        #[arg(long)]
+        text: Option<String>,
+
+        /// New priority level
+        #[arg(long, value_enum)]
+        priority: Option<Priority>,
+
+        /// Replace tags (use multiple times: -t work -t urgent)
+        #[arg(long, short = 't', value_name = "TAG")]
+        tag: Vec<String>,
+
+        /// New due date (YYYY-MM-DD)
+        #[arg(long, value_parser = clap::value_parser!(NaiveDate))]
+        due: Option<NaiveDate>,
+        /// Remove due date
+        #[arg(long, conflicts_with = "due")]
+        clear_due: bool,
+
+        /// Remove all tags
+        #[arg(long)]
+        clear_tags: bool,
     },
 
     /// Clear all tasks
@@ -232,7 +267,11 @@ enum Commands {
     #[command(long_about = "Clear all tasks (removes todos.json file)\n\n\
         WARNING: This will permanently delete ALL tasks. This action cannot be undone.\n\
         You will lose all your tasks, tags, and metadata.")]
-    Clear,
+    Clear {
+        /// Skip confirmation prompt
+        #[arg(long, short = 'y')]
+        yes: bool,
+    },
 
     /// Search for tasks by text content
     #[command(visible_alias = "find")]
@@ -694,6 +733,28 @@ fn get_data_file_path() -> Result<PathBuf> {
     Ok(path)
 }
 
+/// Prompts the user for confirmation.
+///
+/// # Arguments
+///
+/// * `message` - The confirmation message to display
+///
+/// # Returns
+///
+/// `true` if the user confirms (y/Y/yes), `false` otherwise
+fn confirm(message: &str) -> Result<bool> {
+    use std::io::{self, Write};
+
+    print!("{} ", message.yellow());
+    io::stdout().flush()?;
+
+    let mut input = String::new();
+    io::stdin().read_line(&mut input)?;
+
+    let response = input.trim().to_lowercase();
+    Ok(matches!(response.as_str(), "y" | "yes"))
+}
+
 /// Main application logic dispatcher.
 ///
 /// This function processes the parsed CLI arguments and executes the
@@ -839,25 +900,134 @@ fn run(cli: Cli) -> Result<()> {
             println!("{}", "✓ Task unmarked".yellow());
         }
 
-        Commands::Remove { id } => {
+        Commands::Remove { id, yes } => {
             let mut tasks = load_tasks()?;
             validate_task_id(id, tasks.len())?;
 
             let index = id - 1;
+            let task_text = &tasks[index].text;
+
+            if !yes {
+                println!(
+                    "\n{} {}",
+                    "Remove task:".red().bold(),
+                    task_text.bright_white()
+                );
+
+                if !confirm("Are you sure? [y/N]:")? {
+                    println!("{}", "Removal cancelled.".yellow());
+                    return Ok(());
+                }
+            }
+
             let removed_task = tasks.remove(index);
             save_tasks(&tasks)?;
             println!("{} {}", "✓ Task removed:".red(), removed_task.text.dimmed());
         }
 
-        Commands::Clear => {
+        Commands::Edit {
+            id,
+            text,
+            priority,
+            tag,
+            due,
+            clear_due,
+            clear_tags,
+        } => {
+            let mut tasks = load_tasks()?;
+            validate_task_id(id, tasks.len())?;
+
+            let index = id - 1;
+            let task = &mut tasks[index];
+
+            let mut changes = Vec::new();
+
+            // Update text if provided AND different
+            if let Some(new_text) = text {
+                if new_text.trim().is_empty() {
+                    return Err(anyhow::anyhow!("Task text cannot be empty"));
+                }
+                if task.text != new_text {
+                    task.text = new_text.clone();
+                    changes.push(format!("text → {}", new_text.bright_white()));
+                }
+            }
+
+            // Update priority if provided AND different
+            if let Some(new_priority) = priority
+                && task.priority != new_priority
+            {
+                task.priority = new_priority;
+                changes.push(format!("priority → {}", new_priority.letter()));
+            }
+
+            // Update tags
+            if clear_tags {
+                if !task.tags.is_empty() {
+                    task.tags.clear();
+                    changes.push("tags → cleared".dimmed().to_string());
+                }
+            } else if !tag.is_empty() && task.tags != tag {
+                task.tags = tag;
+                changes.push(format!("tags → [{}]", task.tags.join(", ").cyan()));
+            }
+
+            // Update due date
+            if clear_due {
+                if task.due_date.is_some() {
+                    task.due_date = None;
+                    changes.push("due date → cleared".dimmed().to_string());
+                }
+            } else if let Some(new_due) = due
+                && task.due_date != Some(new_due)
+            {
+                task.due_date = Some(new_due);
+                changes.push(format!("due date → {}", new_due.to_string().cyan()));
+            }
+
+            // Check if anything was actually changed
+            if changes.is_empty() {
+                println!(
+                    "{}",
+                    "No changes made (values are already set to the specified values).".yellow()
+                );
+                return Ok(());
+            }
+
+            save_tasks(&tasks)?;
+
+            println!("{} Task #{} updated:", "✓".green(), id);
+            for change in changes {
+                println!("  • {}", change);
+            }
+        }
+
+        Commands::Clear { yes } => {
             let path = get_data_file_path()?;
 
-            if path.exists() {
-                fs::remove_file(&path).context(format!("Failed to remove {}", path.display()))?;
-                println!("{}", "✓ All tasks have been removed".red().bold());
-            } else {
+            if !path.exists() {
                 println!("No tasks to remove");
+                return Ok(());
             }
+
+            let tasks = load_tasks()?;
+            let count = tasks.len();
+
+            if !yes {
+                println!(
+                    "\n{} {} tasks will be permanently deleted!",
+                    "WARNING:".red().bold(),
+                    count
+                );
+
+                if !confirm("Type 'yes' to confirm:")? {
+                    println!("{}", "Clear cancelled.".yellow());
+                    return Ok(());
+                }
+            }
+
+            fs::remove_file(&path).context(format!("Failed to remove {}", path.display()))?;
+            println!("{}", "✓ All tasks have been removed".red().bold());
         }
 
         Commands::Search { query, tag } => {
