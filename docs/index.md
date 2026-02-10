@@ -39,7 +39,8 @@ For experienced developers:
 - [v1.5.0 - Due Dates + Tabular Display](advanced/v1.5.0-due-dates-tabular.md) - Deadline tracking with chrono
 - [v1.6.0 - Professional CLI with Clap](advanced/v1.6.0-professional-cli-clap.md) - Industry-standard CLI framework
 - [v1.7.0 - Professional Error Handling](advanced/v1.7.0-professional-error-handling.md) - anyhow + thiserror
-- [v1.8.0 - Global Data Directory](advanced/v1.8.0-global-data-directory.md) - ⭐ **NEW:** OS-appropriate storage
+- [v1.8.0 - Global Data Directory](advanced/v1.8.0-global-data-directory.md) - OS-appropriate storage
+- [v1.9.0 - Edit Command & Interactive Confirmation](advanced/v1.9.0-edit-command-confirmation.md) - ⭐ **NEW:** Task editing + safety confirmations
 
 ### Cross-Cutting Concepts
 
@@ -50,6 +51,7 @@ Key patterns and best practices used throughout the project:
 - [File Operations](concepts/file-operations.md) - File I/O patterns and JSON serialization
 - [CLI Design](concepts/cli-design.md) - Command-line interface patterns and user experience
 - [Type Safety](concepts/type-safety.md) - Using Rust's type system to prevent bugs
+- [Interactive Input](concepts/interactive-input.md) - ⭐ **NEW:** User prompts and confirmations
 
 ---
 
@@ -70,8 +72,9 @@ v1.6: Clap + ValueEnum (zero manual parsing, compile-time safety)
    ↓
 v1.7: anyhow + thiserror (professional error handling)
    ↓
-v1.8: Global data directory (OS-appropriate storage) ⭐ NEW
-
+v1.8: Global data directory (OS-appropriate storage)
+   ↓
+v1.9: Edit command + confirmations (task modification + safety) ⭐ NEW
 ```
 
 ## Version Summary
@@ -95,7 +98,8 @@ v1.8: Global data directory (OS-appropriate storage) ⭐ NEW
 | v1.5.0 | Due Dates | `chrono`, date arithmetic, tabular display | ~150 |
 | v1.6.0 | Professional CLI | Clap, `ValueEnum`, zero manual parsing | ~80 |
 | v1.7.0 | Error Handling | `anyhow`, `thiserror`, error chains | ~85 |
-| v1.8.0 | Global Data Directory | `directories` crate, `PathBuf`, XDG compliance | ~95 | ⭐
+| v1.8.0 | Global Data Directory | `directories` crate, `PathBuf`, XDG compliance | ~95 |
+| v1.9.0 | Edit + Confirmations | Let-chains, `io::flush()`, `matches!` macro, TableLayout refactoring | ~165 |
 
 ---
 
@@ -112,7 +116,7 @@ Start here if you're new to Rust:
 **Time:** 2-3 weeks  
 **Outcome:** Comfortable with Rust fundamentals
 
-### Path 2: Architecture Focus (1.2 → 1.8)
+### Path 2: Architecture Focus (1.2 → 1.9)
 
 For those wanting to learn professional Rust patterns:
 
@@ -120,21 +124,34 @@ For those wanting to learn professional Rust patterns:
 2. **Serialization (v1.3)** - Serde patterns
 3. **CLI Frameworks (v1.6)** - Clap derive macros
 4. **Error Handling (v1.7)** - anyhow + thiserror
-5. **System Integration (v1.8)** - Platform-specific paths ⭐ NEW
+5. **System Integration (v1.8)** - Platform-specific paths
+6. **Interactive Features (v1.9)** - Edit commands + confirmations ⭐ NEW
 
 **Time:** 1-2 weeks  
 **Outcome:** Production-ready Rust architecture
 
-### Path 3: Platform Development (NEW)
+### Path 3: Platform Development
 
 Focus on cross-platform CLI development:
 
 1. **Basic file operations (v0.1-v1.3)** - Local file handling
-2. **Path manipulation (v1.8)** - `PathBuf`, platform detection ⭐
+2. **Path manipulation (v1.8)** - `PathBuf`, platform detection
 3. **Concepts** - [File Operations](concepts/file-operations.md)
 
 **Time:** 3-4 days  
 **Outcome:** Master cross-platform file handling
+
+### Path 4: User Interaction (NEW)
+
+Focus on interactive CLI features:
+
+1. **Basic commands (v0.1-v0.5)** - Core functionality
+2. **Confirmations (v1.9)** - Interactive prompts ⭐
+3. **Edit operations (v1.9)** - Task modification ⭐
+4. **Concepts** - [Interactive Input](concepts/interactive-input.md) ⭐
+
+**Time:** 2-3 days  
+**Outcome:** Build safe, user-friendly CLIs
 
 ---
 
@@ -147,7 +164,8 @@ Focus on cross-platform CLI development:
 - **Zero manual parsing** after adopting clap
 - **Type safety** from command line to storage
 - **Professional error handling** with context chains (v1.7.0)
-- **Platform-aware storage** following OS conventions (v1.8.0) ⭐ NEW
+- **Platform-aware storage** following OS conventions (v1.8.0)
+- **Safe operations** with interactive confirmations (v1.9.0) ⭐ NEW
 
 ### Features
 
@@ -159,7 +177,9 @@ Focus on cross-platform CLI development:
 - ✅ Professional CLI with auto-help
 - ✅ Type-safe architecture throughout
 - ✅ Rich error messages with context
-- ✅ Global data directory (OS-appropriate) ⭐ NEW
+- ✅ Global data directory (OS-appropriate)
+- ✅ Edit tasks in place (preserves ID and history) ⭐ NEW
+- ✅ Interactive confirmations (prevents accidental deletions) ⭐ NEW
 
 ### Learning Outcomes
 
@@ -168,7 +188,8 @@ Focus on cross-platform CLI development:
 3. **Type safety** - using compiler to prevent bugs
 4. **Refactoring strategy** - evolve code without breaking it
 5. **Professional development** - industry-standard patterns
-6. **Cross-platform development** - handling OS differences ⭐ NEW
+6. **Cross-platform development** - handling OS differences
+7. **Interactive UI** - safe user confirmations and data modification ⭐ NEW
 
 ---
 
@@ -179,22 +200,23 @@ Focus on cross-platform CLI development:
 - **Serialization:** Serde + JSON
 - **Colors:** Colored crate
 - **Dates:** Chrono
-- **Platform Directories:** directories crate (v1.8.0+) ⭐
+- **Platform Directories:** directories crate (v1.8.0+)
+- **I/O:** std::io with buffered output (v1.9.0+) ⭐
 - **File Format:** JSON (v1.3.0+)
 
 ---
 
 ## Potential Future Versions
 
-- **v1.9:** Edit command with interactive editor
-- **v2.0:** Subtasks/nested tasks with recursive data structures
-- **v2.1:** Multiple projects/contexts
-- **v2.2:** TUI with `ratatui`
-- **v2.3:** Configuration file with `config` crate
-- **v2.4:** Shell completions (bash, zsh, fish)
-- **v2.5:** Export/import (CSV, JSON, Markdown)
-- **v2.6:** Sync with cloud storage
-- **v2.7:** Web API with `axum`
+- **v2.0:** Recurring tasks with cron-like patterns
+- **v2.1:** Subtasks/nested tasks with recursive data structures
+- **v2.2:** Multiple projects/contexts
+- **v2.3:** TUI with `ratatui`
+- **v2.4:** Configuration file with `config` crate
+- **v2.5:** Shell completions (bash, zsh, fish)
+- **v2.6:** Export/import (CSV, JSON, Markdown)
+- **v2.7:** Sync with cloud storage
+- **v2.8:** Web API with `axum`
 - **v3.0:** Plugin system
 
 ---
@@ -215,7 +237,8 @@ Focus on cross-platform CLI development:
 - **Type safety**: How to use Rust's type system to prevent bugs
 - **Refactoring**: How to evolve code without breaking functionality
 - **Professional development**: Industry-standard patterns and tools
-- **Cross-platform development**: Handling OS-specific requirements ⭐ NEW
+- **Cross-platform development**: Handling OS-specific requirements
+- **Interactive features**: User confirmations and safe data modification ⭐ NEW
 
 ### For Each Version
 
@@ -227,7 +250,7 @@ Focus on cross-platform CLI development:
 
 ## Next Steps
 
-The CLI is now production-ready and serves as an excellent foundation for learning more advanced Rust concepts:
+The CLI is now production-ready with professional task editing and safety features. Future enhancements could include:
 
 ### Learning Extensions
 
@@ -235,6 +258,6 @@ Each future version would teach new Rust concepts while building on the solid fo
 
 ---
 
-**The beauty of this architecture:** All new features benefit from the type-safe, extensible, platform-aware foundation built through careful refactoring.
+**The beauty of this architecture:** All new features benefit from the type-safe, extensible, platform-aware, and user-friendly foundation built through careful refactoring.
 
 **🦀 Happy learning!**
