@@ -5,6 +5,67 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.9.0] - 2026-02-10
+
+### Added
+
+- **Edit command** - Modify existing tasks without losing ID or creation date
+  - `todo edit <ID>` with `--text`, `--priority`, `--tag`, `--due`, `--clear-due`, `--clear-tags` flags
+  - Visible alias: `todo e <ID>`
+  - Preserves task ID, creation timestamp, and completion status
+  - Partial updates - change only what you specify
+  - Smart validation - prevents no-op changes
+  - Rich feedback showing exactly what changed
+- **Interactive confirmation prompts** for destructive operations
+  - `todo remove <ID>` now asks for confirmation before deletion
+  - `todo clear` shows count and asks for confirmation
+  - Shows affected task/count before prompting
+  - `--yes` / `-y` flag to skip confirmation (for scripts)
+- `confirm()` helper function for user input
+  - Buffered I/O with `io::stdout().flush()`
+  - Case-insensitive input matching with `matches!` macro
+  - Safe default (requires explicit "y" or "yes")
+
+### Changed
+
+- **BREAKING CHANGE:** `remove` command now prompts for confirmation by default
+  - Use `--yes` or `-y` flag to skip prompt in scripts
+  - Shows task text before asking for confirmation
+- **BREAKING CHANGE:** `clear` command now prompts for confirmation by default
+  - Shows task count before asking for confirmation
+  - Use `--yes` or `-y` flag to skip prompt in scripts
+- Refactored table layout calculation into `TableLayout` struct
+  - Separates layout concerns from rendering logic
+  - Single parameter instead of multiple width values
+  - Easier to extend with new columns
+  - Better encapsulation following Builder Pattern
+
+### Improved
+
+- Error messages now more specific for state validation
+- Confirmation prompts use semantic colors (red for destructive operations)
+- Cancelled operations show clear feedback messages
+
+### Technical Details
+
+- **New imports:**
+  - `std::io::{self, Write}` - For buffered I/O and flush
+- **New concepts:**
+  - Let-chains (RFC 2497) for cleaner conditional logic
+  - `io::stdout().flush()` for immediate terminal output
+  - `matches!` macro for elegant pattern matching
+  - Change tracking with `Vec<String>`
+  - Preserving task identity in edit operations
+  - TableLayout struct for separation of concerns
+- **Code metrics:**
+  - Added: 133 lines (Edit command, confirm function, TableLayout)
+  - Changed: 32 lines (Remove/Clear updates)
+  - Total impact: 165 lines
+- **Builder Pattern:**
+  - TableLayout encapsulates width calculations
+  - Reduces coupling between layout and rendering
+  - Type-safe parameter passing
+
 ## [1.8.0] - 2026-02-08
 
 ### Added
@@ -594,7 +655,8 @@ Users need to migrate from `todos.txt` to `todos.json`:
 - Error handling with `?` operator
 
 [Unreleased]:
-https://github.com/joaofelipegalvao/todo-cli/compare/v1.8.0...HEAD
+https://github.com/joaofelipegalvao/todo-cli/compare/v1.9.0...HEAD
+[1.9.0]: https://github.com/joaofelipegalvao/todo-cli/compare/v1.8.0...v1.9.0
 [1.8.0]: https://github.com/joaofelipegalvao/todo-cli/compare/v1.7.0...v1.8.0
 [1.7.0]: https://github.com/joaofelipegalvao/todo-cli/compare/v1.6.0...v1.7.0
 [1.6.0]: https://github.com/joaofelipegalvao/todo-cli/compare/v1.5.0...v1.6.0
