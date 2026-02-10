@@ -6,8 +6,10 @@ A simple, colorful, and functional task manager developed to learn Rust in pract
 
 ## Features
 
-- **Global Data Directory** - Tasks stored in OS-appropriate location (XDG-compliant)
-- **Error Handling with `anyhow` and `thiserror`**
+- **Edit Command** - Modify existing tasks without deleting them
+- **Interactive Confirmation** - Safe prompts for destructive operations (remove/clear)
+- **Global Data Directory** - OS-appropriate storage (XDG on Linux, Application Support on macOS, AppData on Windows)
+- **Error Handling with `anyhow` and `thiserror`** - Professional error messages with context chains
 - **Professional CLI with Clap** - Auto-generated help, type-safe parsing, shell completions
 - **Type-safe architecture** with structs and enums
 - **Tags system** for task categorization
@@ -32,18 +34,36 @@ todo add "Learn Rust" --priority high --tag programming --tag learning --due 202
 todo list --status pending --sort priority
 todo done 1
 todo tags
+
+# Edit tasks
+todo edit 1 --text "Learn Rust properly" --priority high
+todo edit 2 --due 2026-03-01
+
+# Find where your data is stored
+todo info
 ```
+
+## Data Storage
+
+Tasks are automatically saved to platform-specific locations:
+
+- **Linux:** `~/.config/todo-cli/todos.json`
+- **macOS:** `~/Library/Application Support/todo-cli/todos.json`
+- **Windows:** `%APPDATA%\todo-cli\todos.json`
+
+Use `todo info` to see your exact data file location.
 
 ## Commands
 
 ```bash
 todo add <description> [options]              # Add a new task
+todo edit <id> [options]                      # Edit an existing task
 todo list [options]                           # List and filter tasks
-todo search <query> [--tag <name>]           # Search tasks by text
+todo search <query> [--tag <n>]               # Search tasks by text
 todo done <id>                                # Mark task as completed
 todo undone <id>                              # Mark task as pending
-todo remove <id>                              # Remove a task
-todo clear                                    # Remove all tasks
+todo remove <id> [--yes]                      # Remove a task (with confirmation)
+todo clear [--yes]                            # Remove all tasks (with confirmation)
 todo tags                                     # List all tags with counts
 todo info                                     # Show data file location
 ```
@@ -65,6 +85,45 @@ Options:
 todo add "Deploy to production" --priority high --tag work --due 2026-02-15
 todo add "Buy groceries" -t personal -t shopping
 ```
+
+### Edit Command
+
+```bash
+todo edit <id> [options]
+
+Options:
+  --text <TEXT>          New task description
+  --priority <PRIORITY>  New priority (high|medium|low)
+  -t, --tag <TAG>       Replace tags (repeatable)
+  --due <DATE>          New due date (YYYY-MM-DD)
+  --clear-due           Remove due date
+  --clear-tags          Remove all tags
+```
+
+**Examples:**
+
+```bash
+# Fix a typo
+todo edit 5 --text "Updated description"
+
+# Change priority and due date
+todo edit 3 --priority high --due 2026-03-15
+
+# Replace tags
+todo edit 1 --tag work --tag urgent
+
+# Clear due date
+todo edit 2 --clear-due
+
+# Multiple changes at once
+todo edit 3 --text "New text" --priority low --due 2026-04-01
+```
+
+**What's preserved:**
+
+- ✅ Task ID (stays the same)
+- ✅ Creation date (`created_at`)
+- ✅ Completion status
 
 ### List Command
 
@@ -94,15 +153,45 @@ todo list --due soon
 todo list --status pending --priority high --tag work --sort priority
 ```
 
+### Remove & Clear Commands
+
+Both commands now prompt for confirmation to prevent accidental deletion:
+
+```bash
+# Remove with confirmation
+$ todo remove 5
+Remove task 'Important meeting'? [y/N]: y
+✓ Task removed: Important meeting
+
+# Skip confirmation (for scripts)
+$ todo remove 5 --yes
+$ todo remove 5 -y
+
+# Clear with warning
+$ todo clear
+WARNING: 10 tasks will be permanently deleted!
+Are you sure? [y/N]: y
+✓ All tasks have been removed
+
+# Skip confirmation
+$ todo clear --yes
+```
+
 ### Info Command
 
 ```bash
+# Show data file location and status
 todo info
+```
 
-# Shows where your tasks are stored
-# Linux:   ~/.local/share/todo-cli/todos.json
-# macOS:   ~/Library/Application Support/todo-cli/todos.json
-# Windows: %APPDATA%\todo-cli\todos.json
+**Example output:**
+
+```
+Todo-List Information
+
+Data file: /home/user/.config/todo-cli/todos.json
+Status: exists ✓
+Size: 1245 bytes
 ```
 
 ### Command Aliases
@@ -111,6 +200,7 @@ For faster typing:
 
 ```bash
 todo a "Task"          # alias for 'add'
+todo e 1 --text "New"  # alias for 'edit'
 todo ls                # alias for 'list'
 todo rm 3              # alias for 'remove'
 todo delete 3          # also works for 'remove'
@@ -121,30 +211,8 @@ todo delete 3          # also works for 'remove'
 ```bash
 todo --help            # Show all commands
 todo add --help        # Help for specific command
+todo edit --help       # Edit command options
 todo list --help       # Detailed filtering options
-```
-
-## Data Storage
-
-Your tasks are stored in a single, OS-appropriate location:
-
-| Platform | Location |
-|----------|----------|
-| **Linux** | `~/.local/share/todo-cli/todos.json` |
-| **macOS** | `~/Library/Application Support/todo-cli/todos.json` |
-| **Windows** | `%APPDATA%\todo-cli\todos.json` |
-
-**Benefits:**
-
-- ✅ Same tasks regardless of working directory
-- ✅ Standard location for easy backups
-- ✅ XDG Base Directory compliant (Linux)
-- ✅ Follows platform conventions
-
-**Find your data:**
-
-```bash
-todo info  # Shows exact location and file status
 ```
 
 ## Documentation
@@ -172,8 +240,9 @@ This project was developed as a Rust learning exercise, documenting each increme
 | v1.6.0 | Professional CLI | `clap`, derive macros, type-safe enums, auto-help |
 | v1.7.0 | Error Handling | `anyhow`, `thiserror`, error chains |
 | v1.8.0 | Global Data Directory | `directories` crate, `PathBuf`, XDG compliance |
+| v1.9.0 | Edit + Confirmations + Refactoring | `todo edit`, let-chains, `confirm()`, `--yes`, `TableLayout` struct |
 
-[See full evolution →](/CHANGELOG.md)
+[See full evolution →](CHANGELOG.md)
 
 ### For Students
 
@@ -181,6 +250,7 @@ This project was developed as a Rust learning exercise, documenting each increme
 - Each tag documents what was learned  
 - Perfect for understanding CLI design in Rust
 - Study the evolution from manual parsing to professional CLI with Clap
+- Learn cross-platform development with OS-appropriate storage
 
 ### For End Users
 
@@ -205,12 +275,14 @@ This project was developed as a Rust learning exercise, documenting each increme
 - Type-safe filtering with enums
 - Auto-generated help and documentation
 - Command aliases for productivity
-- **Robust error handling with anyhow/thiserror**
-- **Global data directory (XDG-compliant)**
+- Professional error handling with anyhow + thiserror
+- Global data directory with OS-appropriate storage
+- **Edit command for modifying existing tasks**
+- **Interactive confirmation for destructive operations**
+- **TableLayout architecture** for cleaner display code
 
 ### Planned 🚀
 
-- Edit command
 - Recurring tasks
 - Subtasks/nested tasks
 - Export/import commands
