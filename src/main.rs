@@ -238,6 +238,7 @@ enum Commands {
         /// Task ID number
         #[arg(value_name = "ID")]
         id: usize,
+
         /// New Task description
         #[arg(long)]
         text: Option<String>,
@@ -253,6 +254,7 @@ enum Commands {
         /// New due date (YYYY-MM-DD)
         #[arg(long, value_parser = clap::value_parser!(NaiveDate))]
         due: Option<NaiveDate>,
+
         /// Remove due date
         #[arg(long, conflicts_with = "due")]
         clear_due: bool,
@@ -314,22 +316,18 @@ struct AddArgs {
     #[arg(long, short = 't', value_name = "TAG")]
     tag: Vec<String>,
 
-    /// Due date in format YYYY-MM-DD (example: --due 2025-12-31)
+    /// Due date in format YYYY-MM-DD (example: --due 2026-02-09)
     #[arg(long, value_name = "DATE", value_parser = clap::value_parser!(NaiveDate))]
     due: Option<NaiveDate>,
 }
 
-/// Creates a new task with the given parameters.
-///
-/// The task is initially marked as not completed and the creation date
-/// is set to the current date.
+/// Displays a single task in tabular format.
 ///
 /// # Arguments
 ///
-/// * `text` - The task description
-/// * `priority` - Priority level of the task
-/// * `tags` -  List of tags for categorization
-/// * `due_date` - Optional due date for the task
+/// * `number` - The task number (1-based index)
+/// * `task` - The task to display
+/// * `layout` - Table layout configuration (column widths)
 impl Task {
     fn new(
         text: String,
@@ -592,6 +590,46 @@ fn get_due_colored(task: &Task, text: &str) -> ColoredString {
     }
 }
 
+fn render_checkbox(completed: bool) -> ColoredString {
+    if completed {
+        "[x]".green()
+    } else {
+        "[ ]".bright_white()
+    }
+}
+
+const ID_WIDTH: usize = 4;
+const PRIORITY_WIDTH: usize = 1;
+const STATUS_WIDTH: usize = 3; // [x] ou [ ]
+
+struct TableLayout {
+    id: usize,
+    priority: usize,
+    status: usize,
+    task: usize,
+    tags: usize,
+    due: usize,
+}
+
+impl TableLayout {
+    fn new(tasks: &[(usize, &Task)]) -> Self {
+        let (task, tags, due) = calculate_column_widths(tasks);
+
+        Self {
+            id: ID_WIDTH,
+            priority: PRIORITY_WIDTH,
+            status: STATUS_WIDTH,
+            task,
+            tags,
+            due,
+        }
+    }
+
+    fn total_width(&self) -> usize {
+        self.id + self.priority + self.status + self.task + self.tags + self.due + 10
+    }
+}
+
 /// Displays a single task in tabular format.
 ///
 /// # Arguments
@@ -600,29 +638,22 @@ fn get_due_colored(task: &Task, text: &str) -> ColoredString {
 /// * `task` - The task to display
 /// * `task_width` - Column width for task text
 /// * `tags_width` - Column width for tags
-fn display_task_tabular(number: usize, task: &Task, task_width: usize, tags_width: usize) {
-    let number_str = format!("{:>3}", number);
+fn display_task_tabular(number: usize, task: &Task, layout: &TableLayout) {
+    let checkbox = render_checkbox(task.completed);
     let letter = task.priority.letter();
-    let checkbox = if task.completed {
-        "".green()
-    } else {
-        "".bright_white()
-    };
 
-    // Truncate task text if it exceeds the column width
-    let task_text = if task.text.len() > task_width {
-        format!("{}...", &task.text[..task_width - 3])
+    let task_text = if task.text.len() > layout.task {
+        format!("{}...", &task.text[..layout.task - 3])
     } else {
         task.text.to_owned()
     };
 
-    // Format tags for display
     let tags_str = if task.tags.is_empty() {
         String::new()
     } else {
         let joined = task.tags.join(", ");
-        if joined.len() > tags_width {
-            format!("{}...", &joined[..tags_width - 3])
+        if joined.len() > layout.tags {
+            format!("{}...", &joined[..layout.tags - 3])
         } else {
             joined
         }
@@ -631,20 +662,59 @@ fn display_task_tabular(number: usize, task: &Task, task_width: usize, tags_widt
     let due_text = get_due_text(task);
     let due_colored = get_due_colored(task, &due_text);
 
-    // Apply different styling for completed vs pending tasks
     if task.completed {
-        print!("{:>4} ", number_str.dimmed());
-        print!(" {} ", letter);
-        print!(" {} ", checkbox);
-        print!("{:<width$}", task_text.green(), width = task_width);
-        print!("  {:<width$}", tags_str.dimmed(), width = tags_width);
+        print!(
+            "{:>id_width$} ",
+            number.to_string().dimmed(),
+            id_width = layout.id,
+        );
+        print!(
+            " {:<priority_width$} ",
+            letter,
+            priority_width = layout.priority,
+        );
+        print!(
+            " {:<status_width$} ",
+            checkbox,
+            status_width = layout.status,
+        );
+        print!(
+            "{:<task_width$}",
+            task_text.green(),
+            task_width = layout.task,
+        );
+        print!(
+            "  {:<tags_width$}",
+            tags_str.dimmed(),
+            tags_width = layout.tags,
+        );
         println!("  {}", due_colored);
     } else {
-        print!("{:>4} ", number_str.dimmed());
-        print!(" {} ", letter);
-        print!(" {} ", checkbox);
-        print!("{:<width$}", task_text.bright_white(), width = task_width);
-        print!("  {:<width$}", tags_str.cyan(), width = tags_width);
+        print!(
+            "{:>id_width$} ",
+            number.to_string().dimmed(),
+            id_width = layout.id,
+        );
+        print!(
+            " {:<priority_width$} ",
+            letter,
+            priority_width = layout.priority,
+        );
+        print!(
+            " {:<status_width$} ",
+            checkbox,
+            status_width = layout.status,
+        );
+        print!(
+            "{:<task_width$}",
+            task_text.bright_white(),
+            task_width = layout.task,
+        );
+        print!(
+            "  {:<tags_width$}",
+            tags_str.cyan(),
+            tags_width = layout.tags,
+        );
         println!("  {}", due_colored);
     }
 }
@@ -658,33 +728,43 @@ fn display_task_tabular(number: usize, task: &Task, task_width: usize, tags_widt
 fn display_lists(tasks: &[(usize, &Task)], title: &str) {
     println!("\n{}:\n", title);
 
-    let (task_width, tags_width, due_width) = calculate_column_widths(tasks);
+    let layout = TableLayout::new(tasks);
 
-    // Print table header
-    print!("{:>4} ", "ID".dimmed());
-    print!(" {} ", "P".dimmed());
-    print!(" {} ", "S".dimmed());
-    print!("{:<width$}", "Task".dimmed(), width = task_width);
-    print!("  {:<width$}", "Tags".dimmed(), width = tags_width);
+    // Header
+    // Header
+    print!("{:>id_width$} ", "ID".dimmed(), id_width = layout.id,);
+    print!(
+        " {:<priority_width$} ",
+        "P".dimmed(),
+        priority_width = layout.priority,
+    );
+    print!(
+        " {:<status_width$} ",
+        " S".dimmed(),
+        status_width = layout.status,
+    );
+    print!("{:<task_width$}", "Task".dimmed(), task_width = layout.task,);
+    print!(
+        "  {:<tags_width$}",
+        "Tags".dimmed(),
+        tags_width = layout.tags,
+    );
     println!("  {}", "Due".dimmed());
 
-    let total_width = task_width + tags_width + due_width + 19;
-
+    let total_width = layout.total_width();
     println!("{}", "─".repeat(total_width).dimmed());
 
-    // Print each task
     let mut completed = 0;
     let total = tasks.len();
 
     for (number, task) in tasks {
-        display_task_tabular(*number, task, task_width, tags_width);
+        display_task_tabular(*number, task, &layout);
 
         if task.completed {
             completed += 1;
         }
     }
 
-    // Print footer with statistics
     println!("\n{}", "─".repeat(total_width).dimmed());
 
     let percentage = if total > 0 {
@@ -695,7 +775,6 @@ fn display_lists(tasks: &[(usize, &Task)], title: &str) {
 
     let stats = format!("{} of {} completed ({}%)", completed, total, percentage);
 
-    // Color-code the statistics based on completion percentage
     if percentage == 100 {
         println!("{}", stats.green().bold());
     } else if percentage >= 50 {
