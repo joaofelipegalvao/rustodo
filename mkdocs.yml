@@ -82,6 +82,7 @@ nav:
       - v1.7 - Professional Error Handling: advanced/v1.7.0-professional-error-handling.md
       - v1.8 - Global Data Director: advanced/v1.8.0-global-data-directory.md
       - v1.9 - Edit Command & Confirmation: advanced/v1.9.0-edit-command-confirmation.md
+      - v2.0 - Modular Refactoring: advanced/v2.0.0-modular-refactoring.md
 
   - Changelog: CHANGELOG.md
 
