@@ -6,6 +6,7 @@ A simple, colorful, and functional task manager developed to learn Rust in pract
 
 ## Features
 
+- **Modular Refactoring** - Transform monolithic code into professional architecture
 - **Edit Command** - Modify existing tasks without deleting them
 - **Interactive Confirmation** - Safe prompts for destructive operations (remove/clear)
 - **Global Data Directory** - OS-appropriate storage (XDG on Linux, Application Support on macOS, AppData on Windows)
@@ -47,7 +48,7 @@ todo info
 
 Tasks are automatically saved to platform-specific locations:
 
-- **Linux:** `~/.config/todo-cli/todos.json`
+- **Linux:** `~/.local/share/todo-cli/todos.json`
 - **macOS:** `~/Library/Application Support/todo-cli/todos.json`
 - **Windows:** `%APPDATA%\todo-cli\todos.json`
 
@@ -189,7 +190,7 @@ todo info
 ```
 Todo-List Information
 
-Data file: /home/user/.config/todo-cli/todos.json
+Data file: /home/user/.local/share/todo-cli/todos.json
 Status: exists ✓
 Size: 1245 bytes
 ```
@@ -241,6 +242,7 @@ This project was developed as a Rust learning exercise, documenting each increme
 | v1.7.0 | Error Handling | `anyhow`, `thiserror`, error chains |
 | v1.8.0 | Global Data Directory | `directories` crate, `PathBuf`, XDG compliance |
 | v1.9.0 | Edit + Confirmations + Refactoring | `todo edit`, let-chains, `confirm()`, `--yes`, `TableLayout` struct |
+| v2.0.0 | Modular Refactoring | Modules, re-exports, separation of concerns, Command pattern | ~95 main.rs (was 1200) |
 
 [See full evolution →](CHANGELOG.md)
 
@@ -277,9 +279,10 @@ This project was developed as a Rust learning exercise, documenting each increme
 - Command aliases for productivity
 - Professional error handling with anyhow + thiserror
 - Global data directory with OS-appropriate storage
-- **Edit command for modifying existing tasks**
-- **Interactive confirmation for destructive operations**
-- **TableLayout architecture** for cleaner display code
+- Edit command for modifying existing tasks
+- Interactive confirmation for destructive operations
+- TableLayout architecture for cleaner display code
+- Modular Refactoring for a professional structure
 
 ### Planned 🚀
 
