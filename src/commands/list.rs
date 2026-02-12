@@ -2,7 +2,7 @@ use anyhow::Result;
 
 use crate::display::display_lists;
 use crate::error::TodoError;
-use crate::models::{DueFilter, Priority, SortBy, StatusFilter};
+use crate::models::{DueFilter, Priority, Recurrence, RecurrenceFilter, SortBy, StatusFilter};
 use crate::storage::load_tasks;
 
 #[allow(clippy::too_many_arguments)]
@@ -12,6 +12,7 @@ pub fn execute(
     due: Option<DueFilter>,
     sort: Option<SortBy>,
     tag: Option<String>,
+    recur: Option<RecurrenceFilter>,
 ) -> Result<()> {
     let all_tasks = load_tasks()?;
 
@@ -42,6 +43,17 @@ pub fn execute(
         }
     }
 
+    // Filter by recurrence pattern
+    if let Some(recur_filter) = recur {
+        indexed_tasks.retain(|(_, t)| match recur_filter {
+            RecurrenceFilter::Daily => t.recurrence == Some(Recurrence::Daily),
+            RecurrenceFilter::Weekly => t.recurrence == Some(Recurrence::Weekly),
+            RecurrenceFilter::Monthly => t.recurrence == Some(Recurrence::Monthly),
+            RecurrenceFilter::Recurring => t.recurrence.is_some(),
+            RecurrenceFilter::NonRecurring => t.recurrence.is_none(),
+        });
+    }
+
     if indexed_tasks.is_empty() {
         return Err(TodoError::NoTasksFound.into());
     }
@@ -67,7 +79,44 @@ pub fn execute(
     }
 
     // Determine appropriate title based on active filters
-    let title = match (status, priority, due) {
+    let title = determine_title(status, priority, due, recur);
+
+    display_lists(&indexed_tasks, title);
+    Ok(())
+}
+
+/// Determines the appropriate title based on active filters.
+fn determine_title(
+    status: StatusFilter,
+    priority: Option<Priority>,
+    due: Option<DueFilter>,
+    recur: Option<RecurrenceFilter>,
+) -> &'static str {
+    // Recurrence-specific titles
+    if let Some(recur_filter) = recur {
+        return match (status, recur_filter) {
+            (StatusFilter::Pending, RecurrenceFilter::Daily) => "Pending daily recurring tasks",
+            (StatusFilter::Pending, RecurrenceFilter::Weekly) => "Pending weekly recurring tasks",
+            (StatusFilter::Pending, RecurrenceFilter::Monthly) => "Pending monthly recurring tasks",
+            (StatusFilter::Pending, RecurrenceFilter::Recurring) => "Pending recurring tasks",
+            (StatusFilter::Pending, RecurrenceFilter::NonRecurring) => {
+                "Pending non-recurring tasks"
+            }
+            (StatusFilter::Done, RecurrenceFilter::Daily) => "Completed daily recurring tasks",
+            (StatusFilter::Done, RecurrenceFilter::Weekly) => "Completed weekly recurring tasks",
+            (StatusFilter::Done, RecurrenceFilter::Monthly) => "Completed monthly recurring tasks",
+            (StatusFilter::Done, RecurrenceFilter::Recurring) => "Completed recurring tasks",
+            (StatusFilter::Done, RecurrenceFilter::NonRecurring) => "Completed non-recurring tasks",
+            (StatusFilter::All, RecurrenceFilter::Daily) => "Daily recurring tasks",
+            (StatusFilter::All, RecurrenceFilter::Weekly) => "Weekly recurring tasks",
+            (StatusFilter::All, RecurrenceFilter::Monthly) => "Monthly recurring tasks",
+            (StatusFilter::All, RecurrenceFilter::Recurring) => "Recurring tasks",
+            (StatusFilter::All, RecurrenceFilter::NonRecurring) => "Non-recurring tasks",
+        };
+    }
+
+    // Original title logic (without recurrence filter)
+    match (status, priority, due) {
         (StatusFilter::Pending, Some(Priority::High), None) => "High priority pending tasks",
         (StatusFilter::Pending, Some(Priority::Medium), None) => "Medium priority pending tasks",
         (StatusFilter::Pending, Some(Priority::Low), None) => "Low priority pending tasks",
@@ -83,8 +132,5 @@ pub fn execute(
         (StatusFilter::All, None, Some(DueFilter::WithDue)) => "Tasks with due date",
         (StatusFilter::All, None, Some(DueFilter::NoDue)) => "Tasks without due date",
         _ => "Tasks",
-    };
-
-    display_lists(&indexed_tasks, title);
-    Ok(())
+    }
 }

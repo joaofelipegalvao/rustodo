@@ -24,6 +24,21 @@ pub enum DueFilter {
     NoDue,
 }
 
+/// Filter for task recurrence patterns.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
+pub enum RecurrenceFilter {
+    /// Show only tasks that repeat daily
+    Daily,
+    /// Show only tasks that repeat weekly
+    Weekly,
+    /// Show only tasks that repeat monthly
+    Monthly,
+    /// Show any recurring task (daily, weekly, or monthly)
+    Recurring,
+    /// Show only non-recurring tasks
+    NonRecurring,
+}
+
 /// Sorting options for task lines.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
 pub enum SortBy {
