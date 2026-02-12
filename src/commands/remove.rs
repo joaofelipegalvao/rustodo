@@ -13,20 +13,20 @@ pub fn execute(id: usize, yes: bool) -> Result<()> {
     let task_text = &tasks[index].text;
 
     if !yes {
-        println!(
-            "\n{} {}",
-            "Remove task:".red().bold(),
-            task_text.bright_white()
-        );
+        println!("\n{} {}", "".yellow(), task_text.bright_white());
 
         if !confirm("Are you sure? [y/N]:")? {
-            println!("{}", "Removal cancelled.".yellow());
+            println!("{} Removal cancelled.", "".yellow());
             return Ok(());
         }
     }
 
     let removed_task = tasks.remove(index);
     save_tasks(&tasks)?;
-    println!("{} {}", "✓ Task removed:".red(), removed_task.text.dimmed());
+    println!(
+        "{} {}",
+        "✓".green(),
+        format!("Task removed: {}", removed_task.text).dimmed()
+    );
     Ok(())
 }

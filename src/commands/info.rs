@@ -9,22 +9,16 @@ pub fn execute() -> Result<()> {
     let path = get_data_file_path()?;
     let exists = path.exists();
 
-    println!("\n{}\n", "Todo-List Information".bold());
+    println!("\n{} Todo-List Information\n", "".blue().bold());
     println!("{} {}", "Data file:".dimmed(), path.display());
-    println!(
-        "{} {}",
-        "Status:".dimmed(),
-        if exists {
-            "exists ✓".green()
-        } else {
-            "not created yet".yellow()
-        }
-    );
 
     if exists {
+        println!("{} {}", "Status:".dimmed(), "exists ✓".green());
         let metadata = fs::metadata(&path)?;
         let size = metadata.len();
         println!("{} {} bytes", "Size:".dimmed(), size);
+    } else {
+        println!("{} {}", "Status:".dimmed(), "not created yet".blue());
     }
 
     println!();

@@ -10,7 +10,7 @@ pub fn execute(yes: bool) -> Result<()> {
     let path = get_data_file_path()?;
 
     if !path.exists() {
-        println!("No tasks to remove");
+        println!("{} No tasks to remove", "".blue());
         return Ok(());
     }
 
@@ -20,17 +20,17 @@ pub fn execute(yes: bool) -> Result<()> {
     if !yes {
         println!(
             "\n{} {} tasks will be permanently deleted!",
-            "WARNING:".red().bold(),
+            "".yellow().bold(),
             count
         );
 
         if !confirm("Type 'yes' to confirm:")? {
-            println!("{}", "Clear cancelled.".yellow());
+            println!("{} Clear cancelled.", "".yellow());
             return Ok(());
         }
     }
 
     fs::remove_file(&path).context(format!("Failed to remove {}", path.display()))?;
-    println!("{}", "✓ All tasks have been removed".red().bold());
+    println!("{} All tasks have been removed", "✓".green().bold());
     Ok(())
 }

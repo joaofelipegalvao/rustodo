@@ -70,8 +70,8 @@ pub fn execute(
     // Check if anything was actually changed
     if changes.is_empty() {
         println!(
-            "{}",
-            "No changes made (values are already set to the specified values).".yellow()
+            "{} No changes made (values are already set to the specified values).",
+            "".blue()
         );
         return Ok(());
     }
