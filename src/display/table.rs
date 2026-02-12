@@ -1,38 +1,65 @@
 use colored::Colorize;
 
-use crate::models::Task;
+use crate::models::{Recurrence, Task};
 
 use super::formatting::{get_due_colored, get_due_text, render_checkbox};
 
 const ID_WIDTH: usize = 4;
 const PRIORITY_WIDTH: usize = 1;
 const STATUS_WIDTH: usize = 3; // [x] or [ ]
+const RECUR_WIDTH: usize = 1; // D, W, M or space
 
 pub struct TableLayout {
     id: usize,
     priority: usize,
     status: usize,
+    recur: usize,
     task: usize,
     tags: usize,
     due: usize,
+    // Conditional column flags
+    show_recur: bool,
+    show_tags: bool,
+    show_due: bool,
 }
 
 impl TableLayout {
     pub fn new(tasks: &[(usize, &Task)]) -> Self {
         let (task, tags, due) = calculate_column_widths(tasks);
 
+        // Determine which columns to show
+        let show_recur = tasks.iter().any(|(_, t)| t.recurrence.is_some());
+        let show_tags = tasks.iter().any(|(_, t)| !t.tags.is_empty());
+        let show_due = tasks.iter().any(|(_, t)| t.due_date.is_some());
+
         Self {
             id: ID_WIDTH,
             priority: PRIORITY_WIDTH,
             status: STATUS_WIDTH,
+            recur: RECUR_WIDTH,
             task,
             tags,
             due,
+            show_recur,
+            show_tags,
+            show_due,
         }
     }
 
     pub fn total_width(&self) -> usize {
-        self.id + self.priority + self.status + self.task + self.tags + self.due + 10
+        let mut width = self.id + self.priority + self.status + self.task + 8; // Base spacing
+
+        if self.show_recur {
+            width += self.recur + 2; // R column + spacing
+        }
+        if self.show_tags {
+            width += self.tags + 2; // Tags column + spacing
+        }
+        if self.show_due {
+            width += self.due + 2; // Due column + spacing
+        }
+
+        width
     }
 
     /// Displays a single task in tabular format.
@@ -60,26 +87,19 @@ impl TableLayout {
         let due_text = get_due_text(task);
         let due_colored = get_due_colored(task, &due_text);
 
-        if task.completed {
-            print!(
-                "{:>id_width$} ",
-                number.to_string().dimmed(),
-                id_width = self.id,
-            );
-            print!(
-                " {:<priority_width$} ",
-                letter,
-                priority_width = self.priority,
-            );
-            print!(" {:<status_width$} ", checkbox, status_width = self.status,);
-            print!("{:<task_width$}", task_text.green(), task_width = self.task,);
-            print!(
-                "  {:<tags_width$}",
-                tags_str.dimmed(),
-                tags_width = self.tags,
-            );
-            println!("  {}", due_colored);
+        // Render recurrence indicator (single letter, colored)
+        let recur_indicator = if let Some(recurrence) = task.recurrence {
+            match recurrence {
+                Recurrence::Daily => "D".cyan(),
+                Recurrence::Weekly => "W".cyan(),
+                Recurrence::Monthly => "M".cyan(),
+            }
         } else {
+            " ".normal()
+        };
+
+        if task.completed {
+            // ID, Priority, Status
             print!(
                 "{:>id_width$} ",
                 number.to_string().dimmed(),
@@ -91,18 +111,81 @@ impl TableLayout {
                 priority_width = self.priority,
             );
             print!(" {:<status_width$} ", checkbox, status_width = self.status,);
+
+            // Recurrence (conditional)
+            if self.show_recur {
+                print!(
+                    " {:<recur_width$}  ",
+                    recur_indicator,
+                    recur_width = self.recur,
+                );
+            }
+
+            // Task text
+            print!("{:<task_width$}", task_text.green(), task_width = self.task,);
+
+            // Tags (conditional)
+            if self.show_tags {
+                print!(
+                    "  {:<tags_width$}",
+                    tags_str.dimmed(),
+                    tags_width = self.tags,
+                );
+            }
+
+            // Due date (conditional)
+            if self.show_due {
+                print!("  {}", due_colored);
+            }
+
+            println!();
+        } else {
+            // ID, Priority, Status
+            print!(
+                "{:>id_width$} ",
+                number.to_string().dimmed(),
+                id_width = self.id,
+            );
+            print!(
+                " {:<priority_width$} ",
+                letter,
+                priority_width = self.priority,
+            );
+            print!(" {:<status_width$} ", checkbox, status_width = self.status,);
+
+            // Recurrence (conditional)
+            if self.show_recur {
+                print!(
+                    " {:<recur_width$}  ",
+                    recur_indicator,
+                    recur_width = self.recur,
+                );
+            }
+
+            // Task text
             print!(
                 "{:<task_width$}",
                 task_text.bright_white(),
                 task_width = self.task,
             );
-            print!("  {:<tags_width$}", tags_str.cyan(), tags_width = self.tags,);
-            println!("  {}", due_colored);
+
+            // Tags (conditional)
+            if self.show_tags {
+                print!("  {:<tags_width$}", tags_str.cyan(), tags_width = self.tags,);
+            }
+
+            // Due date (conditional)
+            if self.show_due {
+                print!("  {}", due_colored);
+            }
+
+            println!();
         }
     }
 
     /// Displays the table header.
     pub fn display_header(&self) {
+        // ID, Priority, Status
         print!("{:>id_width$} ", "ID".dimmed(), id_width = self.id,);
         print!(
             " {:<priority_width$} ",
@@ -114,9 +197,30 @@ impl TableLayout {
             " S".dimmed(),
             status_width = self.status,
         );
+
+        // Recurrence (conditional)
+        if self.show_recur {
+            print!(
+                " {:<recur_width$}  ",
+                "R".dimmed(),
+                recur_width = self.recur,
+            );
+        }
+
+        // Task
         print!("{:<task_width$}", "Task".dimmed(), task_width = self.task,);
-        print!("  {:<tags_width$}", "Tags".dimmed(), tags_width = self.tags,);
-        println!("  {}", "Due".dimmed());
+
+        // Tags (conditional)
+        if self.show_tags {
+            print!("  {:<tags_width$}", "Tags".dimmed(), tags_width = self.tags,);
+        }
+
+        // Due (conditional)
+        if self.show_due {
+            print!("  {}", "Due".dimmed());
+        }
+
+        println!();
     }
 
     /// Displays a separator line.
