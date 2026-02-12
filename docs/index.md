@@ -41,7 +41,8 @@ For experienced developers:
 - [v1.7.0 - Professional Error Handling](advanced/v1.7.0-professional-error-handling.md) - anyhow + thiserror
 - [v1.8.0 - Global Data Directory](advanced/v1.8.0-global-data-directory.md) - OS-appropriate storage
 - [v1.9.0 - Edit Command & Interactive Confirmation](advanced/v1.9.0-edit-command-confirmation.md) - Task editing + safety confirmations
-- [v2.0.0 - Modular Refactoring](advanced/v2.0.0-modular-refactoring.md) - ⭐ **NEW:** Transform monolithic code into professional architecture
+- [v2.0.0 - Modular Refactoring](advanced/v2.0.0-modular-refactoring.md) - Transform monolithic code into professional architecture
+- [v2.1.0 - Recurring Tasks](advanced/v2.1.0-recurring-tasks.md) - ⭐ **NEW:** Automated task recurrence with smart filtering
 
 ### Cross-Cutting Concepts
 
@@ -52,7 +53,7 @@ Key patterns and best practices used throughout the project:
 - [File Operations](concepts/file-operations.md) - File I/O patterns and JSON serialization
 - [CLI Design](concepts/cli-design.md) - Command-line interface patterns and user experience
 - [Type Safety](concepts/type-safety.md) - Using Rust's type system to prevent bugs
-- [Interactive Input](concepts/interactive-input.md) - ⭐ **NEW:** User prompts and confirmations
+- [Interactive Input](concepts/interactive-input.md) - User prompts and confirmations
 
 ---
 
@@ -77,7 +78,9 @@ v1.8: Global data directory (OS-appropriate storage)
    ↓
 v1.9: Edit command + confirmations (task modification + safety)
    ↓
-v2.0: Modular refactoring (1200 → 95 lines, professional architecture) ⭐ NEW
+v2.0: Modular refactoring (1200 → 95 lines, professional architecture)
+   ↓
+v2.1: Recurring tasks (automated scheduling with parent_id tracking) ⭐ NEW
 ```
 
 ## Version Summary
@@ -102,8 +105,9 @@ v2.0: Modular refactoring (1200 → 95 lines, professional architecture) ⭐ NEW
 | v1.6.0 | Professional CLI | Clap, `ValueEnum`, zero manual parsing | ~80 |
 | v1.7.0 | Error Handling | `anyhow`, `thiserror`, error chains | ~85 |
 | v1.8.0 | Global Data Directory | `directories` crate, `PathBuf`, XDG compliance | ~95 |
-| v1.9.0 | Edit + Confirmations | Let-chains, `io::flush()`, `matches!` macro, TableLayout refactoring | ~165 |
-| v2.0.0 | Modular Refactoring | Modules, re-exports, separation of concerns, Command pattern | ~95 main.rs (was 1200) |
+| v1.9.0 | Edit + Confirmations | Let-chains, `io::flush()`, `matches!` macro, TableLayout | ~165 |
+| v2.0.0 | Modular Refactoring | Modules, re-exports, separation of concerns, Command pattern | ~95 main.rs |
+| v2.1.0 | Recurring Tasks | Recurrence enum, parent_id, auto-generation, smart filtering | +365 lines ⭐ |
 
 ---
 
@@ -120,7 +124,7 @@ Start here if you're new to Rust:
 **Time:** 2-3 weeks  
 **Outcome:** Comfortable with Rust fundamentals
 
-### Path 2: Architecture Focus (1.2 → 1.9)
+### Path 2: Architecture Focus (1.2 → 2.1)
 
 For those wanting to learn professional Rust patterns:
 
@@ -130,10 +134,11 @@ For those wanting to learn professional Rust patterns:
 4. **Error Handling (v1.7)** - anyhow + thiserror
 5. **System Integration (v1.8)** - Platform-specific paths
 6. **Interactive Features (v1.9)** - Edit commands + confirmations
-7. **Modular Architecture (v2.0)** - Professional code organization ⭐ NEW
+7. **Modular Architecture (v2.0)** - Professional code organization
+8. **Automation (v2.1)** - Recurring tasks with smart logic ⭐ NEW
 
-**Time:** 2-3 weeks  
-**Outcome:** Production-ready Rust architecture with scalable design
+**Time:** 3-4 weeks  
+**Outcome:** Production-ready Rust architecture with automation features
 
 ### Path 3: Platform Development
 
@@ -146,17 +151,29 @@ Focus on cross-platform CLI development:
 **Time:** 3-4 days  
 **Outcome:** Master cross-platform file handling
 
-### Path 4: User Interaction (NEW)
+### Path 4: User Interaction
 
 Focus on interactive CLI features:
 
 1. **Basic commands (v0.1-v0.5)** - Core functionality
-2. **Confirmations (v1.9)** - Interactive prompts ⭐
-3. **Edit operations (v1.9)** - Task modification ⭐
-4. **Concepts** - [Interactive Input](concepts/interactive-input.md) ⭐
+2. **Confirmations (v1.9)** - Interactive prompts
+3. **Edit operations (v1.9)** - Task modification
+4. **Concepts** - [Interactive Input](concepts/interactive-input.md)
 
 **Time:** 2-3 days  
 **Outcome:** Build safe, user-friendly CLIs
+
+### Path 5: Automation (NEW) ⭐
+
+Focus on recurring patterns and automation:
+
+1. **Date arithmetic (v1.5)** - chrono foundations
+2. **Type-safe enums (v1.2, v1.6)** - Recurrence patterns
+3. **Recurring tasks (v2.1)** - Automated scheduling ⭐
+4. **Concepts** - [Type Safety](concepts/type-safety.md)
+
+**Time:** 2-3 days  
+**Outcome:** Implement recurring patterns with automation
 
 ---
 
@@ -171,7 +188,8 @@ Focus on interactive CLI features:
 - **Professional error handling** with context chains (v1.7.0)
 - **Platform-aware storage** following OS conventions (v1.8.0)
 - **Safe operations** with interactive confirmations (v1.9.0)
-- **Modular architecture** with 92% reduction in main.rs (v2.0.0) ⭐ NEW
+- **Modular architecture** with 92% reduction in main.rs (v2.0.0)
+- **Automated scheduling** with recurring tasks (v2.1.0) ⭐ NEW
 
 ### Features
 
@@ -186,7 +204,11 @@ Focus on interactive CLI features:
 - ✅ Global data directory (OS-appropriate)
 - ✅ Edit tasks in place (preserves ID and history)
 - ✅ Interactive confirmations (prevents accidental deletions)
-- ✅ Modular architecture (19 files, professional organization) ⭐ NEW
+- ✅ Modular architecture (19 files, professional organization)
+- ✅ Recurring tasks (daily, weekly, monthly patterns) ⭐ NEW
+- ✅ Automatic next occurrence generation ⭐ NEW
+- ✅ Smart deduplication with parent_id tracking ⭐ NEW
+- ✅ Comprehensive recurrence filtering ⭐ NEW
 
 ### Learning Outcomes
 
@@ -197,7 +219,9 @@ Focus on interactive CLI features:
 5. **Professional development** - industry-standard patterns
 6. **Cross-platform development** - handling OS differences
 7. **Interactive UI** - safe user confirmations and data modification
-8. **Scalable architecture** - organizing code for maintainability ⭐ NEW
+8. **Scalable architecture** - organizing code for maintainability
+9. **Date arithmetic** - chrono operations and edge cases ⭐ NEW
+10. **Automation patterns** - recurring tasks with smart logic ⭐ NEW
 
 ---
 
@@ -207,25 +231,27 @@ Focus on interactive CLI features:
 - **CLI Framework:** Clap (v1.6.0+)
 - **Serialization:** Serde + JSON
 - **Colors:** Colored crate
-- **Dates:** Chrono
+- **Dates:** Chrono (v1.5.0+)
 - **Platform Directories:** directories crate (v1.8.0+)
-- **I/O:** std::io with buffered output (v1.9.0+) ⭐
+- **I/O:** std::io with buffered output (v1.9.0+)
 - **File Format:** JSON (v1.3.0+)
+- **Automation:** Recurring patterns (v2.1.0+) ⭐
 
 ---
 
 ## Potential Future Versions
 
-- **v2.0:** Recurring tasks with cron-like patterns
-- **v2.1:** Subtasks/nested tasks with recursive data structures
-- **v2.2:** Multiple projects/contexts
-- **v2.3:** TUI with `ratatui`
-- **v2.4:** Configuration file with `config` crate
-- **v2.5:** Shell completions (bash, zsh, fish)
-- **v2.6:** Export/import (CSV, JSON, Markdown)
-- **v2.7:** Sync with cloud storage
-- **v2.8:** Web API with `axum`
-- **v3.0:** Plugin system
+- **v2.2:** Subtasks/nested tasks with recursive data structures
+- **v2.3:** Multiple projects/contexts
+- **v2.4:** TUI with `ratatui`
+- **v2.5:** Configuration file with `config` crate
+- **v2.6:** Shell completions (bash, zsh, fish)
+- **v2.7:** Export/import (CSV, JSON, Markdown)
+- **v2.8:** Task history command (enabled by parent_id)
+- **v2.9:** Batch operations on recurring chains
+- **v3.0:** Sync with cloud storage
+- **v3.1:** Web API with `axum`
+- **v3.2:** Plugin system
 
 ---
 
@@ -247,7 +273,8 @@ Focus on interactive CLI features:
 - **Professional development**: Industry-standard patterns and tools
 - **Cross-platform development**: Handling OS-specific requirements
 - **Interactive features**: User confirmations and safe data modification
-- **Scalable architecture**: Organizing large projects with modules ⭐ NEW
+- **Scalable architecture**: Organizing large projects with modules
+- **Automation patterns**: Recurring tasks and smart scheduling ⭐ NEW
 
 ### For Each Version
 
@@ -259,18 +286,19 @@ Focus on interactive CLI features:
 
 ## Next Steps
 
-The CLI now has production-ready modular architecture. Future enhancements could include:
+The CLI now has production-ready recurring task functionality. Future enhancements could include:
 
 ### Learning Extensions
 
-- **v2.1:** Test suite with unit and integration tests
-- **v2.2:** CI/CD pipeline with GitHub Actions
-- **v2.3:** Backend abstraction with traits for multiple storage types
+- **v2.2:** Task history command leveraging parent_id
+- **v2.3:** Batch operations on recurring task chains
+- **v2.4:** Advanced scheduling with cron-like expressions
+- **v2.5:** Recurring task analytics and completion rates
 
-Each future version would teach new Rust concepts while building on the scalable, well-architected foundation.
+Each future version would teach new Rust concepts while building on the type-safe, extensible, platform-aware, user-friendly, professionally organized, and now automated foundation.
 
 ---
 
-**The beauty of this architecture:** All new features benefit from the type-safe, extensible, platform-aware, user-friendly, and now professionally organized foundation built through careful refactoring.
+**The beauty of this architecture:** All new features benefit from the type-safe, extensible, platform-aware, user-friendly, professionally organized, and automated foundation built through careful refactoring.
 
 **🦀 Happy learning!**
