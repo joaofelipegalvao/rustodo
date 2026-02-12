@@ -2,7 +2,8 @@
 A modern, powerful task manager built with Rust.
 
 This CLI application provides a simple yet feature-rich interface for managing
-todo tasks with support for priorities, tags, due dates, and advanced filtering.
+todo tasks with support for priorities, tags, due dates, recurring patterns,
+and advanced filtering.
 */
 
 use std::process;
@@ -31,12 +32,12 @@ fn main() {
     let cli = Cli::parse();
 
     if let Err(e) = run(cli) {
-        eprintln!("{} {}", "Error:".red().bold(), format!("{}", e).red());
+        eprintln!("{} {}", "✗".red(), e);
 
         // Print the full error chain for better debugging
         let mut source = e.source();
         while let Some(cause) = source {
-            eprintln!("{} {}", "Caused by:".red(), cause);
+            eprintln!("  {} {}", "↳".red(), cause);
             source = cause.source();
         }
 
@@ -48,7 +49,8 @@ fn main() {
 ///
 /// This function processes the parsed CLI arguments and executes the
 /// appropriate command. It handles all the core functionality of the
-/// todo application including adding, listing, completing, and managing tasks.
+/// todo application including adding, listing, completing, managing tasks,
+/// and setting up recurring patterns.
 ///
 /// # Errors
 ///
@@ -58,7 +60,13 @@ fn main() {
 /// - No tasks match the specified filters
 fn run(cli: Cli) -> Result<()> {
     match cli.command {
-        Commands::Add(args) => commands::add::execute(args.text, args.priority, args.tag, args.due),
+        Commands::Add(args) => commands::add::execute(
+            args.text,
+            args.priority,
+            args.tag,
+            args.due,
+            args.recurrence,
+        ),
 
         Commands::List {
             status,
@@ -66,7 +74,8 @@ fn run(cli: Cli) -> Result<()> {
             due,
             sort,
             tag,
-        } => commands::list::execute(status, priority, due, sort, tag),
+            recurrence: recur,
+        } => commands::list::execute(status, priority, due, sort, tag, recur),
 
         Commands::Done { id } => commands::done::execute(id),
 
@@ -91,5 +100,9 @@ fn run(cli: Cli) -> Result<()> {
         Commands::Tags => commands::tags::execute(),
 
         Commands::Info => commands::info::execute(),
+
+        Commands::Recur { id, pattern } => commands::recur::execute(id, pattern),
+
+        Commands::ClearRecur { id } => commands::clear_recur::execute(id),
     }
 }

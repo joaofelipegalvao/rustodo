@@ -1,24 +1,38 @@
 use chrono::NaiveDate;
 use clap::{Args, Parser, Subcommand};
 
-use crate::models::{DueFilter, Priority, SortBy, StatusFilter};
+use crate::models::{DueFilter, Priority, Recurrence, RecurrenceFilter, SortBy, StatusFilter};
 
 #[derive(Parser)]
 #[command(name = "todo-list")]
 #[command(author = "github.com/joaofelipegalvao")]
-#[command(version = "1.9.0")]
+#[command(version = "2.0.0")]
 #[command(about = "A modern, powerful task manager built with Rust", long_about = None)]
 #[command(after_help = "EXAMPLES:\n    \
     # Add a high priority task\n    \
     todo add \"Complete Rust project\" --priority high --tag work --due 2025-02-15\n\n    \
+    # Add a recurring task\n    \
+    todo add \"Weekly review\" --due 2026-02-17 --recurrence weekly\n\n    \
     # List pending high priority tasks\n    \
     todo list --status pending --priority high\n\n    \
+    # List only daily recurring tasks\n    \
+    todo list --recurrence daily\n\n    \
+    # List any recurring tasks\n    \
+    todo list --recurrence recurring\n\n    \
+    # List non-recurring tasks\n    \
+    todo list --recurrence non-recurring\n\n    \
     # List overdue tasks sorted by due date\n    \
     todo list --due overdue --sort due\n\n    \
+    # Combine filters: pending high-priority weekly tasks\n    \
+    todo list --status pending --priority high --recurrence weekly\n\n    \
     # Search for tasks\n    \
     todo search rust\n\n    \
-    # Mark task as completed\n    \
-    todo done 3\n\n\
+    # Mark task as completed (auto-creates next recurrence)\n    \
+    todo done 3\n\n    \
+    # Set recurrence pattern\n    \
+    todo recur 5 daily\n\n    \
+    # Remove recurrence\n    \
+    todo norecur 5\n\n\
 For more information, visit: https://github.com/joaofelipegalvao/todo-cli
 ")]
 pub struct Cli {
@@ -32,7 +46,8 @@ pub enum Commands {
     #[command(visible_alias = "a")]
     #[command(long_about = "Add a new task to your todo list\n\n\
         Creates a new task with the specified text and optional metadata like priority,\n\
-        tags, and due date. Tasks are saved immediately to todos.json.")]
+        tags, and due date. Tasks are saved immediately to todos.json.\n\n\
+        Use --recurrence to make the task repeat automatically when completed.")]
     Add(AddArgs),
 
     /// List and filter tasks
@@ -40,7 +55,12 @@ pub enum Commands {
     #[command(
         long_about = "List and filter tasks with powerful filtering options\n\n\
         Display your tasks with filtering and sorting capabilities.\n\
-        All filters can be combined to find exactly what you need."
+        All filters can be combined to find exactly what you need.\n\n\
+        Examples:\n  \
+        todo list --recurrence daily           # Only daily tasks\n  \
+        todo list --recurrence any             # Any recurring task\n  \
+        todo list --recurrence none            # Non-recurring tasks\n  \
+        todo list --status pending --recur weekly --sort due"
     )]
     List {
         /// Filter by completion status
@@ -62,13 +82,18 @@ pub enum Commands {
         /// Filter by tag name
         #[arg(long, short = 't')]
         tag: Option<String>,
+
+        /// Filter by recurrence pattern (daily, weekly, monthly, any, none)
+        #[arg(long, short = 'r', value_enum)]
+        recurrence: Option<RecurrenceFilter>,
     },
 
     /// Mark a task as completed
     #[command(visible_alias = "complete")]
     #[command(long_about = "Mark a task as completed\n\n\
         Marks the specified task as done. The task will be shown with a ✓ symbol\n\
-        and appear in green when listing tasks.")]
+        and appear in green when listing tasks.\n\n\
+        If the task is recurring, the next occurrence will be automatically created.")]
     Done {
         /// Task ID number (from 'list' command)
         #[arg(value_name = "ID")]
@@ -171,6 +196,33 @@ pub enum Commands {
     #[command(long_about = "Show information about where your tasks are stored\n\n\
     Displays the path to the todos.json file and its status.")]
     Info,
+
+    /// Set or change recurrence pattern for a task
+    #[command(long_about = "Set or change recurrence pattern for a task\n\n\
+        Makes a task repeat automatically when marked as done.\n\
+        The task must have a due date to use recurrence.\n\n\
+        When you complete a recurring task, a new task will be created\n\
+        with the next due date based on the pattern (daily, weekly, monthly).")]
+    Recur {
+        /// Task ID number
+        #[arg(value_name = "ID")]
+        id: usize,
+
+        /// Recurrence pattern (daily, weekly, monthly)
+        #[arg(value_enum)]
+        pattern: Recurrence,
+    },
+
+    /// Remove recurrence pattern from a task
+    #[command(visible_alias = "norecur")]
+    #[command(long_about = "Remove recurrence pattern from a task\n\n\
+        Stops a task from repeating automatically. The task will remain\n\
+        but won't create new occurrences when completed.")]
+    ClearRecur {
+        /// Task ID number
+        #[arg(value_name = "ID")]
+        id: usize,
+    },
 }
 
 #[derive(Args)]
@@ -190,4 +242,9 @@ pub struct AddArgs {
     /// Due date in format YYYY-MM-DD (example: --due 2026-02-09)
     #[arg(long, value_name = "DATE", value_parser = clap::value_parser!(NaiveDate))]
     pub due: Option<NaiveDate>,
+
+    /// Recurrence pattern (daily, weekly, monthly)
+    /// Requires a due date to be set
+    #[arg(long, value_enum)]
+    pub recurrence: Option<Recurrence>,
 }
