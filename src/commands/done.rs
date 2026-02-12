@@ -8,6 +8,7 @@ use crate::validation::validate_task_id;
 pub fn execute(id: usize) -> Result<()> {
     let mut tasks = load_tasks()?;
     validate_task_id(id, tasks.len())?;
+
     let index = id - 1;
 
     if tasks[index].completed {
@@ -19,7 +20,41 @@ pub fn execute(id: usize) -> Result<()> {
     }
 
     tasks[index].mark_done();
-    save_tasks(&tasks)?;
-    println!("{}", "✓ Task marked as completed".green());
+
+    if let Some(next_task) = tasks[index].create_next_recurrence(id) {
+        let next_due = next_task.due_date.unwrap();
+
+        // Check for existing task with same due date that:
+        // 1. Has the same parent_id (part of same recurring chain), OR
+        // 2. Has the same text (fallback for backward compatibility)
+        let already_exists = tasks.iter().any(|t| {
+            !t.completed
+                && t.due_date == Some(next_due)
+                && (t.parent_id == Some(id) || t.text == next_task.text)
+        });
+
+        if !already_exists {
+            tasks.push(next_task);
+            save_tasks(&tasks)?;
+            let next_id = tasks.len();
+            println!("{}", "✓ Task marked as completed".green());
+            println!(
+                "{} Task #{} created (due {})",
+                "↻".cyan(),
+                next_id,
+                next_due.format("%Y-%m-%d")
+            );
+        } else {
+            save_tasks(&tasks)?;
+            println!("{}", "✓ Task marked as completed".green());
+            println!(
+                "{}",
+                "Next recurrence already exists, skipping creation.".dimmed()
+            );
+        }
+    } else {
+        save_tasks(&tasks)?;
+        println!("{}", "✓ Task marked as completed".green());
+    }
     Ok(())
 }
