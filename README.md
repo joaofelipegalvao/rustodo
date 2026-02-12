@@ -6,6 +6,7 @@ A simple, colorful, and functional task manager developed to learn Rust in pract
 
 ## Features
 
+- **Recurring Tasks** - Automate daily, weekly, and monthly tasks with intelligent deduplication
 - **Modular Refactoring** - Transform monolithic code into professional architecture
 - **Edit Command** - Modify existing tasks without deleting them
 - **Interactive Confirmation** - Safe prompts for destructive operations (remove/clear)
@@ -40,6 +41,13 @@ todo tags
 todo edit 1 --text "Learn Rust properly" --priority high
 todo edit 2 --due 2026-03-01
 
+# Recurring tasks
+todo recur 3 daily              # Make task repeat daily
+todo recur 5 weekly             # Make task repeat weekly
+todo recur 7 monthly            # Make task repeat monthly
+todo list --recurrence daily    # Show only daily tasks
+todo norecur 3                  # Remove recurrence
+
 # Find where your data is stored
 todo info
 ```
@@ -59,12 +67,15 @@ Use `todo info` to see your exact data file location.
 ```bash
 todo add <description> [options]              # Add a new task
 todo edit <id> [options]                      # Edit an existing task
+todo recur <id> <frequency>                   # Make task recurring
+todo norecur <id>                             # Remove recurrence
 todo list [options]                           # List and filter tasks
 todo search <query> [--tag <n>]               # Search tasks by text
 todo done <id>                                # Mark task as completed
 todo undone <id>                              # Mark task as pending
 todo remove <id> [--yes]                      # Remove a task (with confirmation)
 todo clear [--yes]                            # Remove all tasks (with confirmation)
+todo clear-recur [--yes]                      # Remove all recurring tasks
 todo tags                                     # List all tags with counts
 todo info                                     # Show data file location
 ```
@@ -85,6 +96,57 @@ Options:
 ```bash
 todo add "Deploy to production" --priority high --tag work --due 2026-02-15
 todo add "Buy groceries" -t personal -t shopping
+```
+
+### Recur Command
+
+```bash
+todo recur <id> <frequency>
+
+Frequencies:
+  daily      Repeat every day
+  weekly     Repeat every week
+  monthly    Repeat every month
+
+Examples:
+  todo recur 3 daily              # Task repeats daily
+  todo recur 5 weekly             # Task repeats weekly
+  todo recur 7 monthly            # Task repeats monthly
+```
+
+**How it works:**
+
+- When you mark a recurring task as done, a new instance is automatically created
+- The new task inherits all properties (text, priority, tags, recurrence)
+- Due dates are automatically calculated:
+  - **Daily:** +1 day
+  - **Weekly:** +7 days
+  - **Monthly:** Same day next month (handles boundaries like Jan 31 → Feb 28)
+- Intelligent deduplication prevents duplicate tasks
+- Tasks are linked via `parent_id` for tracking recurring chains
+
+### Norecur Command
+
+```bash
+todo norecur <id>
+
+# Remove recurrence from a task
+todo norecur 3
+
+# Task becomes a regular one-time task
+# Existing future instances remain but won't generate more
+```
+
+### Clear-Recur Command
+
+```bash
+todo clear-recur [--yes]
+
+# Remove all recurring tasks (with confirmation)
+todo clear-recur
+
+# Skip confirmation (for scripts)
+todo clear-recur --yes
 ```
 
 ### Edit Command
@@ -125,6 +187,7 @@ todo edit 3 --text "New text" --priority low --due 2026-04-01
 - ✅ Task ID (stays the same)
 - ✅ Creation date (`created_at`)
 - ✅ Completion status
+- ✅ Recurrence settings
 
 ### List Command
 
@@ -132,10 +195,11 @@ todo edit 3 --text "New text" --priority low --due 2026-04-01
 todo list [options]
 
 Filters:
-  --status <STATUS>      Filter by status: all (default), pending, done
-  --priority <PRIORITY>  Filter by priority: high, medium, low
-  --due <DUE_FILTER>    Filter by due date: overdue, soon, with-due, no-due
-  --tag <TAG>           Filter by tag name
+  --status <STATUS>           Filter by status: all (default), pending, done
+  --priority <PRIORITY>       Filter by priority: high, medium, low
+  --due <DUE_FILTER>         Filter by due date: overdue, soon, with-due, no-due
+  --tag <TAG>                Filter by tag name
+  --recurrence <RECURRENCE>  Filter by recurrence: daily, weekly, monthly, recurring, non-recurring
 
 Sorting:
   -s, --sort <SORT_BY>  Sort by: priority, due, created
@@ -144,15 +208,39 @@ Sorting:
 **Examples:**
 
 ```bash
-# Pending high-priority tasks, sorted by due date
-todo list --status pending --priority high --sort due
+# Show all daily recurring tasks
+todo list --recurrence daily
 
-# Tasks due soon
-todo list --due soon
+# Show all recurring tasks (any frequency)
+todo list --recurrence recurring
+
+# Show only non-recurring tasks
+todo list --recurrence non-recurring
+
+# Pending high-priority recurring tasks
+todo list --status pending --priority high --recurrence recurring
 
 # Combine multiple filters
 todo list --status pending --priority high --tag work --sort priority
 ```
+
+**Output format:**
+
+```
+  ID  P  R   S  Task                      Tags              Due
+──────────────────────────────────────────────────────────────
+   1  H  🔁  [ ]  Daily standup             work              due today
+   2  M  📅  [ ]  Weekly report             work              in 5 days
+   3  L  📆  [x]  Monthly review            management
+```
+
+**Legend:**
+
+- **R:** Recurrence indicator
+  - **🔁** Daily recurring
+  - **📅** Weekly recurring
+  - **📆** Monthly recurring
+  - (blank) Non-recurring
 
 ### Remove & Clear Commands
 
@@ -174,8 +262,15 @@ WARNING: 10 tasks will be permanently deleted!
 Are you sure? [y/N]: y
 ✓ All tasks have been removed
 
+# Clear only recurring tasks
+$ todo clear-recur
+WARNING: 5 recurring tasks will be permanently deleted!
+Are you sure? [y/N]: y
+✓ All recurring tasks have been removed
+
 # Skip confirmation
 $ todo clear --yes
+$ todo clear-recur --yes
 ```
 
 ### Info Command
@@ -214,6 +309,7 @@ todo --help            # Show all commands
 todo add --help        # Help for specific command
 todo edit --help       # Edit command options
 todo list --help       # Detailed filtering options
+todo recur --help      # Recurring task options
 ```
 
 ## Documentation
@@ -242,7 +338,8 @@ This project was developed as a Rust learning exercise, documenting each increme
 | v1.7.0 | Error Handling | `anyhow`, `thiserror`, error chains |
 | v1.8.0 | Global Data Directory | `directories` crate, `PathBuf`, XDG compliance |
 | v1.9.0 | Edit + Confirmations + Refactoring | `todo edit`, let-chains, `confirm()`, `--yes`, `TableLayout` struct |
-| v2.0.0 | Modular Refactoring | Modules, re-exports, separation of concerns, Command pattern | ~95 main.rs (was 1200) |
+| v2.0.0 | Modular Refactoring | Modules, re-exports, separation of concerns, Command pattern |
+| v2.1.0 | Recurring Tasks | `Recurrence` enum, `RecurrenceFilter`, `parent_id`, auto-generation, deduplication |
 
 [See full evolution →](CHANGELOG.md)
 
@@ -253,6 +350,7 @@ This project was developed as a Rust learning exercise, documenting each increme
 - Perfect for understanding CLI design in Rust
 - Study the evolution from manual parsing to professional CLI with Clap
 - Learn cross-platform development with OS-appropriate storage
+- See how recurring task automation is implemented with date arithmetic
 
 ### For End Users
 
@@ -283,14 +381,18 @@ This project was developed as a Rust learning exercise, documenting each increme
 - Interactive confirmation for destructive operations
 - TableLayout architecture for cleaner display code
 - Modular Refactoring for a professional structure
+- Recurring tasks (daily, weekly, monthly)
+- Intelligent deduplication for recurring tasks
+- Referential integrity with parent_id tracking
 
 ### Planned 🚀
 
-- Recurring tasks
 - Subtasks/nested tasks
 - Export/import commands
 - Shell completions (bash, zsh, fish)
-- Unit tests
+- Comprehensive unit tests
+- Task history and analytics
+- Batch operations on recurring chains
 - TUI (Terminal User Interface)
 
 ## Contributing
