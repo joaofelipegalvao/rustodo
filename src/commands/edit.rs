@@ -11,7 +11,8 @@ pub fn execute(
     id: usize,
     text: Option<String>,
     priority: Option<Priority>,
-    tag: Vec<String>,
+    add_tag: Vec<String>,
+    remove_tag: Vec<String>,
     due: Option<NaiveDate>,
     clear_due: bool,
     clear_tags: bool,
@@ -46,12 +47,55 @@ pub fn execute(
     // Update tags
     if clear_tags {
         if !task.tags.is_empty() {
+            let old_tags = task.tags.clone();
             task.tags.clear();
-            changes.push("tags → cleared".dimmed().to_string());
+            changes.push(format!(
+                "tags cleared → was [{}]",
+                old_tags.join(", ").dimmed()
+            ));
         }
-    } else if !tag.is_empty() && task.tags != tag {
-        task.tags = tag;
-        changes.push(format!("tags → [{}]", task.tags.join(", ").cyan()));
+    } else {
+        // Remove specific tags
+        if !remove_tag.is_empty() {
+            let before_len = task.tags.len();
+            let mut removed = Vec::new();
+
+            task.tags.retain(|t| {
+                if remove_tag.contains(t) {
+                    removed.push(t.clone());
+                    false
+                } else {
+                    true
+                }
+            });
+
+            if !removed.is_empty() {
+                changes.push(format!("removed tags → [{}]", removed.join(", ").red()));
+            } else if before_len > 0 {
+                // User tried to remove tags that don't exist
+                return Err(anyhow::anyhow!(
+                    "None of the specified tags [{}] exist in task #{}",
+                    remove_tag.join(", "),
+                    id
+                ));
+            }
+        }
+
+        // Add new tags
+        if !add_tag.is_empty() {
+            let mut added = Vec::new();
+
+            for new_tag in &add_tag {
+                if !task.tags.contains(new_tag) {
+                    task.tags.push(new_tag.clone());
+                    added.push(new_tag.clone());
+                }
+            }
+
+            if !added.is_empty() {
+                changes.push(format!("added tags → [{}]", added.join(", ").cyan()));
+            }
+        }
     }
 
     // Update due date

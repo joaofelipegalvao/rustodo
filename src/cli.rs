@@ -129,7 +129,11 @@ pub enum Commands {
     #[command(visible_alias = "e")]
     #[command(long_about = "Edit an existing task\n\n\
         Modify task properties like text, priority, tags, or due date.\n\
-        Only specify the fields you want to change.")]
+        Only specify the fields you want to change.\n\n\
+        Examples:\n  \
+        todo edit 1 --add-tag urgent,critical     # Add multiple tags\n  \
+        todo edit 1 --remove-tag work,team        # Remove multiple tags\n  \
+        todo edit 1 --add-tag urgent --remove-tag team  # Combine operations")]
     Edit {
         /// Task ID number
         #[arg(value_name = "ID")]
@@ -143,9 +147,15 @@ pub enum Commands {
         #[arg(long, value_enum)]
         priority: Option<Priority>,
 
-        /// Replace tags (use multiple times: -t work -t urgent)
-        #[arg(long, short = 't', value_name = "TAG")]
-        tag: Vec<String>,
+        /// Remove tags (comma-separated or repeat flag)
+        /// Examples: --remove-tag work,team  OR  --remove-tag work --remove-tag team
+        #[arg(long, value_delimiter = ',')]
+        add_tag: Vec<String>,
+
+        /// Remove tags (comma-separated or repeat flag)
+        /// Examples: --remove-tag work,team  OR  --remove-tag work --remove-tag team
+        #[arg(long, value_delimiter = ',')]
+        remove_tag: Vec<String>,
 
         /// New due date (YYYY-MM-DD)
         #[arg(long, value_parser = clap::value_parser!(NaiveDate))]
@@ -156,7 +166,7 @@ pub enum Commands {
         clear_due: bool,
 
         /// Remove all tags
-        #[arg(long)]
+        #[arg(long, conflicts_with_all = ["add-tag", "remove_tag"])]
         clear_tags: bool,
     },
 
@@ -235,8 +245,9 @@ pub struct AddArgs {
     #[arg(long, value_enum, default_value_t = Priority::Medium)]
     pub priority: Priority,
 
-    /// Add tags (can be repeated: -t work -t urgent)
-    #[arg(long, short = 't', value_name = "TAG")]
+    /// Add tags (comma-separated or repeat flag)
+    /// Examples: -t work,urgent  OR  -t work -t urgent
+    #[arg(long, short = 't', value_name = "TAG", value_delimiter = ',')]
     pub tag: Vec<String>,
 
     /// Due date in format YYYY-MM-DD (example: --due 2026-02-09)

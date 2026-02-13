@@ -87,11 +87,14 @@ fn run(cli: Cli) -> Result<()> {
             id,
             text,
             priority,
-            tag,
+            add_tag,
+            remove_tag,
             due,
             clear_due,
             clear_tags,
-        } => commands::edit::execute(id, text, priority, tag, due, clear_due, clear_tags),
+        } => commands::edit::execute(
+            id, text, priority, add_tag, remove_tag, due, clear_due, clear_tags,
+        ),
 
         Commands::Clear { yes } => commands::clear::execute(yes),
 
