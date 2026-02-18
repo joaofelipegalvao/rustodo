@@ -3,10 +3,10 @@ use std::fs;
 use anyhow::{Context, Result};
 use colored::Colorize;
 
-use crate::storage::{get_data_file_path, load_tasks};
+use crate::storage::{Storage, get_data_file_path};
 use crate::utils::confirm;
 
-pub fn execute(yes: bool) -> Result<()> {
+pub fn execute(storage: &impl Storage, yes: bool) -> Result<()> {
     let path = get_data_file_path()?;
 
     if !path.exists() {
@@ -14,7 +14,7 @@ pub fn execute(yes: bool) -> Result<()> {
         return Ok(());
     }
 
-    let tasks = load_tasks()?;
+    let tasks = storage.load()?;
     let count = tasks.len();
 
     if !yes {

@@ -3,10 +3,11 @@ use anyhow::Result;
 use crate::display::display_lists;
 use crate::error::TodoError;
 use crate::models::{DueFilter, Priority, Recurrence, RecurrenceFilter, SortBy, StatusFilter};
-use crate::storage::load_tasks;
+use crate::storage::Storage;
 
 #[allow(clippy::too_many_arguments)]
 pub fn execute(
+    storage: &impl Storage,
     status: StatusFilter,
     priority: Option<Priority>,
     due: Option<DueFilter>,
@@ -14,7 +15,7 @@ pub fn execute(
     tag: Option<String>,
     recur: Option<RecurrenceFilter>,
 ) -> Result<()> {
-    let all_tasks = load_tasks()?;
+    let all_tasks = storage.load()?;
 
     // Create indexed view of tasks (1-based numbering)
     let mut indexed_tasks: Vec<(usize, &_)> = all_tasks

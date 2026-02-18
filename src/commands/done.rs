@@ -2,11 +2,11 @@ use anyhow::Result;
 use colored::Colorize;
 
 use crate::error::TodoError;
-use crate::storage::{load_tasks, save_tasks};
+use crate::storage::Storage;
 use crate::validation::validate_task_id;
 
-pub fn execute(id: usize) -> Result<()> {
-    let mut tasks = load_tasks()?;
+pub fn execute(storage: &impl Storage, id: usize) -> Result<()> {
+    let mut tasks = storage.load()?;
     validate_task_id(id, tasks.len())?;
 
     let index = id - 1;
@@ -35,7 +35,7 @@ pub fn execute(id: usize) -> Result<()> {
 
         if !already_exists {
             tasks.push(next_task);
-            save_tasks(&tasks)?;
+            storage.save(&tasks)?;
             let next_id = tasks.len();
             println!("{}", "✓ Task marked as completed".green());
             println!(
@@ -45,7 +45,7 @@ pub fn execute(id: usize) -> Result<()> {
                 next_due.format("%Y-%m-%d")
             );
         } else {
-            save_tasks(&tasks)?;
+            storage.save(&tasks)?;
             println!("{}", "✓ Task marked as completed".green());
             println!(
                 "{}",
@@ -53,7 +53,7 @@ pub fn execute(id: usize) -> Result<()> {
             );
         }
     } else {
-        save_tasks(&tasks)?;
+        storage.save(&tasks)?;
         println!("{}", "✓ Task marked as completed".green());
     }
     Ok(())

@@ -2,11 +2,11 @@ use anyhow::Result;
 use colored::Colorize;
 
 use crate::error::TodoError;
-use crate::storage::{load_tasks, save_tasks};
+use crate::storage::Storage;
 use crate::validation::validate_task_id;
 
-pub fn execute(id: usize) -> Result<()> {
-    let mut tasks = load_tasks()?;
+pub fn execute(storage: &impl Storage, id: usize) -> Result<()> {
+    let mut tasks = storage.load()?;
     validate_task_id(id, tasks.len())?;
     let index = id - 1;
 
@@ -19,7 +19,7 @@ pub fn execute(id: usize) -> Result<()> {
     }
 
     tasks[index].mark_undone();
-    save_tasks(&tasks)?;
+    storage.save(&tasks)?;
     println!("{}", "✓ Task unmarked".yellow());
     Ok(())
 }

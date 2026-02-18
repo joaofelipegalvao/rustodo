@@ -3,11 +3,12 @@ use chrono::NaiveDate;
 use colored::Colorize;
 
 use crate::models::Priority;
-use crate::storage::{load_tasks, save_tasks};
+use crate::storage::Storage;
 use crate::validation::validate_task_id;
 
 #[allow(clippy::too_many_arguments)]
 pub fn execute(
+    storage: &impl Storage,
     id: usize,
     text: Option<String>,
     priority: Option<Priority>,
@@ -17,7 +18,7 @@ pub fn execute(
     clear_due: bool,
     clear_tags: bool,
 ) -> Result<()> {
-    let mut tasks = load_tasks()?;
+    let mut tasks = storage.load()?;
     validate_task_id(id, tasks.len())?;
 
     let index = id - 1;
@@ -120,7 +121,7 @@ pub fn execute(
         return Ok(());
     }
 
-    save_tasks(&tasks)?;
+    storage.save(&tasks)?;
 
     println!("{} Task #{} updated:", "✓".green(), id);
     for change in changes {

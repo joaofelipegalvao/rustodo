@@ -2,10 +2,10 @@ use anyhow::Result;
 
 use crate::display::display_lists;
 use crate::error::TodoError;
-use crate::storage::load_tasks;
+use crate::storage::Storage;
 
-pub fn execute(query: String, tag: Option<String>) -> Result<()> {
-    let tasks = load_tasks()?;
+pub fn execute(storage: &impl Storage, query: String, tag: Option<String>) -> Result<()> {
+    let tasks = storage.load()?;
 
     // Perform case-insensitive search on task text
     let mut results: Vec<(usize, &_)> = tasks

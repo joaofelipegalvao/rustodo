@@ -2,10 +2,10 @@ use anyhow::Result;
 use colored::Colorize;
 
 use crate::error::TodoError;
-use crate::storage::load_tasks;
+use crate::storage::Storage;
 
-pub fn execute() -> Result<()> {
-    let tasks = load_tasks()?;
+pub fn execute(storage: &impl Storage) -> Result<()> {
+    let tasks = storage.load()?;
 
     // Collect all unique tags
     let mut all_tags: Vec<String> = Vec::new();

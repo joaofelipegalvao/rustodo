@@ -1,11 +1,11 @@
 use anyhow::Result;
 use colored::Colorize;
 
-use crate::storage::{load_tasks, save_tasks};
+use crate::storage::Storage;
 use crate::validation::validate_task_id;
 
-pub fn execute(id: usize) -> Result<()> {
-    let mut tasks = load_tasks()?;
+pub fn execute(storage: &impl Storage, id: usize) -> Result<()> {
+    let mut tasks = storage.load()?;
     validate_task_id(id, tasks.len())?;
 
     let index = id - 1;
@@ -19,12 +19,12 @@ pub fn execute(id: usize) -> Result<()> {
     let old_pattern = task.recurrence.unwrap();
     task.recurrence = None;
 
-    save_tasks(&tasks)?;
+    storage.save(&tasks)?;
 
     println!(
         "{} Removed {} recurrence from task #{}",
         "✓".green(),
-        old_pattern.description(),
+        old_pattern,
         id,
     );
 
