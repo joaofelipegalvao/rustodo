@@ -23,6 +23,8 @@ mod validation;
 
 use cli::{Cli, Commands};
 
+use crate::storage::{JsonStorage, Storage};
+
 /// Main entry point for the todo-list application.
 ///
 /// Parses command-line arguments and executes the requested command.
@@ -31,7 +33,16 @@ use cli::{Cli, Commands};
 fn main() {
     let cli = Cli::parse();
 
-    if let Err(e) = run(cli) {
+    // Create storage (JSON in production)
+    let storage = match JsonStorage::new() {
+        Ok(s) => s,
+        Err(e) => {
+            eprintln!("{} Failed to initialize storage: {}", "✗".red(), e);
+            process::exit(1);
+        }
+    };
+
+    if let Err(e) = run(cli, &storage) {
         eprintln!("{} {}", "✗".red(), e);
 
         // Print the full error chain for better debugging
@@ -58,9 +69,10 @@ fn main() {
 /// - File I/O operations fail
 /// - Task validation fails
 /// - No tasks match the specified filters
-fn run(cli: Cli) -> Result<()> {
+fn run(cli: Cli, storage: &impl Storage) -> Result<()> {
     match cli.command {
         Commands::Add(args) => commands::add::execute(
+            storage,
             args.text,
             args.priority,
             args.tag,
@@ -75,13 +87,13 @@ fn run(cli: Cli) -> Result<()> {
             sort,
             tag,
             recurrence: recur,
-        } => commands::list::execute(status, priority, due, sort, tag, recur),
+        } => commands::list::execute(storage, status, priority, due, sort, tag, recur),
 
-        Commands::Done { id } => commands::done::execute(id),
+        Commands::Done { id } => commands::done::execute(storage, id),
 
-        Commands::Undone { id } => commands::undone::execute(id),
+        Commands::Undone { id } => commands::undone::execute(storage, id),
 
-        Commands::Remove { id, yes } => commands::remove::execute(id, yes),
+        Commands::Remove { id, yes } => commands::remove::execute(storage, id, yes),
 
         Commands::Edit {
             id,
@@ -93,19 +105,19 @@ fn run(cli: Cli) -> Result<()> {
             clear_due,
             clear_tags,
         } => commands::edit::execute(
-            id, text, priority, add_tag, remove_tag, due, clear_due, clear_tags,
+            storage, id, text, priority, add_tag, remove_tag, due, clear_due, clear_tags,
         ),
 
-        Commands::Clear { yes } => commands::clear::execute(yes),
+        Commands::Clear { yes } => commands::clear::execute(storage, yes),
 
-        Commands::Search { query, tag } => commands::search::execute(query, tag),
+        Commands::Search { query, tag } => commands::search::execute(storage, query, tag),
 
-        Commands::Tags => commands::tags::execute(),
+        Commands::Tags => commands::tags::execute(storage),
 
         Commands::Info => commands::info::execute(),
 
-        Commands::Recur { id, pattern } => commands::recur::execute(id, pattern),
+        Commands::Recur { id, pattern } => commands::recur::execute(storage, id, pattern),
 
-        Commands::ClearRecur { id } => commands::clear_recur::execute(id),
+        Commands::ClearRecur { id } => commands::clear_recur::execute(storage, id),
     }
 }
