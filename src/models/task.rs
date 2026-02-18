@@ -140,12 +140,18 @@ impl Task {
     /// # Examples
     ///
     /// ```
+    /// use todo_cli::models::{Task, Recurrence};
+    /// use chrono::NaiveDate;
+    ///
     /// let task = Task {
     ///     text: "Weekly review".to_string(),
     ///     completed: true,
+    ///     priority: todo_cli::models::Priority::Medium,
+    ///     tags: vec![],
     ///     due_date: Some(NaiveDate::from_ymd_opt(2025, 2, 10).unwrap()),
+    ///     created_at: NaiveDate::from_ymd_opt(2025, 2, 1).unwrap(),
     ///     recurrence: Some(Recurrence::Weekly),
-    ///     // ...
+    ///     parent_id: None,
     /// };
     ///
     /// let next = task.create_next_recurrence(1);
