@@ -1,11 +1,15 @@
 [package]
 name = "todo-cli"
-version = "2.1.0"
+version = "2.2.0"
 edition = "2024"
 authors = ["João Felipe Galvão <github.com/joaofelipegalvao>"]
 description = "A modern, powerful task manager built with Rust"
 license = "MIT"
 repository = "https://github.com/joaofelipegalvao/todo-cli"
+
+[lib]
+name = "todo_cli"
+path = "src/lib.rs"
 
 [dependencies]
 anyhow = "1.0.101"
@@ -15,6 +19,7 @@ colored = "3.1.1"
 directories = "6.0.0"
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0.149"
+tempfile = "3.25.0"
 thiserror = "2.0.18"
 
 [[bin]]
