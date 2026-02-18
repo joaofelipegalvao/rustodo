@@ -6,7 +6,7 @@ use crate::models::{DueFilter, Priority, Recurrence, RecurrenceFilter, SortBy, S
 #[derive(Parser)]
 #[command(name = "todo-list")]
 #[command(author = "github.com/joaofelipegalvao")]
-#[command(version = "2.0.0")]
+#[command(version = "2.2.0")]
 #[command(about = "A modern, powerful task manager built with Rust", long_about = None)]
 #[command(after_help = "EXAMPLES:\n    \
     # Add a high priority task\n    \
@@ -147,8 +147,8 @@ pub enum Commands {
         #[arg(long, value_enum)]
         priority: Option<Priority>,
 
-        /// Remove tags (comma-separated or repeat flag)
-        /// Examples: --remove-tag work,team  OR  --remove-tag work --remove-tag team
+        /// Add tags (comma-separated or repeat flag)
+        /// Examples: --add-tag work,urgent  OR  --add-tag work --add-tag urgent
         #[arg(long, value_delimiter = ',')]
         add_tag: Vec<String>,
 
