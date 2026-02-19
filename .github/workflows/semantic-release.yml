@@ -1,0 +1,120 @@
+name: Semantic Release
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+
+jobs:
+  # Build binaries for each platform in parallel
+  build:
+    name: Build (${{ matrix.suffix }})
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            suffix: linux-amd64
+          - os: macos-latest
+            target: aarch64-apple-darwin
+            suffix: darwin-arm64
+          - os: macos-latest
+            target: x86_64-apple-darwin
+            suffix: darwin-amd64
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Cache dependencies
+        uses: Swatinem/rust-cache@v2
+
+      - name: Build release binary
+        run: cargo build --release --target ${{ matrix.target }}
+
+      - name: Rename binary
+        run: |
+          mkdir -p dist
+          cp target/${{ matrix.target }}/release/todo dist/todo-${{ matrix.suffix }}
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: binary-${{ matrix.suffix }}
+          path: dist/*
+          retention-days: 1
+
+      - name: Build Summary
+        if: always()
+        run: |
+          echo "## 🦀 Build Summary - ${{ matrix.suffix }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Target:** \`${{ matrix.target }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Runner:** ${{ matrix.os }}" >> $GITHUB_STEP_SUMMARY
+
+          if [ -d "dist" ]; then
+            echo "### 📦 Generated Artifacts" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "| File | Size |" >> $GITHUB_STEP_SUMMARY
+            echo "|------|------|" >> $GITHUB_STEP_SUMMARY
+            for file in dist/*; do
+              if [ -f "$file" ]; then
+                size=$(du -h "$file" | cut -f1)
+                echo "| \`$(basename $file)\` | $size |" >> $GITHUB_STEP_SUMMARY
+              fi
+            done
+          fi
+
+  # Single release job that waits for all builds
+  release:
+    name: Release
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: List artifacts
+        run: |
+          echo "=== Downloaded artifacts ==="
+          ls -la dist/
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "lts/*"
+
+      - name: Install Semantic Release
+        run: |
+          npm install -g semantic-release@25 \
+            @semantic-release/changelog@6 \
+            @semantic-release/git@10 \
+            @semantic-release/github@12 \
+            conventional-changelog-conventionalcommits@9
+
+      - name: Semantic Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: semantic-release
