@@ -2,7 +2,8 @@
 
 use chrono::NaiveDate;
 use todo_cli::models::{Priority, Recurrence, Task};
-use todo_cli::storage::{InMemoryStorage, Storage};
+use todo_cli::storage::Storage;
+use todo_cli::storage::memory::InMemoryStorage;
 
 /// Test fixture providing an isolated in-memory storage environment
 pub struct TestEnv {

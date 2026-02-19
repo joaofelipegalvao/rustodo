@@ -18,15 +18,15 @@ pub trait Storage {
 // Re-export implementations
 pub mod json;
 pub mod memory;
+pub use memory::InMemoryStorage;
 
 pub use json::JsonStorage;
-// pub use memory::InMemoryStorage;
 
 // Re-export old functions for backward compatibility (temporary)
 pub use json::get_data_file_path;
 
 // Compatibility shims (will be removed after migration)
-// use std::path::PathBuf;
+use std::path::PathBuf;
 
 pub fn load_tasks() -> Result<Vec<Task>> {
     let storage = JsonStorage::new()?;

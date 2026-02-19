@@ -74,6 +74,41 @@ fn test_edit_priority() {
 }
 
 #[test]
+fn test_edit_add_invalid_tag_fails() {
+    let env = TestEnv::new();
+
+    add::execute(
+        env.storage(),
+        "Task".to_string(),
+        Priority::Medium,
+        vec![],
+        None,
+        None,
+    )
+    .unwrap();
+
+    let result = edit::execute(
+        env.storage(),
+        1,
+        None,
+        None,
+        vec!["invalid tag".to_string()],
+        vec![],
+        None,
+        false,
+        false,
+    );
+
+    assert!(result.is_err());
+    assert!(
+        result
+            .unwrap_err()
+            .to_string()
+            .contains("Invalid tag format")
+    );
+}
+
+#[test]
 fn test_edit_add_tags_preserves_existing() {
     let env = TestEnv::new();
 

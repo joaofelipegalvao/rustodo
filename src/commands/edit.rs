@@ -4,7 +4,7 @@ use colored::Colorize;
 
 use crate::models::Priority;
 use crate::storage::Storage;
-use crate::validation::validate_task_id;
+use crate::validation::{self, validate_task_id};
 
 #[allow(clippy::too_many_arguments)]
 pub fn execute(
@@ -84,6 +84,7 @@ pub fn execute(
 
         // Add new tags
         if !add_tag.is_empty() {
+            validation::validate_tags(&add_tag)?;
             let mut added = Vec::new();
 
             for new_tag in &add_tag {

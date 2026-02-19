@@ -23,6 +23,8 @@ use crate::models::Task;
 pub struct InMemoryStorage {
     tasks: RefCell<Vec<Task>>,
 }
+
+#[allow(dead_code)]
 impl InMemoryStorage {
     /// Create in-memory storage pre-populated with tasks
     ///

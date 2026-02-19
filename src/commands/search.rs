@@ -2,9 +2,15 @@ use anyhow::Result;
 
 use crate::display::display_lists;
 use crate::error::TodoError;
+use crate::models::StatusFilter;
 use crate::storage::Storage;
 
-pub fn execute(storage: &impl Storage, query: String, tag: Option<String>) -> Result<()> {
+pub fn execute(
+    storage: &impl Storage,
+    query: String,
+    tag: Option<String>,
+    status: StatusFilter,
+) -> Result<()> {
     let tasks = storage.load()?;
 
     // Perform case-insensitive search on task text
@@ -12,6 +18,7 @@ pub fn execute(storage: &impl Storage, query: String, tag: Option<String>) -> Re
         .iter()
         .enumerate()
         .filter(|(_, task)| task.text.to_lowercase().contains(&query.to_lowercase()))
+        .filter(|(_, task)| task.matches_status(status))
         .map(|(i, task)| (i + 1, task))
         .collect();
 

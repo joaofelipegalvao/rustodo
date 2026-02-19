@@ -110,7 +110,9 @@ fn run(cli: Cli, storage: &impl Storage) -> Result<()> {
 
         Commands::Clear { yes } => commands::clear::execute(storage, yes),
 
-        Commands::Search { query, tag } => commands::search::execute(storage, query, tag),
+        Commands::Search { query, tag, status } => {
+            commands::search::execute(storage, query, tag, status)
+        }
 
         Commands::Tags => commands::tags::execute(storage),
 

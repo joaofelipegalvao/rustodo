@@ -194,6 +194,9 @@ pub enum Commands {
         /// Filter results by tag
         #[arg(long, short = 't')]
         tag: Option<String>,
+
+        #[arg(long, value_enum, default_value_t = StatusFilter::All)]
+        status: StatusFilter,
     },
 
     /// List all tags
@@ -227,7 +230,8 @@ pub enum Commands {
     #[command(visible_alias = "norecur")]
     #[command(long_about = "Remove recurrence pattern from a task\n\n\
         Stops a task from repeating automatically. The task will remain\n\
-        but won't create new occurrences when completed.")]
+        but won't create new occurrences when completed.\n\n
+        Aliases: norecur")]
     ClearRecur {
         /// Task ID number
         #[arg(value_name = "ID")]
