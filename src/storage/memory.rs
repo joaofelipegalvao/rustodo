@@ -14,7 +14,7 @@ use crate::models::Task;
 /// # Examples
 ///
 /// ```
-/// use todo_cli::storage::InMemoryStorage;
+/// use todo_cli::storage::memory::InMemoryStorage;
 ///
 /// let storage = InMemoryStorage::default();
 /// // Use in tests without touching filesystem

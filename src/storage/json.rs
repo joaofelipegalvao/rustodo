@@ -20,6 +20,7 @@ impl JsonStorage {
     }
 
     /// Create a JSON storage at a custom path (for testing)
+    #[cfg(test)]
     pub fn with_path(file_path: PathBuf) -> Self {
         Self { file_path }
     }

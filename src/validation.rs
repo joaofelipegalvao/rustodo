@@ -169,6 +169,7 @@ pub fn validate_recurrence(
 /// # Errors
 ///
 /// Returns the first validation error encountered, or Ok(()) if all checks pass
+#[allow(dead_code)]
 pub fn validate_task(task: &Task, is_new: bool) -> Result<(), TodoError> {
     validate_task_text(&task.text)?;
     validate_tags(&task.tags)?;
