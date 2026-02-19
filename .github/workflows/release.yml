@@ -144,20 +144,16 @@ jobs:
           echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
           echo "New version: $NEW_VERSION"
 
-      - name: Generate CHANGELOG with git-cliff
-        run: |
-          git-cliff --config cliff.toml --output CHANGELOG.md
-
       - name: Download all artifacts
         uses: actions/download-artifact@v4
         with:
           path: dist
           merge-multiple: true
 
-      - name: Commit, tag and push
+      - name: Commit and tag
         run: |
           VERSION=v${{ steps.bump.outputs.new_version }}
-          git add Cargo.toml Cargo.lock CHANGELOG.md
+          git add Cargo.toml Cargo.lock
           git commit -m "chore(release): $VERSION [skip ci]"
           if git tag | grep -q "^${VERSION}$"; then
             echo "Tag $VERSION already exists, skipping tag creation"
@@ -165,11 +161,19 @@ jobs:
             git tag -a "$VERSION" -m "Release $VERSION"
           fi
 
-          git push origin main --follow-tags
+      - name: Generate CHANGELOG with git-cliff
+        run: |
+          git-cliff --config cliff.toml --output CHANGELOG.md
 
       - name: Generate release notes for this version
         run: |
           git-cliff --config cliff.toml --latest --strip header --output RELEASE_NOTES.md
+
+      - name: Commit CHANGELOG and push
+        run: |
+          git add CHANGELOG.md
+          git commit -m "docs(changelog): update for ${{ steps.bump.outputs.new_version }} [skip ci]" || echo "No changes to commit"
+          git push origin main --follow-tags
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
