@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.3.2](https://github.com/joaofelipegalvao/todo-cli/compare/v2.3.1...v2.3.2) (2026-02-19)
+
+### ♻️ Refactoring
+
+* remove unused storage functions and fix dead code warnings ([cf16d2b](https://github.com/joaofelipegalvao/todo-cli/commit/cf16d2ba4f60cee8f86437e6ba32cb523a269103))
+
 ## [2.3.1](https://github.com/joaofelipegalvao/todo-cli/compare/v2.3.0...v2.3.1) (2026-02-19)
 
 ### 🐛 Bug Fixes
