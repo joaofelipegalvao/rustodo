@@ -154,7 +154,12 @@ jobs:
           VERSION=v${{ steps.bump.outputs.new_version }}
           git add Cargo.toml Cargo.lock CHANGELOG.md
           git commit -m "chore(release): $VERSION [skip ci]"
-          git tag -a "$VERSION" -m "Release $VERSION"
+          if git tag | grep -q "^${VERSION}$"; then
+            echo "Tag $VERSION already exists, skipping tag creation"
+          else
+            git tag -a "$VERSION" -m "Release $VERSION"
+          fi
+
           git push origin main --follow-tags
 
       - name: Generate release notes for this version
