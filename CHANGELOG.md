@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.2.1](https://github.com/joaofelipegalvao/todo-cli/compare/v2.2.0...v2.2.1) (2026-02-19)
+
+### 🐛 Bug Fixes
+
+* remove unused import and collapse nested if, fix README link ([fd7646f](https://github.com/joaofelipegalvao/todo-cli/commit/fd7646f342eda0d3fa367eab93cec37b34540cb5))
+
 ## [2.1.0] - 2026-02-12
 
 ### Major Feature: Recurring Tasks
