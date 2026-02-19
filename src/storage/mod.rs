@@ -25,9 +25,6 @@ pub use json::JsonStorage;
 // Re-export old functions for backward compatibility (temporary)
 pub use json::get_data_file_path;
 
-// Compatibility shims (will be removed after migration)
-use std::path::PathBuf;
-
 pub fn load_tasks() -> Result<Vec<Task>> {
     let storage = JsonStorage::new()?;
     storage.load()
