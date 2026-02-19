@@ -5,8 +5,11 @@ on:
     branches:
       - main
 
-permissions:
-  contents: write
+permissions: {}
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   check:
@@ -53,6 +56,8 @@ jobs:
     name: Build (${{ matrix.suffix }})
     needs: check
     if: needs.check.outputs.should_release == 'true'
+    permissions:
+      contents: read
     strategy:
       matrix:
         include:
@@ -100,6 +105,8 @@ jobs:
     needs: [check, build]
     if: needs.check.outputs.should_release == 'true'
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
 
     steps:
       - name: Checkout
