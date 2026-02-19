@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Test release pipeline
 - **ci:** Handle existing tags in release workflow
+- **ci:** Add comparison links to CHANGELOG footer
+- **ci:** Fix CHANGELOG footer template for git-cliff
 
 ## [2.3.2] - 2026-02-19
 
@@ -260,4 +262,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - V1 - basic todo CLI with add/list commands
 
+[2.3.2]: https://github.com/joaofelipegalvao/todo-cli/compare/v2.3.1...v2.3.2
+[2.3.1]: https://github.com/joaofelipegalvao/todo-cli/compare/v2.3.0...v2.3.1
+[2.3.0]: https://github.com/joaofelipegalvao/todo-cli/compare/v2.2.2...v2.3.0
+[2.2.2]: https://github.com/joaofelipegalvao/todo-cli/compare/v2.2.1...v2.2.2
+[2.2.1]: https://github.com/joaofelipegalvao/todo-cli/compare/v2.2.0...v2.2.1
+[2.2.0]: https://github.com/joaofelipegalvao/todo-cli/compare/v2.1.0...v2.2.0
+[2.1.0]: https://github.com/joaofelipegalvao/todo-cli/compare/v2.0.0...v2.1.0
+[2.0.0]: https://github.com/joaofelipegalvao/todo-cli/compare/v1.9.0...v2.0.0
+[1.9.0]: https://github.com/joaofelipegalvao/todo-cli/compare/v1.8.0...v1.9.0
+[1.8.0]: https://github.com/joaofelipegalvao/todo-cli/compare/v1.7.0...v1.8.0
+[1.7.0]: https://github.com/joaofelipegalvao/todo-cli/compare/v1.6.0...v1.7.0
+[1.6.0]: https://github.com/joaofelipegalvao/todo-cli/compare/v1.5.0...v1.6.0
+[1.5.0]: https://github.com/joaofelipegalvao/todo-cli/compare/v1.4.0...v1.5.0
+[1.4.0]: https://github.com/joaofelipegalvao/todo-cli/compare/v1.3.0...v1.4.0
+[1.3.0]: https://github.com/joaofelipegalvao/todo-cli/compare/v1.2.0...v1.3.0
+[1.2.0]: https://github.com/joaofelipegalvao/todo-cli/compare/v1.1.0...v1.2.0
+[1.1.0]: https://github.com/joaofelipegalvao/todo-cli/compare/v1.0.0...v1.1.0
+[1.0.0]: https://github.com/joaofelipegalvao/todo-cli/compare/v0.9.0...v1.0.0
+[0.9.0]: https://github.com/joaofelipegalvao/todo-cli/compare/v0.8.0...v0.9.0
+[0.8.0]: https://github.com/joaofelipegalvao/todo-cli/compare/v0.7.0...v0.8.0
+[0.7.0]: https://github.com/joaofelipegalvao/todo-cli/compare/v0.6.0...v0.7.0
+[0.6.0]: https://github.com/joaofelipegalvao/todo-cli/compare/v0.5.0...v0.6.0
+[0.5.0]: https://github.com/joaofelipegalvao/todo-cli/compare/v0.4.2...v0.5.0
+[0.4.2]: https://github.com/joaofelipegalvao/todo-cli/compare/v0.4.1...v0.4.2
+[0.4.1]: https://github.com/joaofelipegalvao/todo-cli/compare/v0.4.0...v0.4.1
+[0.4.0]: https://github.com/joaofelipegalvao/todo-cli/compare/v0.3.0...v0.4.0
+[0.3.0]: https://github.com/joaofelipegalvao/todo-cli/compare/v0.2.0...v0.3.0
+[0.2.0]: https://github.com/joaofelipegalvao/todo-cli/compare/v0.1.0...v0.2.0
+[0.1.0]: https://github.com/joaofelipegalvao/todo-cli/releases/tag/v0.1.0
 
