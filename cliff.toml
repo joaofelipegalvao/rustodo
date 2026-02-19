@@ -22,12 +22,10 @@ footer = """
 {% for release in releases %}\
     {% if release.version %}\
         {% if release.previous.version %}\
-            [{{ release.version | trim_start_matches(pat="v") }}]: https://github.com/joaofelipegalvao/todo-cli/compare/{{ release.previous.version }}...{{ release.version }}
+[{{ release.version | trim_start_matches(pat="v") }}]: https://github.com/joaofelipegalvao/todo-cli/compare/{{ release.previous.version }}...{{ release.version }}
         {% else %}\
-            [{{ release.version | trim_start_matches(pat="v") }}]: https://github.com/joaofelipegalvao/todo-cli/releases/tag/{{ release.version }}
+[{{ release.version | trim_start_matches(pat="v") }}]: https://github.com/joaofelipegalvao/todo-cli/releases/tag/{{ release.version }}
         {% endif %}\
-    {% else %}\
-        [unreleased]: https://github.com/joaofelipegalvao/todo-cli/compare/{{ releases | map(attribute="version") | select() | first }}...HEAD
     {% endif %}\
 {% endfor %}
 """
