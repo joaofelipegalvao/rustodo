@@ -1,0 +1,174 @@
+name: Release
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  check:
+    name: Check if release needed
+    runs-on: ubuntu-latest
+    outputs:
+      should_release: ${{ steps.check.outputs.should_release }}
+      bump: ${{ steps.check.outputs.bump }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check commits for release triggers
+        id: check
+        run: |
+          LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+
+          if [ -z "$LAST_TAG" ]; then
+            COMMITS=$(git log --oneline --pretty=format:"%s")
+          else
+            COMMITS=$(git log ${LAST_TAG}..HEAD --oneline --pretty=format:"%s")
+          fi
+
+          echo "Commits since last tag:"
+          echo "$COMMITS"
+
+          if echo "$COMMITS" | grep -qE "BREAKING CHANGE|!:"; then
+            echo "should_release=true" >> $GITHUB_OUTPUT
+            echo "bump=major" >> $GITHUB_OUTPUT
+          elif echo "$COMMITS" | grep -qE "^feat(\(.+\))?:"; then
+            echo "should_release=true" >> $GITHUB_OUTPUT
+            echo "bump=minor" >> $GITHUB_OUTPUT
+          elif echo "$COMMITS" | grep -qE "^(fix|perf|refactor)(\(.+\))?:"; then
+            echo "should_release=true" >> $GITHUB_OUTPUT
+            echo "bump=patch" >> $GITHUB_OUTPUT
+          else
+            echo "should_release=false" >> $GITHUB_OUTPUT
+            echo "bump=none" >> $GITHUB_OUTPUT
+          fi
+
+  build:
+    name: Build (${{ matrix.suffix }})
+    needs: check
+    if: needs.check.outputs.should_release == 'true'
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            suffix: linux-amd64
+          - os: macos-latest
+            target: aarch64-apple-darwin
+            suffix: darwin-arm64
+          - os: macos-latest
+            target: x86_64-apple-darwin
+            suffix: darwin-amd64
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Cache dependencies
+        uses: Swatinem/rust-cache@v2
+
+      - name: Build release binary
+        run: cargo build --release --target ${{ matrix.target }}
+
+      - name: Rename binary
+        run: |
+          mkdir -p dist
+          cp target/${{ matrix.target }}/release/todo dist/todo-${{ matrix.suffix }}
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: binary-${{ matrix.suffix }}
+          path: dist/*
+          retention-days: 1
+
+  release:
+    name: Release
+    needs: [check, build]
+    if: needs.check.outputs.should_release == 'true'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache dependencies
+        uses: Swatinem/rust-cache@v2
+
+      - name: Install git-cliff
+        uses: taiki-e/install-action@v2
+        with:
+          tool: git-cliff
+
+      - name: Install cargo-edit
+        run: cargo install cargo-edit --locked
+
+      - name: Configure git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Bump version
+        id: bump
+        run: |
+          BUMP=${{ needs.check.outputs.bump }}
+          echo "Bumping: $BUMP"
+
+          cargo set-version --bump $BUMP
+
+          NEW_VERSION=$(grep '^version' Cargo.toml | head -1 | sed 's/version = "\(.*\)"/\1/')
+          echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
+          echo "New version: $NEW_VERSION"
+
+      - name: Generate CHANGELOG with git-cliff
+        run: |
+          git-cliff --config cliff.toml --output CHANGELOG.md
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Commit, tag and push
+        run: |
+          VERSION=v${{ steps.bump.outputs.new_version }}
+          git add Cargo.toml Cargo.lock CHANGELOG.md
+          git commit -m "chore(release): $VERSION [skip ci]"
+          git tag -a "$VERSION" -m "Release $VERSION"
+          git push origin main --follow-tags
+
+      - name: Generate release notes for this version
+        run: |
+          git-cliff --config cliff.toml --latest --strip header --output RELEASE_NOTES.md
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.bump.outputs.new_version }}
+          name: v${{ steps.bump.outputs.new_version }}
+          body_file: RELEASE_NOTES.md
+          files: |
+            dist/todo-linux-amd64
+            dist/todo-darwin-arm64
+            dist/todo-darwin-amd64
+          token: ${{ secrets.GITHUB_TOKEN }}
