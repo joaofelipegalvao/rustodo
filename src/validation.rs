@@ -129,12 +129,12 @@ pub fn validate_tags(tags: &[String]) -> Result<(), TodoError> {
 ///
 /// Returns `TodoError::DueDateInPast` if date is in the past and `allow_past` is false
 pub fn validate_due_date(due_date: Option<NaiveDate>, allow_past: bool) -> Result<(), TodoError> {
-    if let Some(due) = due_date {
-        if !allow_past {
-            let today = chrono::Local::now().naive_local().date();
-            if due < today {
-                return Err(TodoError::DueDateInPast { date: due });
-            }
+    if let Some(due) = due_date
+        && !allow_past
+    {
+        let today = chrono::Local::now().naive_local().date();
+        if due < today {
+            return Err(TodoError::DueDateInPast { date: due });
         }
     }
     Ok(())

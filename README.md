@@ -314,7 +314,7 @@ todo recur --help      # Recurring task options
 
 ## Documentation
 
-- **[Complete Guide](docs/GUIDE.md)** - All commands and examples
+- **[Complete Guide](GUIDE.md)** - All commands and examples
 - **[Complete Documentation](https://joaofelipegalvao.github.io/todo-cli/)** - Full learning journey, concepts, and examples
 - **[Changelog](CHANGELOG.md)** - Version history
 
