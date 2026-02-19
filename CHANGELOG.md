@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **ci:** Handle existing tags in release workflow
 - **ci:** Add comparison links to CHANGELOG footer
 - **ci:** Fix CHANGELOG footer template for git-cliff
+- **ci:** Sync Cargo.toml version with last git tag before bump
 
 ## [2.3.2] - 2026-02-19
 
