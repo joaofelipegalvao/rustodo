@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.5.0](https://github.com/joaofelipegalvao/todo-cli/compare/v2.4.1..v2.5.0) - 2026-02-20
+
+### Features
+
+- Add project system for organizing tasks - ([7308a0b](https://github.com/joaofelipegalvao/todo-cli/commit/7308a0b5592d3e791fd2dde2efc34ebfd4fb8634))
+
+### Documentation
+
+- *(changelog)* Update for 2.4.1 [skip ci] - ([4881949](https://github.com/joaofelipegalvao/todo-cli/commit/48819496edb4d454984c818f4a8115e5563d2a9b))
 ## [2.4.1](https://github.com/joaofelipegalvao/todo-cli/compare/v2.4.0..v2.4.1) - 2026-02-20
 
 ### Performance
@@ -262,6 +271,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Features
 
 - V1 - basic todo CLI with add/list commands - ([9580ae2](https://github.com/joaofelipegalvao/todo-cli/commit/9580ae297837c9a6c5d4b18868d2f3abac1b1b9e))
+[2.5.0]: https://github.com/joaofelipegalvao/todo-cli/compare/v2.4.1...v2.5.0
 [2.4.1]: https://github.com/joaofelipegalvao/todo-cli/compare/v2.4.0...v2.4.1
 [2.4.0]: https://github.com/joaofelipegalvao/todo-cli/compare/v2.3.4...v2.4.0
 [2.3.4]: https://github.com/joaofelipegalvao/todo-cli/compare/v2.3.3...v2.3.4
