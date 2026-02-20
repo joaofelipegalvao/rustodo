@@ -6,19 +6,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).\n
 """
 body = """
-{%- set repo_url = "https://github.com/joaofelipegalvao/todo-cli" -%}
-
 {% macro print_commit(commit) -%}
     - {% if commit.scope %}*({{ commit.scope }})* {% endif %}\
         {% if commit.breaking %}[**breaking**] {% endif %}\
         {{ commit.message | upper_first }} - \
-        ([{{ commit.id | truncate(length=7, end="") }}]({{ repo_url }}/commit/{{ commit.id }}))\
+        ([{{ commit.id | truncate(length=7, end="") }}](https://github.com/joaofelipegalvao/todo-cli/commit/{{ commit.id }}))\
 {% endmacro -%}
 
 {% if version %}\
     {% if previous.version %}\
         ## [{{ version | trim_start_matches(pat="v") }}]\
-          ({{ repo_url }}/compare/{{ previous.version }}..{{ version }}) - {{ timestamp | date(format="%Y-%m-%d") }}
+          (https://github.com/joaofelipegalvao/todo-cli/compare/{{ previous.version }}..{{ version }}) - {{ timestamp | date(format="%Y-%m-%d") }}
     {% else %}\
         ## [{{ version | trim_start_matches(pat="v") }}] - {{ timestamp | date(format="%Y-%m-%d") }}
     {% endif %}\
