@@ -105,10 +105,10 @@ fn parse_in_n_units(input: &str, unit: &str) -> Option<i64> {
     ];
 
     for pattern in &patterns {
-        if let Some(caps) = regex::Regex::new(pattern).ok()?.captures(input) {
-            if let Some(num_str) = caps.get(1) {
-                return num_str.as_str().parse::<i64>().ok();
-            }
+        if let Some(caps) = regex::Regex::new(pattern).ok()?.captures(input)
+            && let Some(num_str) = caps.get(1)
+        {
+            return num_str.as_str().parse::<i64>().ok();
         }
     }
 
