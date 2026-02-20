@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.4.1](https://github.com/joaofelipegalvao/todo-cli/compare/v2.4.0..v2.4.1) - 2026-02-20
+
+### Performance
+
+- Optimize date parsing with LazyLock and add past date validation - ([fb6c20a](https://github.com/joaofelipegalvao/todo-cli/commit/fb6c20afc879fc2faba64096766152e5af3484c3))
+
+### Documentation
+
+- *(changelog)* Update for 2.4.0 [skip ci] - ([8efc531](https://github.com/joaofelipegalvao/todo-cli/commit/8efc531eba5c57277044c9ae9329a858c1bd05ab))
 ## [2.4.0](https://github.com/joaofelipegalvao/todo-cli/compare/v2.3.4..v2.4.0) - 2026-02-20
 
 ### Features
@@ -253,6 +262,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Features
 
 - V1 - basic todo CLI with add/list commands - ([9580ae2](https://github.com/joaofelipegalvao/todo-cli/commit/9580ae297837c9a6c5d4b18868d2f3abac1b1b9e))
+[2.4.1]: https://github.com/joaofelipegalvao/todo-cli/compare/v2.4.0...v2.4.1
 [2.4.0]: https://github.com/joaofelipegalvao/todo-cli/compare/v2.3.4...v2.4.0
 [2.3.4]: https://github.com/joaofelipegalvao/todo-cli/compare/v2.3.3...v2.3.4
 [2.3.3]: https://github.com/joaofelipegalvao/todo-cli/compare/v2.3.2...v2.3.3
