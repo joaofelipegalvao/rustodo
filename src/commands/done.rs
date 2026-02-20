@@ -19,6 +19,23 @@ pub fn execute(storage: &impl Storage, id: usize) -> Result<()> {
         .into());
     }
 
+    // block completion if dependencies are still pending
+    let blocking = tasks[index].blocking_deps(&tasks);
+    if !blocking.is_empty() {
+        let ids = blocking
+            .iter()
+            .map(|&dep_id| {
+                let text = tasks
+                    .get(dep_id.saturating_sub(1))
+                    .map(|t| format!("\"{}\"", t.text))
+                    .unwrap_or_default();
+                format!("#{} {}", dep_id, text)
+            })
+            .collect::<Vec<_>>()
+            .join(", ");
+        return Err(TodoError::TaskBlocked(id, ids).into());
+    }
+
     tasks[index].mark_done();
 
     if let Some(next_task) = tasks[index].create_next_recurrence(id) {

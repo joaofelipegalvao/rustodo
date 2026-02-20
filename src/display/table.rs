@@ -9,7 +9,7 @@ const PRIORITY_WIDTH: usize = 1;
 const STATUS_WIDTH: usize = 3;
 const RECUR_WIDTH: usize = 1;
 
-pub struct TableLayout {
+pub struct TableLayout<'a> {
     id: usize,
     priority: usize,
     status: usize,
@@ -22,12 +22,12 @@ pub struct TableLayout {
     show_project: bool,
     show_tags: bool,
     show_due: bool,
+    all_tasks: &'a [Task],
 }
 
-impl TableLayout {
-    pub fn new(tasks: &[(usize, &Task)]) -> Self {
+impl<'a> TableLayout<'a> {
+    pub fn new(tasks: &[(usize, &Task)], all_tasks: &'a [Task]) -> Self {
         let (task, project, tags, due) = calculate_column_widths(tasks);
-
         let show_recur = tasks.iter().any(|(_, t)| t.recurrence.is_some());
         let show_project = tasks.iter().any(|(_, t)| t.project.is_some());
         let show_tags = tasks.iter().any(|(_, t)| !t.tags.is_empty());
@@ -46,6 +46,7 @@ impl TableLayout {
             show_project,
             show_tags,
             show_due,
+            all_tasks,
         }
     }
 
@@ -91,23 +92,25 @@ impl TableLayout {
     }
 
     pub fn display_task(&self, number: usize, task: &Task) {
-        let checkbox = render_checkbox(task.completed);
+        let blocked = !task.completed && task.is_blocked(self.all_tasks);
+        let checkbox = if blocked {
+            "[~]".normal()
+        } else {
+            render_checkbox(task.completed)
+        };
+
         let letter = task.priority.letter();
-
         let task_text = truncate(&task.text, self.task);
-
         let project_str = task
             .project
             .as_deref()
             .map(|p| truncate(p, self.project))
             .unwrap_or_default();
-
         let tags_str = if task.tags.is_empty() {
             String::new()
         } else {
             truncate(&task.tags.join(", "), self.tags)
         };
-
         let due_text = get_due_text(task);
         let due_colored = get_due_colored(task, &due_text);
 
@@ -120,6 +123,12 @@ impl TableLayout {
 
         let (text_colored, tags_colored, project_colored) = if task.completed {
             (task_text.green(), tags_str.dimmed(), project_str.dimmed())
+        } else if blocked {
+            (
+                task_text.truecolor(150, 150, 150),
+                tags_str.dimmed(),
+                project_str.dimmed(),
+            )
         } else {
             (
                 task_text.bright_white(),
@@ -162,7 +171,7 @@ fn truncate(s: &str, max: usize) -> String {
 
 fn calculate_column_widths(tasks: &[(usize, &Task)]) -> (usize, usize, usize, usize) {
     let mut max_task = 10;
-    let mut max_project = 7; // "Project" header width
+    let mut max_project = 7;
     let mut max_tags = 4;
     let mut max_due = 3;
 
@@ -188,10 +197,13 @@ fn calculate_column_widths(tasks: &[(usize, &Task)]) -> (usize, usize, usize, us
     )
 }
 
-pub fn display_lists(tasks: &[(usize, &Task)], title: &str) {
+/// Renders the task list to stdout.
+///
+/// `all_tasks` is borrowed as `&[Task]` — no clone, no extra allocation.
+pub fn display_lists(tasks: &[(usize, &Task)], title: &str, all_tasks: &[Task]) {
     println!("\n{}:\n", title);
 
-    let layout = TableLayout::new(tasks);
+    let layout = TableLayout::new(tasks, all_tasks);
     layout.display_header();
     layout.display_separator();
 
@@ -212,7 +224,6 @@ pub fn display_lists(tasks: &[(usize, &Task)], title: &str) {
     } else {
         0
     };
-
     let stats = format!("{} of {} completed ({}%)", completed, total, percentage);
 
     if percentage == 100 {

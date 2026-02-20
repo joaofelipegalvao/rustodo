@@ -12,10 +12,10 @@ pub fn execute(
     project: Option<String>,
     status: StatusFilter,
 ) -> Result<()> {
-    let tasks = storage.load()?;
+    let all_tasks = storage.load()?;
 
     // Perform case-insensitive search on task text
-    let mut results: Vec<(usize, &_)> = tasks
+    let mut results: Vec<(usize, &_)> = all_tasks
         .iter()
         .enumerate()
         .filter(|(_, task)| task.text.to_lowercase().contains(&query.to_lowercase()))
@@ -41,6 +41,7 @@ pub fn execute(
         return Err(TodoError::NoSearchResults(query).into());
     }
 
-    display_lists(&results, &format!("Search results for \"{}\"", query));
+    let title = format!("Search results for \"{}\"", query);
+    display_lists(&results, &title, &all_tasks);
     Ok(())
 }

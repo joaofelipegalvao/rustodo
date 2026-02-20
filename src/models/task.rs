@@ -37,6 +37,9 @@ pub struct Task {
     /// - Future features like `todo history <id>`
     #[serde(default)]
     pub parent_id: Option<usize>,
+    /// IDs (1- based) of tasks that must be completed before this one
+    #[serde(default)]
+    pub depends_on: Vec<usize>,
 }
 
 impl Task {
@@ -59,6 +62,7 @@ impl Task {
             created_at: Local::now().naive_local().date(),
             recurrence,
             parent_id: None,
+            depends_on: Vec::new(),
         }
     }
 
@@ -124,6 +128,28 @@ impl Task {
         }
     }
 
+    /// Returns true if any dependency task is still pending.
+    ///
+    /// `all_tasks` is the full 0-indexed task list; IDs in `depends_on` are 1-based.
+    pub fn is_blocked(&self, all_tasks: &[Task]) -> bool {
+        self.depends_on.iter().any(|&dep_id| {
+            let idx = dep_id.saturating_sub(1);
+            all_tasks.get(idx).map(|t| !t.completed).unwrap_or(false)
+        })
+    }
+
+    /// Returns the IDs of blocking (still-pending) dependencies.
+    pub fn blocking_deps(&self, all_tasks: &[Task]) -> Vec<usize> {
+        self.depends_on
+            .iter()
+            .copied()
+            .filter(|&dep_id| {
+                let idx = dep_id.saturating_sub(1);
+                all_tasks.get(idx).map(|t| !t.completed).unwrap_or(false)
+            })
+            .collect()
+    }
+
     /// Creates a new task for the next recurrence cycle.
     ///
     /// # Arguments
@@ -183,7 +209,7 @@ impl Task {
         );
 
         next_task.parent_id = Some(parent_id);
-
+        // Dependencies are NOT propagated to recurrences — each occurrence stands alone.
         Some(next_task)
     }
 
@@ -193,19 +219,110 @@ impl Task {
     }
 }
 
+/// Detects a dependency cycle using iterative DFS.
+///
+/// Returns `Err` with the cycle description if adding `dep_id → task_id`
+/// would create a cycle, `Ok(())` otherwise.
+///
+/// `tasks` is the full 0-indexed list; IDs are 1-based.
+pub fn detect_cycle(tasks: &[Task], task_id: usize, new_dep_id: usize) -> Result<(), String> {
+    // Would adding "task_id depends on new_dep_id" create a cycle?
+    // A cycle exists if task_id is reachable FROM new_dep_id via depends_on edges.
+    // i.e. check if task_id appears in the transitive deps of new_dep_id.
+    let mut visited = std::collections::HashSet::new();
+    let mut stack = vec![new_dep_id];
+
+    while let Some(current) = stack.pop() {
+        if current == task_id {
+            return Err(format!(
+                "Adding this dependency would create a cycle: \
+                task #{} → task #{} → ... → task #{}",
+                task_id, new_dep_id, task_id
+            ));
+        }
+
+        if visited.insert(current) {
+            if let Some(t) = tasks.get(current.saturating_sub(1)) {
+                for &d in &t.depends_on {
+                    stack.push(d);
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
+    use crate::models::task;
+
     use super::*;
 
-    fn make_task(recurrence: Option<Recurrence>, due: Option<NaiveDate>) -> Task {
-        Task::new(
-            "Test".to_string(),
-            Priority::Medium,
-            vec![],
-            None,
-            due,
-            recurrence,
-        )
+    fn make_task(text: &str) -> Task {
+        Task::new(text.to_string(), Priority::Medium, vec![], None, None, None)
+    }
+
+    #[test]
+    fn test_is_blocked_no_deps() {
+        let task = make_task("A");
+        assert!(!task.is_blocked(&[]));
+    }
+
+    #[test]
+    fn test_is_blocked_pending_dep() {
+        let dep = make_task("Dep");
+        let mut task = make_task("Task");
+        task.depends_on = vec![1];
+        assert!(task.is_blocked(&[dep]));
+    }
+
+    #[test]
+    fn test_is_blocked_completed_dep() {
+        let mut dep = make_task("Dep");
+        dep.completed = true;
+        let mut task = make_task("Task");
+        task.depends_on = vec![1];
+        assert!(!task.is_blocked(&[dep]));
+    }
+
+    #[test]
+    fn test_detect_cycle_direct() {
+        let mut task = vec![make_task("A"), make_task("B")];
+        // A depends on B
+        task[0].depends_on = vec![2];
+        // Adding B depends on A should fail
+        let result = detect_cycle(&task, 2, 1);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_detect_no_cycle() {
+        let tasks = vec![make_task("A"), make_task("B"), make_task("C")];
+        // A->B, adding C->A should be fine
+        let result = detect_cycle(&tasks, 3, 1);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_detect_transitive_cycle() {
+        let mut tasks = vec![make_task("A"), make_task("B"), make_task("C")];
+        // A depends on B, B depends on C
+        tasks[0].depends_on = vec![2];
+        tasks[1].depends_on = vec![3];
+        // Adding C depends on A should fail (C->A->B->C)
+        let result = detect_cycle(&tasks, 3, 1);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_blocking_deps_returns_pending_only() {
+        let mut dep1 = make_task("Dep1");
+        dep1.completed = true;
+        let dep2 = make_task("Dep2");
+        let mut task = make_task("Task");
+        task.depends_on = vec![1, 2];
+        let blocking = task.blocking_deps(&[dep1, dep2]);
+        assert_eq!(blocking, vec![2]);
     }
 
     #[test]

@@ -88,6 +88,7 @@ fn run(cli: Cli, storage: &impl Storage) -> Result<()> {
                 args.project,
                 due_date,
                 args.recurrence,
+                args.depends_on,
             )
         }
 
@@ -118,6 +119,9 @@ fn run(cli: Cli, storage: &impl Storage) -> Result<()> {
             due,
             clear_due,
             clear_tags,
+            add_dep,
+            remove_dep,
+            clear_deps,
         } => {
             // Parse due date from string (supports natural language)
             let due_date = if let Some(due_str) = due {
@@ -138,6 +142,9 @@ fn run(cli: Cli, storage: &impl Storage) -> Result<()> {
                 due_date,
                 clear_due,
                 clear_tags,
+                add_dep,
+                remove_dep,
+                clear_deps,
             )
         }
 
@@ -153,6 +160,8 @@ fn run(cli: Cli, storage: &impl Storage) -> Result<()> {
         Commands::Tags => commands::tags::execute(storage),
 
         Commands::Projects => commands::projects::execute(storage),
+
+        Commands::Deps { id } => commands::deps::execute(storage, id),
 
         Commands::Info => commands::info::execute(),
 

@@ -72,4 +72,20 @@ pub enum TodoError {
     // === Recurrence Validation Errors ===
     #[error("Recurring tasks must have a due date. Use --due YYYY-MM-DD")]
     RecurrenceRequiresDueDate,
+
+    // === Dependency Erros ===
+    #[error("Task #{task_id} cannot depend on itself")]
+    SelfDependency { task_id: usize },
+
+    #[error("Task #{0} is blocked by pending dependencies: {1}")]
+    TaskBlocked(usize, String),
+
+    #[error("Dependency cycle detected: {0}")]
+    DependencyCycle(String),
+
+    #[error("Task #{task_id} does not depend on task #{dep_id}")]
+    DependencyNotFound { task_id: usize, dep_id: usize },
+
+    #[error("Task #{task_id} already depends on task #{dep_id}")]
+    DuplicateDependency { task_id: usize, dep_id: usize },
 }

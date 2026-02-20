@@ -5,7 +5,7 @@ use crate::models::{DueFilter, Priority, Recurrence, RecurrenceFilter, SortBy, S
 #[derive(Parser)]
 #[command(name = "todo-list")]
 #[command(author = "github.com/joaofelipegalvao")]
-#[command(version = "2.5.0")]
+#[command(version = "2.6.0")]
 #[command(about = "A modern, powerful task manager built with Rust", long_about = None)]
 #[command(after_help = "EXAMPLES:\n    \
     # Add a task to a project with a natural language date\n    \
@@ -161,6 +161,15 @@ pub enum Commands {
         /// Remove all tags
         #[arg(long, conflicts_with_all = ["add_tag", "remove_tag"])]
         clear_tags: bool,
+        /// Add task IDs as dependencies (repeat or space-separated)
+        #[arg(long, value_name = "ID", conflicts_with = "clear_deps")]
+        add_dep: Vec<usize>,
+        /// Remove task IDs from dependencies
+        #[arg(long, value_name = "ID", conflicts_with = "clear_deps")]
+        remove_dep: Vec<usize>,
+        /// Remove all dependencies from this task
+        #[arg(long, conflicts_with_all = ["add_dep", "remove_dep"])]
+        clear_deps: bool,
     },
 
     /// Clear all tasks
@@ -192,6 +201,20 @@ pub enum Commands {
         Shows each project name with the count of pending and completed tasks.\n\n\
         Use 'todo list --project <NAME>' to see tasks within a specific project.")]
     Projects,
+
+    /// Show dependency graph for a task
+    #[command(long_about = "Show the dependency graph for a task\n\n
+        Displays:\n  \
+        • Tasks this task depends on (with completion status)\n  \
+        • Tasks that depend on this one\n  \
+        • Whether the task is currently blocked\n\n\
+        Examples:\n  \
+        todo deps 5\n  \
+        todo deps 1")]
+    Deps {
+        #[arg(value_name = "ID")]
+        id: usize,
+    },
 
     /// Show information about data file location
     Info,
@@ -235,4 +258,7 @@ pub struct AddArgs {
     /// Recurrence pattern (daily, weekly, monthly). Requires a due date.
     #[arg(long, value_enum)]
     pub recurrence: Option<Recurrence>,
+    /// Task IDs this task depends on (must be completed first)
+    #[arg(long, value_name = "ID")]
+    pub depends_on: Vec<usize>,
 }

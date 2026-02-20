@@ -2,7 +2,8 @@ use anyhow::Result;
 use chrono::NaiveDate;
 use colored::Colorize;
 
-use crate::models::Priority;
+use crate::error::TodoError;
+use crate::models::{Priority, detect_cycle};
 use crate::storage::Storage;
 use crate::validation::{self, validate_task_id};
 
@@ -19,16 +20,43 @@ pub fn execute(
     due: Option<NaiveDate>,
     clear_due: bool,
     clear_tags: bool,
+    add_dep: Vec<usize>,
+    remove_dep: Vec<usize>,
+    clear_deps: bool,
 ) -> Result<()> {
     let mut tasks = storage.load()?;
     validate_task_id(id, tasks.len())?;
 
-    let index = id - 1;
-    let task = &mut tasks[index];
-
     let mut changes = Vec::new();
 
-    // Update text if provided AND different
+    // === Validate dependencies before mutating ===
+    for &dep_id in &add_dep {
+        if dep_id == id {
+            return Err(TodoError::SelfDependency { task_id: id }.into());
+        }
+        validate_task_id(dep_id, tasks.len())?;
+        detect_cycle(&tasks, id, dep_id).map_err(|msg| TodoError::DependencyCycle(msg))?;
+        if tasks[id - 1].depends_on.contains(&dep_id) {
+            return Err(TodoError::DuplicateDependency {
+                task_id: id,
+                dep_id,
+            }
+            .into());
+        }
+    }
+    for &dep_id in &remove_dep {
+        if !tasks[id - 1].depends_on.contains(&dep_id) {
+            return Err(TodoError::DependencyNotFound {
+                task_id: id,
+                dep_id,
+            }
+            .into());
+        }
+    }
+
+    let task = &mut tasks[id - 1];
+
+    // === Text ===
     if let Some(new_text) = text {
         if new_text.trim().is_empty() {
             return Err(anyhow::anyhow!("Task text cannot be empty"));
@@ -39,7 +67,7 @@ pub fn execute(
         }
     }
 
-    // Update priority if provided AND different
+    // === Priority ===
     if let Some(new_priority) = priority
         && task.priority != new_priority
     {
@@ -47,7 +75,7 @@ pub fn execute(
         changes.push(format!("priority → {}", new_priority.letter()));
     }
 
-    // Update project
+    // === Project ===
     if clear_project {
         if task.project.is_some() {
             let old = task.project.take().unwrap();
@@ -61,7 +89,7 @@ pub fn execute(
         }
     }
 
-    // Update tags
+    // === Tags ===
     if clear_tags {
         if !task.tags.is_empty() {
             let old_tags = task.tags.clone();
@@ -116,7 +144,7 @@ pub fn execute(
         }
     }
 
-    // Update due date
+    // === Due date ===
     if clear_due {
         if task.due_date.is_some() {
             task.due_date = None;
@@ -127,6 +155,40 @@ pub fn execute(
     {
         task.due_date = Some(new_due);
         changes.push(format!("due date → {}", new_due.to_string().cyan()));
+    }
+
+    // === Dependencies ===
+    if clear_deps {
+        if !task.depends_on.is_empty() {
+            let old = task
+                .depends_on
+                .drain(..)
+                .map(|id| format!("#{}", id))
+                .collect::<Vec<_>>()
+                .join(", ");
+            changes.push(format!("dependencies cleared → was [{}]", old.dimmed()));
+        }
+    } else {
+        if !remove_dep.is_empty() {
+            task.depends_on.retain(|d| !remove_dep.contains(d));
+            let removed = remove_dep
+                .iter()
+                .map(|id| format!("#{}", id))
+                .collect::<Vec<_>>()
+                .join(", ");
+            changes.push(format!("removed deps → [{}]", removed.red()));
+        }
+        if !add_dep.is_empty() {
+            for dep_id in &add_dep {
+                task.depends_on.push(*dep_id);
+            }
+            let added = add_dep
+                .iter()
+                .map(|id| format!("#{}", id))
+                .collect::<Vec<_>>()
+                .join(", ");
+            changes.push(format!("added deps → [{}]", added.cyan()));
+        }
     }
 
     // Check if anything was actually changed

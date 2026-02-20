@@ -89,7 +89,7 @@ pub fn execute(
     }
 
     let title = determine_title(status, priority, due, project.as_deref(), recur);
-    display_lists(&indexed_tasks, &title);
+    display_lists(&indexed_tasks, &title, &all_tasks);
     Ok(())
 }
 
