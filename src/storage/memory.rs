@@ -81,8 +81,22 @@ mod tests {
 
         // Save
         let tasks = vec![
-            Task::new("Task 1".to_string(), Priority::High, vec![], None, None),
-            Task::new("Task 2".to_string(), Priority::Low, vec![], None, None),
+            Task::new(
+                "Task 1".to_string(),
+                Priority::High,
+                vec![],
+                None,
+                None,
+                None,
+            ),
+            Task::new(
+                "Task 2".to_string(),
+                Priority::Low,
+                vec![],
+                None,
+                None,
+                None,
+            ),
         ];
         storage.save(&tasks).unwrap();
 
@@ -99,6 +113,7 @@ mod tests {
             "Existing".to_string(),
             Priority::Medium,
             vec![],
+            None,
             None,
             None,
         )];
@@ -123,14 +138,29 @@ mod tests {
             vec![],
             None,
             None,
+            None,
         )];
         storage.save(&tasks1).unwrap();
         assert_eq!(storage.len(), 1);
 
         // Save second batch (overwrites)
         let tasks2 = vec![
-            Task::new("Task 2".to_string(), Priority::High, vec![], None, None),
-            Task::new("Task 3".to_string(), Priority::Low, vec![], None, None),
+            Task::new(
+                "Task 2".to_string(),
+                Priority::High,
+                vec![],
+                None,
+                None,
+                None,
+            ),
+            Task::new(
+                "Task 3".to_string(),
+                Priority::Low,
+                vec![],
+                None,
+                None,
+                None,
+            ),
         ];
         storage.save(&tasks2).unwrap();
 

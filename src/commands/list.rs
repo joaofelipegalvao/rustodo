@@ -13,18 +13,17 @@ pub fn execute(
     due: Option<DueFilter>,
     sort: Option<SortBy>,
     tag: Option<String>,
+    project: Option<String>,
     recur: Option<RecurrenceFilter>,
 ) -> Result<()> {
     let all_tasks = storage.load()?;
 
-    // Create indexed view of tasks (1-based numbering)
     let mut indexed_tasks: Vec<(usize, &_)> = all_tasks
         .iter()
         .enumerate()
         .map(|(i, task)| (i + 1, task))
         .collect();
 
-    // Apply filters sequentially
     indexed_tasks.retain(|(_, t)| t.matches_status(status));
 
     if let Some(pri) = priority {
@@ -38,13 +37,24 @@ pub fn execute(
     if let Some(tag_name) = &tag {
         let count_before = indexed_tasks.len();
         indexed_tasks.retain(|(_, t)| t.tags.contains(tag_name));
-
         if indexed_tasks.is_empty() && count_before > 0 {
             return Err(TodoError::TagNotFound(tag_name.to_owned()).into());
         }
     }
 
-    // Filter by recurrence pattern
+    if let Some(project_name) = &project {
+        let count_before = indexed_tasks.len();
+        indexed_tasks.retain(|(_, t)| {
+            t.project
+                .as_deref()
+                .map(|p| p.to_lowercase() == project_name.to_lowercase())
+                .unwrap_or(false)
+        });
+        if indexed_tasks.is_empty() && count_before > 0 {
+            return Err(TodoError::ProjectNotFound(project_name.to_owned()).into());
+        }
+    }
+
     if let Some(recur_filter) = recur {
         indexed_tasks.retain(|(_, t)| match recur_filter {
             RecurrenceFilter::Daily => t.recurrence == Some(Recurrence::Daily),
@@ -59,7 +69,6 @@ pub fn execute(
         return Err(TodoError::NoTasksFound.into());
     }
 
-    // Apply sorting if requested
     if let Some(sort_by) = sort {
         match sort_by {
             SortBy::Priority => {
@@ -67,7 +76,7 @@ pub fn execute(
             }
             SortBy::Due => {
                 indexed_tasks.sort_by(|(_, a), (_, b)| match (a.due_date, b.due_date) {
-                    (Some(date_a), Some(date_b)) => date_a.cmp(&date_b),
+                    (Some(da), Some(db)) => da.cmp(&db),
                     (Some(_), None) => std::cmp::Ordering::Less,
                     (None, Some(_)) => std::cmp::Ordering::Greater,
                     (None, None) => std::cmp::Ordering::Equal,
@@ -79,21 +88,22 @@ pub fn execute(
         }
     }
 
-    // Determine appropriate title based on active filters
-    let title = determine_title(status, priority, due, recur);
-
-    display_lists(&indexed_tasks, title);
+    let title = determine_title(status, priority, due, project.as_deref(), recur);
+    display_lists(&indexed_tasks, &title);
     Ok(())
 }
 
-/// Determines the appropriate title based on active filters.
 fn determine_title(
     status: StatusFilter,
     priority: Option<Priority>,
     due: Option<DueFilter>,
+    project: Option<&str>,
     recur: Option<RecurrenceFilter>,
-) -> &'static str {
-    // Recurrence-specific titles
+) -> String {
+    if let Some(p) = project {
+        return format!("Tasks in project \"{}\"", p);
+    }
+
     if let Some(recur_filter) = recur {
         return match (status, recur_filter) {
             (StatusFilter::Pending, RecurrenceFilter::Daily) => "Pending daily recurring tasks",
@@ -113,17 +123,17 @@ fn determine_title(
             (StatusFilter::All, RecurrenceFilter::Monthly) => "Monthly recurring tasks",
             (StatusFilter::All, RecurrenceFilter::Recurring) => "Recurring tasks",
             (StatusFilter::All, RecurrenceFilter::NonRecurring) => "Non-recurring tasks",
-        };
+        }
+        .to_string();
     }
 
-    // Original title logic (without recurrence filter)
     match (status, priority, due) {
-        (StatusFilter::Pending, Some(Priority::High), None) => "High priority pending tasks",
-        (StatusFilter::Pending, Some(Priority::Medium), None) => "Medium priority pending tasks",
-        (StatusFilter::Pending, Some(Priority::Low), None) => "Low priority pending tasks",
+        (StatusFilter::Pending, Some(Priority::High), _) => "High priority pending tasks",
+        (StatusFilter::Pending, Some(Priority::Medium), _) => "Medium priority pending tasks",
+        (StatusFilter::Pending, Some(Priority::Low), _) => "Low priority pending tasks",
         (StatusFilter::Pending, None, Some(DueFilter::Overdue)) => "Pending overdue tasks",
         (StatusFilter::Pending, None, Some(DueFilter::Soon)) => "Pending tasks due soon",
-        (StatusFilter::Pending, None, None) => "Pending tasks",
+        (StatusFilter::Pending, None, _) => "Pending tasks",
         (StatusFilter::Done, _, _) => "Completed tasks",
         (StatusFilter::All, Some(Priority::High), _) => "High priority tasks",
         (StatusFilter::All, Some(Priority::Medium), _) => "Medium priority tasks",
@@ -134,4 +144,5 @@ fn determine_title(
         (StatusFilter::All, None, Some(DueFilter::NoDue)) => "Tasks without due date",
         _ => "Tasks",
     }
+    .to_string()
 }

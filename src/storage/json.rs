@@ -92,6 +92,7 @@ mod tests {
             vec![],
             None,
             None,
+            None,
         )];
         storage.save(&tasks).unwrap();
 

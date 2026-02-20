@@ -9,6 +9,7 @@ pub fn execute(
     storage: &impl Storage,
     query: String,
     tag: Option<String>,
+    project: Option<String>,
     status: StatusFilter,
 ) -> Result<()> {
     let tasks = storage.load()?;
@@ -25,6 +26,15 @@ pub fn execute(
     // Apply tag filter if specified
     if let Some(tag_name) = &tag {
         results.retain(|(_, task)| task.tags.contains(tag_name));
+    }
+
+    if let Some(project_name) = &project {
+        results.retain(|(_, task)| {
+            task.project
+                .as_deref()
+                .map(|p| p.to_lowercase() == project_name.to_lowercase())
+                .unwrap_or(false)
+        });
     }
 
     if results.is_empty() {

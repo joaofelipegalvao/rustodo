@@ -21,11 +21,17 @@ pub enum TodoError {
     #[error("Tag '{0}' not found in any task")]
     TagNotFound(String),
 
+    #[error("Project '{0} not found in any task'")]
+    ProjectNotFound(String),
+
     #[error("No tasks found matching the specified filters")]
     NoTasksFound,
 
     #[error("No tags found in any task")]
     NoTagsFound,
+
+    #[error("No projects found in any task")]
+    NoProjectsFound,
 
     #[error("Search returned no results for query: '{0}'")]
     NoSearchResults(String),
@@ -51,6 +57,13 @@ pub enum TodoError {
 
     #[error("Duplicate tag: '{tag}' (tags must be unique, case-insensitive)")]
     DuplicateTag { tag: String },
+
+    // === Project Validation Erros ===
+    #[error("Project name cannot be empty")]
+    EmptyProjectName,
+
+    #[error("Project name too long (max: {max} characters, actual: {actual} characters)")]
+    ProjectNameTooLong { max: usize, actual: usize },
 
     // === Date Validation Errors ===
     #[error("Due date cannot be in the past: {date}")]

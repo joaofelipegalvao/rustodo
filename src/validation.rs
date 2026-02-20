@@ -118,6 +118,24 @@ pub fn validate_tags(tags: &[String]) -> Result<(), TodoError> {
     Ok(())
 }
 
+pub fn validate_project_name(name: &str) -> Result<(), TodoError> {
+    let trimmed = name.trim();
+
+    if trimmed.is_empty() {
+        return Err(TodoError::EmptyProjectName);
+    }
+
+    const MAX_LENGTH: usize = 100;
+    if trimmed.len() > MAX_LENGTH {
+        return Err(TodoError::ProjectNameTooLong {
+            max: MAX_LENGTH,
+            actual: trimmed.len(),
+        });
+    }
+
+    Ok(())
+}
+
 /// Validates due date is not in the past (for new tasks)
 ///
 /// # Arguments
@@ -182,6 +200,28 @@ pub fn validate_task(task: &Task, is_new: bool) -> Result<(), TodoError> {
 mod tests {
     use super::*;
     use crate::models::Priority;
+
+    #[test]
+    fn test_validate_project_name_valid() {
+        assert!(validate_project_name("Work").is_ok());
+        assert!(validate_project_name("My project").is_ok());
+        assert!(validate_project_name("Rust learning 2026").is_ok());
+        assert!(validate_project_name("  trimmed  ").is_ok());
+    }
+
+    #[test]
+    fn test_validate_project_name_empty() {
+        assert!(validate_project_name("").is_err());
+        assert!(validate_project_name("   ").is_err());
+    }
+
+    #[test]
+    fn test_validate_project_name_too_long() {
+        let long = "x".repeat(101);
+        assert!(validate_project_name(&long).is_err());
+        let exactly_max = "x".repeat(100);
+        assert!(validate_project_name(&exactly_max).is_ok());
+    }
 
     #[test]
     fn test_validate_task_id() {
@@ -303,6 +343,7 @@ mod tests {
             "Valid task".to_string(),
             Priority::Medium,
             vec!["work".to_string()],
+            None,
             Some(future),
             None,
         );
@@ -343,6 +384,7 @@ mod tests {
             "Past task".to_string(),
             Priority::High,
             vec![],
+            None,
             Some(yesterday),
             None,
         );

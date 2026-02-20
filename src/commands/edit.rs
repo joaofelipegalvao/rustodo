@@ -14,6 +14,8 @@ pub fn execute(
     priority: Option<Priority>,
     add_tag: Vec<String>,
     remove_tag: Vec<String>,
+    project: Option<String>,
+    clear_project: bool,
     due: Option<NaiveDate>,
     clear_due: bool,
     clear_tags: bool,
@@ -43,6 +45,20 @@ pub fn execute(
     {
         task.priority = new_priority;
         changes.push(format!("priority → {}", new_priority.letter()));
+    }
+
+    // Update project
+    if clear_project {
+        if task.project.is_some() {
+            let old = task.project.take().unwrap();
+            changes.push(format!("project cleared -> was {}", old.dimmed()));
+        }
+    } else if let Some(new_project) = project {
+        validation::validate_project_name(&new_project)?;
+        if task.project.as_deref() != Some(&new_project) {
+            task.project = Some(new_project.clone());
+            changes.push(format!("project -> {}", new_project.cyan()));
+        }
     }
 
     // Update tags

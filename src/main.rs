@@ -85,6 +85,7 @@ fn run(cli: Cli, storage: &impl Storage) -> Result<()> {
                 args.text,
                 args.priority,
                 args.tag,
+                args.project,
                 due_date,
                 args.recurrence,
             )
@@ -96,8 +97,9 @@ fn run(cli: Cli, storage: &impl Storage) -> Result<()> {
             due,
             sort,
             tag,
+            project,
             recurrence: recur,
-        } => commands::list::execute(storage, status, priority, due, sort, tag, recur),
+        } => commands::list::execute(storage, status, priority, due, sort, tag, project, recur),
 
         Commands::Done { id } => commands::done::execute(storage, id),
 
@@ -111,6 +113,8 @@ fn run(cli: Cli, storage: &impl Storage) -> Result<()> {
             priority,
             add_tag,
             remove_tag,
+            project,
+            clear_project,
             due,
             clear_due,
             clear_tags,
@@ -123,17 +127,32 @@ fn run(cli: Cli, storage: &impl Storage) -> Result<()> {
             };
 
             commands::edit::execute(
-                storage, id, text, priority, add_tag, remove_tag, due_date, clear_due, clear_tags,
+                storage,
+                id,
+                text,
+                priority,
+                add_tag,
+                remove_tag,
+                project,
+                clear_project,
+                due_date,
+                clear_due,
+                clear_tags,
             )
         }
 
         Commands::Clear { yes } => commands::clear::execute(storage, yes),
 
-        Commands::Search { query, tag, status } => {
-            commands::search::execute(storage, query, tag, status)
-        }
+        Commands::Search {
+            query,
+            tag,
+            project,
+            status,
+        } => commands::search::execute(storage, query, tag, project, status),
 
         Commands::Tags => commands::tags::execute(storage),
+
+        Commands::Projects => commands::projects::execute(storage),
 
         Commands::Info => commands::info::execute(),
 

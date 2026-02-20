@@ -64,12 +64,12 @@ impl Default for TestEnv {
 
 /// Create a simple task with default values
 pub fn simple_task(text: &str) -> Task {
-    Task::new(text.to_string(), Priority::Medium, vec![], None, None)
+    Task::new(text.to_string(), Priority::Medium, vec![], None, None, None)
 }
 
 /// Create a task with a specific priority
 pub fn task_with_priority(text: &str, priority: Priority) -> Task {
-    Task::new(text.to_string(), priority, vec![], None, None)
+    Task::new(text.to_string(), priority, vec![], None, None, None)
 }
 
 /// Create a task with tags
@@ -78,6 +78,7 @@ pub fn task_with_tags(text: &str, tags: Vec<&str>) -> Task {
         text.to_string(),
         Priority::Medium,
         tags.into_iter().map(|s| s.to_string()).collect(),
+        None,
         None,
         None,
     )
@@ -89,6 +90,7 @@ pub fn task_with_due(text: &str, due_date: NaiveDate) -> Task {
         text.to_string(),
         Priority::Medium,
         vec![],
+        None,
         Some(due_date),
         None,
     )
@@ -100,6 +102,7 @@ pub fn recurring_task(text: &str, due_date: NaiveDate, recurrence: Recurrence) -
         text.to_string(),
         Priority::Medium,
         vec![],
+        None,
         Some(due_date),
         Some(recurrence),
     )
@@ -117,6 +120,7 @@ pub fn custom_task(
         text.to_string(),
         priority,
         tags.into_iter().map(|s| s.to_string()).collect(),
+        None,
         due_date,
         recurrence,
     )

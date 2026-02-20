@@ -17,6 +17,7 @@ fn test_add_simple_task() {
         vec![],
         None,
         None,
+        None,
     );
 
     assert!(result.is_ok());
@@ -42,6 +43,7 @@ fn test_add_task_with_all_metadata() {
         "Complete project".to_string(),
         Priority::High,
         vec!["work".to_string(), "urgent".to_string()],
+        None,
         Some(due_date),
         Some(Recurrence::Weekly),
     );
@@ -70,6 +72,7 @@ fn test_add_multiple_tasks_preserves_order() {
         vec![],
         None,
         None,
+        None,
     )
     .unwrap();
     add::execute(
@@ -79,6 +82,7 @@ fn test_add_multiple_tasks_preserves_order() {
         vec![],
         None,
         None,
+        None,
     )
     .unwrap();
     add::execute(
@@ -86,6 +90,7 @@ fn test_add_multiple_tasks_preserves_order() {
         "Task 3".to_string(),
         Priority::High,
         vec![],
+        None,
         None,
         None,
     )
@@ -107,6 +112,7 @@ fn test_add_recurring_task_requires_due_date() {
         "Daily standup".to_string(),
         Priority::Medium,
         vec![],
+        None,
         None, // No due date
         Some(Recurrence::Daily),
     );
@@ -128,6 +134,7 @@ fn test_add_empty_text_fails() {
         vec![],
         None,
         None,
+        None,
     );
 
     assert!(result.is_err());
@@ -145,6 +152,7 @@ fn test_add_whitespace_only_text_fails() {
         vec![],
         None,
         None,
+        None,
     );
 
     assert!(result.is_err());
@@ -160,6 +168,7 @@ fn test_add_with_invalid_tags_fails() {
         "Task".to_string(),
         Priority::Medium,
         vec!["invalid tag".to_string()],
+        None,
         None,
         None,
     );
@@ -182,6 +191,7 @@ fn test_add_with_duplicate_tags_fails() {
         "Task".to_string(),
         Priority::Medium,
         vec!["work".to_string(), "Work".to_string()], // Case-insensitive duplicate
+        None,
         None,
         None,
     );

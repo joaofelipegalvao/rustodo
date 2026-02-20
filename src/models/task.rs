@@ -20,6 +20,9 @@ pub struct Task {
     pub priority: Priority,
     /// List of tags for categorization
     pub tags: Vec<String>,
+    /// Optional project this task belongs to
+    #[serde(default)]
+    pub project: Option<String>,
     /// Optional due date for deadline tracking
     pub due_date: Option<NaiveDate>,
     /// Date when the task was created
@@ -42,6 +45,7 @@ impl Task {
         text: String,
         priority: Priority,
         tags: Vec<String>,
+        project: Option<String>,
         due_date: Option<NaiveDate>,
         recurrence: Option<Recurrence>,
     ) -> Self {
@@ -50,6 +54,7 @@ impl Task {
             completed: false,
             priority,
             tags,
+            project,
             due_date,
             created_at: Local::now().naive_local().date(),
             recurrence,
@@ -148,6 +153,7 @@ impl Task {
     ///     completed: true,
     ///     priority: todo_cli::models::Priority::Medium,
     ///     tags: vec![],
+    ///     project: None,
     ///     due_date: Some(NaiveDate::from_ymd_opt(2025, 2, 10).unwrap()),
     ///     created_at: NaiveDate::from_ymd_opt(2025, 2, 1).unwrap(),
     ///     recurrence: Some(Recurrence::Weekly),
@@ -171,6 +177,7 @@ impl Task {
             self.text.clone(),
             self.priority,
             self.tags.clone(),
+            self.project.clone(),
             Some(next_due),
             Some(recurrence),
         );
@@ -190,17 +197,21 @@ impl Task {
 mod tests {
     use super::*;
 
-    #[test]
-    fn test_daily_recurrence() {
-        let date = NaiveDate::from_ymd_opt(2026, 2, 10).unwrap();
-        let task = Task::new(
+    fn make_task(recurrence: Option<Recurrence>, due: Option<NaiveDate>) -> Task {
+        Task::new(
             "Test".to_string(),
             Priority::Medium,
             vec![],
-            Some(date),
-            Some(Recurrence::Daily),
-        );
+            None,
+            due,
+            recurrence,
+        )
+    }
 
+    #[test]
+    fn test_daily_recurrence() {
+        let date = NaiveDate::from_ymd_opt(2026, 2, 10).unwrap();
+        let task = make_task(Some(Recurrence::Daily), Some(date));
         let next = task.create_next_recurrence(1).unwrap();
         assert_eq!(
             next.due_date,
@@ -212,14 +223,7 @@ mod tests {
     #[test]
     fn test_weekly_recurrence() {
         let date = NaiveDate::from_ymd_opt(2026, 2, 10).unwrap();
-        let task = Task::new(
-            "Test".to_string(),
-            Priority::Medium,
-            vec![],
-            Some(date),
-            Some(Recurrence::Weekly),
-        );
-
+        let task = make_task(Some(Recurrence::Weekly), Some(date));
         let next = task.create_next_recurrence(1).unwrap();
         assert_eq!(
             next.due_date,
@@ -230,14 +234,7 @@ mod tests {
     #[test]
     fn test_monthly_recurrence() {
         let date = NaiveDate::from_ymd_opt(2026, 2, 10).unwrap();
-        let task = Task::new(
-            "Test".to_string(),
-            Priority::Medium,
-            vec![],
-            Some(date),
-            Some(Recurrence::Monthly),
-        );
-
+        let task = make_task(Some(Recurrence::Monthly), Some(date));
         let next = task.create_next_recurrence(1).unwrap();
         assert_eq!(
             next.due_date,
@@ -247,18 +244,9 @@ mod tests {
 
     #[test]
     fn test_monthly_boundary_case() {
-        // January 31 -> February should handle correctly
         let date = NaiveDate::from_ymd_opt(2026, 1, 31).unwrap();
-        let task = Task::new(
-            "Test".to_string(),
-            Priority::Medium,
-            vec![],
-            Some(date),
-            Some(Recurrence::Monthly),
-        );
-
+        let task = make_task(Some(Recurrence::Monthly), Some(date));
         let next = task.create_next_recurrence(1).unwrap();
-        // February 2026 has 28 days
         assert_eq!(
             next.due_date,
             Some(NaiveDate::from_ymd_opt(2026, 2, 28).unwrap())
@@ -267,41 +255,29 @@ mod tests {
 
     #[test]
     fn test_no_recurrence_returns_none() {
-        let task = Task::new(
-            "Test".to_string(),
-            Priority::Medium,
-            vec![],
-            Some(NaiveDate::from_ymd_opt(2026, 2, 10).unwrap()),
-            None,
-        );
-
+        let task = make_task(None, Some(NaiveDate::from_ymd_opt(2026, 2, 10).unwrap()));
         assert!(task.create_next_recurrence(1).is_none());
     }
 
     #[test]
     fn test_no_due_date_returns_none() {
-        let task = Task::new(
-            "Test".to_string(),
-            Priority::Medium,
-            vec![],
-            None,
-            Some(Recurrence::Daily),
-        );
-
+        let task = make_task(Some(Recurrence::Daily), None);
         assert!(task.create_next_recurrence(1).is_none());
+    }
+
+    #[test]
+    fn test_project_preserved_in_recurrence() {
+        let date = NaiveDate::from_ymd_opt(2026, 2, 10).unwrap();
+        let mut task = make_task(Some(Recurrence::Daily), Some(date));
+        task.project = Some("work".to_string());
+        let next = task.create_next_recurrence(1).unwrap();
+        assert_eq!(next.project, Some("work".to_string()));
     }
 
     #[test]
     fn test_parent_id_preserved() {
         let date = NaiveDate::from_ymd_opt(2026, 2, 10).unwrap();
-        let task = Task::new(
-            "Test".to_string(),
-            Priority::Medium,
-            vec![],
-            Some(date),
-            Some(Recurrence::Daily),
-        );
-
+        let task = make_task(Some(Recurrence::Daily), Some(date));
         let next = task.create_next_recurrence(42).unwrap();
         assert_eq!(next.parent_id, Some(42));
     }

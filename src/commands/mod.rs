@@ -5,6 +5,7 @@ pub mod done;
 pub mod edit;
 pub mod info;
 pub mod list;
+pub mod projects;
 pub mod recur;
 pub mod remove;
 pub mod search;

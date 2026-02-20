@@ -18,6 +18,7 @@ fn test_search_returns_completed_tasks_mixed_with_pending() {
         vec![],
         None,
         None,
+        None,
     )
     .unwrap();
 
@@ -26,6 +27,7 @@ fn test_search_returns_completed_tasks_mixed_with_pending() {
         "Buy milk".to_string(),
         Priority::Medium,
         vec![],
+        None,
         None,
         None,
     )

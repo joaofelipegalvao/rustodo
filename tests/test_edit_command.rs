@@ -18,6 +18,7 @@ fn test_edit_text() {
         vec![],
         None,
         None,
+        None,
     )
     .unwrap();
 
@@ -30,8 +31,10 @@ fn test_edit_text() {
         vec![], // add_tag
         vec![], // remove_tag
         None,   // due
-        false,  // clear_due
-        false,  // clear_tags
+        false,
+        None,
+        false, // clear_due
+        false, // clear_tags
     );
 
     assert!(result.is_ok());
@@ -52,6 +55,7 @@ fn test_edit_priority() {
         vec![],
         None,
         None,
+        None,
     )
     .unwrap();
 
@@ -62,6 +66,8 @@ fn test_edit_priority() {
         Some(Priority::High), // Change to High
         vec![],
         vec![],
+        None,
+        false,
         None,
         false,
         false,
@@ -84,6 +90,7 @@ fn test_edit_add_invalid_tag_fails() {
         vec![],
         None,
         None,
+        None,
     )
     .unwrap();
 
@@ -94,6 +101,8 @@ fn test_edit_add_invalid_tag_fails() {
         None,
         vec!["invalid tag".to_string()],
         vec![],
+        None,
+        false,
         None,
         false,
         false,
@@ -120,6 +129,7 @@ fn test_edit_add_tags_preserves_existing() {
         vec!["work".to_string()],
         None,
         None,
+        None,
     )
     .unwrap();
 
@@ -131,6 +141,8 @@ fn test_edit_add_tags_preserves_existing() {
         None,
         vec!["urgent".to_string()], // Add tag
         vec![],
+        None,
+        false,
         None,
         false,
         false,
@@ -161,6 +173,7 @@ fn test_edit_remove_specific_tag() {
         ],
         None,
         None,
+        None,
     )
     .unwrap();
 
@@ -172,6 +185,8 @@ fn test_edit_remove_specific_tag() {
         None,
         vec![],
         vec!["urgent".to_string()], // Remove only this
+        None,
+        false,
         None,
         false,
         false,
@@ -199,6 +214,7 @@ fn test_edit_add_and_remove_tags_simultaneously() {
         vec!["work".to_string(), "old".to_string()],
         None,
         None,
+        None,
     )
     .unwrap();
 
@@ -210,6 +226,8 @@ fn test_edit_add_and_remove_tags_simultaneously() {
         None,
         vec!["new".to_string()], // Add
         vec!["old".to_string()], // Remove
+        None,
+        false,
         None,
         false,
         false,
@@ -237,6 +255,7 @@ fn test_edit_clear_all_tags() {
         vec!["work".to_string(), "urgent".to_string()],
         None,
         None,
+        None,
     )
     .unwrap();
 
@@ -248,6 +267,8 @@ fn test_edit_clear_all_tags() {
         None,
         vec![],
         vec![],
+        None,
+        false,
         None,
         false,
         true, // clear_tags
@@ -272,6 +293,7 @@ fn test_edit_remove_nonexistent_tag_fails() {
         vec!["work".to_string()],
         None,
         None,
+        None,
     )
     .unwrap();
 
@@ -283,6 +305,8 @@ fn test_edit_remove_nonexistent_tag_fails() {
         None,
         vec![],
         vec!["nonexistent".to_string()],
+        None,
+        false,
         None,
         false,
         false,
@@ -312,6 +336,8 @@ fn test_edit_invalid_id() {
         vec![],
         None,
         false,
+        None,
+        false,
         false,
     );
 
@@ -330,6 +356,7 @@ fn test_edit_due_date() {
         vec![],
         None,
         None,
+        None,
     )
     .unwrap();
 
@@ -342,6 +369,8 @@ fn test_edit_due_date() {
         None,
         vec![],
         vec![],
+        None,
+        false,
         Some(due_date), // Set due date
         false,
         false,
@@ -363,6 +392,7 @@ fn test_edit_clear_due_date() {
         "Task".to_string(),
         Priority::Medium,
         vec![],
+        None,
         Some(due_date),
         None,
     )
@@ -375,6 +405,8 @@ fn test_edit_clear_due_date() {
         None,
         vec![],
         vec![],
+        None,
+        false,
         None,
         true, // clear_due
         false,
