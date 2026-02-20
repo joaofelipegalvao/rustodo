@@ -5,33 +5,31 @@ use crate::models::{DueFilter, Priority, Recurrence, RecurrenceFilter, SortBy, S
 #[derive(Parser)]
 #[command(name = "todo-list")]
 #[command(author = "github.com/joaofelipegalvao")]
-#[command(version = "2.2.0")]
+#[command(version = "2.4.0")]
 #[command(about = "A modern, powerful task manager built with Rust", long_about = None)]
 #[command(after_help = "EXAMPLES:\n    \
-    # Add a high priority task\n    \
-    todo add \"Complete Rust project\" --priority high --tag work --due 2025-02-15\n\n    \
+    # Add a high priority task with a natural language date\n    \
+    todo add \"Complete Rust project\" --priority high --tag work --due \"next friday\"\n\n    \
+    # Add a task due in 3 days\n    \
+    todo add \"Review PR\" --due \"in 3 days\"\n\n    \
+    # Add a task with strict date format\n    \
+    todo add \"Project deadline\" --due 2026-03-15\n\n    \
     # Add a recurring task\n    \
-    todo add \"Weekly review\" --due 2026-02-17 --recurrence weekly\n\n    \
+    todo add \"Weekly review\" --due \"next monday\" --recurrence weekly\n\n    \
     # List pending high priority tasks\n    \
     todo list --status pending --priority high\n\n    \
     # List only daily recurring tasks\n    \
     todo list --recurrence daily\n\n    \
-    # List any recurring tasks\n    \
-    todo list --recurrence recurring\n\n    \
-    # List non-recurring tasks\n    \
-    todo list --recurrence non-recurring\n\n    \
     # List overdue tasks sorted by due date\n    \
     todo list --due overdue --sort due\n\n    \
-    # Combine filters: pending high-priority weekly tasks\n    \
-    todo list --status pending --priority high --recurrence weekly\n\n    \
+    # Edit task due date with natural language\n    \
+    todo edit 3 --due \"next monday\"\n\n    \
     # Search for tasks\n    \
     todo search rust\n\n    \
     # Mark task as completed (auto-creates next recurrence)\n    \
     todo done 3\n\n    \
     # Set recurrence pattern\n    \
-    todo recur 5 daily\n\n    \
-    # Remove recurrence\n    \
-    todo norecur 5\n\n\
+    todo recur 5 daily\n\n\
 For more information, visit: https://github.com/joaofelipegalvao/todo-cli
 ")]
 pub struct Cli {
@@ -46,6 +44,11 @@ pub enum Commands {
     #[command(long_about = "Add a new task to your todo list\n\n\
         Creates a new task with the specified text and optional metadata like priority,\n\
         tags, and due date. Tasks are saved immediately to todos.json.\n\n\
+        Due dates accept both natural language and strict YYYY-MM-DD format:\n  \
+        todo add \"Meeting\" --due tomorrow\n  \
+        todo add \"Deploy\" --due \"next friday\"\n  \
+        todo add \"Report\" --due \"in 3 days\"\n  \
+        todo add \"Deadline\" --due 2026-03-15\n\n\
         Use --recurrence to make the task repeat automatically when completed.")]
     Add(AddArgs),
 
@@ -129,7 +132,12 @@ pub enum Commands {
     #[command(long_about = "Edit an existing task\n\n\
         Modify task properties like text, priority, tags, or due date.\n\
         Only specify the fields you want to change.\n\n\
-        Examples:\n  \
+        Due dates accept natural language or YYYY-MM-DD:\n  \
+        todo edit 3 --due tomorrow\n  \
+        todo edit 3 --due \"next monday\"\n  \
+        todo edit 3 --due \"in 5 days\"\n  \
+        todo edit 3 --due 2026-04-01\n\n\
+        Tag operations:\n  \
         todo edit 1 --add-tag urgent,critical     # Add multiple tags\n  \
         todo edit 1 --remove-tag work,team        # Remove multiple tags\n  \
         todo edit 1 --add-tag urgent --remove-tag team  # Combine operations")]
@@ -138,7 +146,7 @@ pub enum Commands {
         #[arg(value_name = "ID")]
         id: usize,
 
-        /// New Task description
+        /// New task description
         #[arg(long)]
         text: Option<String>,
 
@@ -156,9 +164,9 @@ pub enum Commands {
         #[arg(long, value_delimiter = ',')]
         remove_tag: Vec<String>,
 
-        /// New due date (YYYY-MM-DD)
-        /// Examples: tomorrow, "next friday", "in 3 days", 2026-02-20
-        #[arg(long, value_name = "DATE")]
+        /// Due date — accepts natural language or YYYY-MM-DD format.
+        /// Examples: tomorrow, "next friday", "in 3 days", "in 2 weeks", 2026-02-20
+        #[arg(long, value_name = "DATE|EXPRESSION")]
         due: Option<String>,
 
         /// Remove due date
@@ -166,7 +174,7 @@ pub enum Commands {
         clear_due: bool,
 
         /// Remove all tags
-        #[arg(long, conflicts_with_all = ["add-tag", "remove_tag"])]
+        #[arg(long, conflicts_with_all = ["add_tag", "remove_tag"])]
         clear_tags: bool,
     },
 
@@ -230,7 +238,7 @@ pub enum Commands {
     #[command(visible_alias = "norecur")]
     #[command(long_about = "Remove recurrence pattern from a task\n\n\
         Stops a task from repeating automatically. The task will remain\n\
-        but won't create new occurrences when completed.\n\n
+        but won't create new occurrences when completed.\n\n\
         Aliases: norecur")]
     ClearRecur {
         /// Task ID number
@@ -254,9 +262,9 @@ pub struct AddArgs {
     #[arg(long, short = 't', value_name = "TAG", value_delimiter = ',')]
     pub tag: Vec<String>,
 
-    /// Due date in format YYYY-MM-DD (example: --due 2026-02-09)
-    /// Examples: tomorrow, "next friday", "in 3 days", 2026-02-20
-    #[arg(long, value_name = "DATE")]
+    /// Due date — accepts natural language or YYYY-MM-DD format.
+    /// Examples: tomorrow, "next friday", "in 3 days", "in 2 weeks", 2026-02-20
+    #[arg(long, value_name = "DATE|EXPRESSION")]
     pub due: Option<String>,
 
     /// Recurrence pattern (daily, weekly, monthly)

@@ -14,7 +14,7 @@ use colored::Colorize;
 
 mod cli;
 mod commands;
-mod date_parser; // ← ADICIONADO
+mod date_parser;
 mod display;
 mod error;
 mod models;
@@ -75,7 +75,7 @@ fn run(cli: Cli, storage: &impl Storage) -> Result<()> {
         Commands::Add(args) => {
             // Parse due date from string (supports natural language)
             let due_date = if let Some(due_str) = args.due {
-                Some(date_parser::parse_date(&due_str)?)
+                Some(date_parser::parse_date_not_in_past(&due_str)?)
             } else {
                 None
             };
