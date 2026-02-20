@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 //! Test utilities and fixtures
 
 use chrono::NaiveDate;

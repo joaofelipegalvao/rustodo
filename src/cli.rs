@@ -1,4 +1,3 @@
-use chrono::NaiveDate;
 use clap::{Args, Parser, Subcommand};
 
 use crate::models::{DueFilter, Priority, Recurrence, RecurrenceFilter, SortBy, StatusFilter};
@@ -158,8 +157,9 @@ pub enum Commands {
         remove_tag: Vec<String>,
 
         /// New due date (YYYY-MM-DD)
-        #[arg(long, value_parser = clap::value_parser!(NaiveDate))]
-        due: Option<NaiveDate>,
+        /// Examples: tomorrow, "next friday", "in 3 days", 2026-02-20
+        #[arg(long, value_name = "DATE")]
+        due: Option<String>,
 
         /// Remove due date
         #[arg(long, conflicts_with = "due")]
@@ -255,8 +255,9 @@ pub struct AddArgs {
     pub tag: Vec<String>,
 
     /// Due date in format YYYY-MM-DD (example: --due 2026-02-09)
-    #[arg(long, value_name = "DATE", value_parser = clap::value_parser!(NaiveDate))]
-    pub due: Option<NaiveDate>,
+    /// Examples: tomorrow, "next friday", "in 3 days", 2026-02-20
+    #[arg(long, value_name = "DATE")]
+    pub due: Option<String>,
 
     /// Recurrence pattern (daily, weekly, monthly)
     /// Requires a due date to be set

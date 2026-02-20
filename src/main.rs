@@ -14,6 +14,7 @@ use colored::Colorize;
 
 mod cli;
 mod commands;
+mod date_parser; // ← ADICIONADO
 mod display;
 mod error;
 mod models;
@@ -71,14 +72,23 @@ fn main() {
 /// - No tasks match the specified filters
 fn run(cli: Cli, storage: &impl Storage) -> Result<()> {
     match cli.command {
-        Commands::Add(args) => commands::add::execute(
-            storage,
-            args.text,
-            args.priority,
-            args.tag,
-            args.due,
-            args.recurrence,
-        ),
+        Commands::Add(args) => {
+            // Parse due date from string (supports natural language)
+            let due_date = if let Some(due_str) = args.due {
+                Some(date_parser::parse_date(&due_str)?)
+            } else {
+                None
+            };
+
+            commands::add::execute(
+                storage,
+                args.text,
+                args.priority,
+                args.tag,
+                due_date,
+                args.recurrence,
+            )
+        }
 
         Commands::List {
             status,
@@ -104,9 +114,18 @@ fn run(cli: Cli, storage: &impl Storage) -> Result<()> {
             due,
             clear_due,
             clear_tags,
-        } => commands::edit::execute(
-            storage, id, text, priority, add_tag, remove_tag, due, clear_due, clear_tags,
-        ),
+        } => {
+            // Parse due date from string (supports natural language)
+            let due_date = if let Some(due_str) = due {
+                Some(date_parser::parse_date(&due_str)?)
+            } else {
+                None
+            };
+
+            commands::edit::execute(
+                storage, id, text, priority, add_tag, remove_tag, due_date, clear_due, clear_tags,
+            )
+        }
 
         Commands::Clear { yes } => commands::clear::execute(storage, yes),
 
