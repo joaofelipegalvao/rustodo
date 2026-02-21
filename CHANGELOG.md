@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.6.1](https://github.com/joaofelipegalvao/todo-cli/compare/v2.6.0..v2.6.1) - 2026-02-21
+
+### Refactoring
+
+- Simplify error handling and if-let patterns - ([ff4ad5d](https://github.com/joaofelipegalvao/todo-cli/commit/ff4ad5d84dd03b833a96a32a67185df1f3f3cad6))
+
+### Documentation
+
+- *(changelog)* Update for 2.6.0 [skip ci] - ([0d5096e](https://github.com/joaofelipegalvao/todo-cli/commit/0d5096e0715b34a23d0630e35c5ce773321b83c1))
 ## [2.6.0](https://github.com/joaofelipegalvao/todo-cli/compare/v2.5.0..v2.6.0) - 2026-02-20
 
 ### Features
@@ -280,6 +289,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Features
 
 - V1 - basic todo CLI with add/list commands - ([9580ae2](https://github.com/joaofelipegalvao/todo-cli/commit/9580ae297837c9a6c5d4b18868d2f3abac1b1b9e))
+[2.6.1]: https://github.com/joaofelipegalvao/todo-cli/compare/v2.6.0...v2.6.1
 [2.6.0]: https://github.com/joaofelipegalvao/todo-cli/compare/v2.5.0...v2.6.0
 [2.5.0]: https://github.com/joaofelipegalvao/todo-cli/compare/v2.4.1...v2.5.0
 [2.4.1]: https://github.com/joaofelipegalvao/todo-cli/compare/v2.4.0...v2.4.1
