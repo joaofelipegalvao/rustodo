@@ -237,11 +237,11 @@ pub fn detect_cycle(tasks: &[Task], task_id: usize, new_dep_id: usize) -> Result
             ));
         }
 
-        if visited.insert(current) {
-            if let Some(t) = tasks.get(current.saturating_sub(1)) {
-                for &d in &t.depends_on {
-                    stack.push(d);
-                }
+        if visited.insert(current)
+            && let Some(t) = tasks.get(current.saturating_sub(1))
+        {
+            for &d in &t.depends_on {
+                stack.push(d);
             }
         }
     }

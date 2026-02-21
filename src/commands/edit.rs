@@ -35,7 +35,7 @@ pub fn execute(
             return Err(TodoError::SelfDependency { task_id: id }.into());
         }
         validate_task_id(dep_id, tasks.len())?;
-        detect_cycle(&tasks, id, dep_id).map_err(|msg| TodoError::DependencyCycle(msg))?;
+        detect_cycle(&tasks, id, dep_id).map_err(TodoError::DependencyCycle)?;
         if tasks[id - 1].depends_on.contains(&dep_id) {
             return Err(TodoError::DuplicateDependency {
                 task_id: id,
