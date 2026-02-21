@@ -10,5 +10,6 @@ pub mod projects;
 pub mod recur;
 pub mod remove;
 pub mod search;
+pub mod stats;
 pub mod tags;
 pub mod undone;

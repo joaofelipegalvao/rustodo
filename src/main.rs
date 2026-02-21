@@ -157,6 +157,8 @@ fn run(cli: Cli, storage: &impl Storage) -> Result<()> {
             status,
         } => commands::search::execute(storage, query, tag, project, status),
 
+        Commands::Stats => commands::stats::execute(storage),
+
         Commands::Tags => commands::tags::execute(storage),
 
         Commands::Projects => commands::projects::execute(storage),

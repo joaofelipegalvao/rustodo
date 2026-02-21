@@ -40,6 +40,9 @@ pub struct Task {
     /// IDs (1- based) of tasks that must be completed before this one
     #[serde(default)]
     pub depends_on: Vec<usize>,
+    /// Date when the task was marked as completed.
+    #[serde(default)]
+    pub completed_at: Option<NaiveDate>,
 }
 
 impl Task {
@@ -63,17 +66,20 @@ impl Task {
             recurrence,
             parent_id: None,
             depends_on: Vec::new(),
+            completed_at: None,
         }
     }
 
     /// Marks this task as completed.
     pub fn mark_done(&mut self) {
         self.completed = true;
+        self.completed_at = Some(Local::now().naive_local().date());
     }
 
     /// Marks this task as pending (not completed).
     pub fn mark_undone(&mut self) {
         self.completed = false;
+        self.completed_at = None;
     }
 
     /// Checks if this is overdue.
