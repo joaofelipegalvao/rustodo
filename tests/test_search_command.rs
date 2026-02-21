@@ -19,6 +19,7 @@ fn test_search_returns_completed_tasks_mixed_with_pending() {
         None,
         None,
         None,
+        vec![],
     )
     .unwrap();
 
@@ -30,6 +31,7 @@ fn test_search_returns_completed_tasks_mixed_with_pending() {
         None,
         None,
         None,
+        vec![],
     )
     .unwrap();
 

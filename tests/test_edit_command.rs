@@ -19,6 +19,7 @@ fn test_edit_text() {
         None,
         None,
         None,
+        vec![],
     )
     .unwrap();
 
@@ -35,6 +36,9 @@ fn test_edit_text() {
         None,
         false, // clear_due
         false, // clear_tags
+        vec![],
+        vec![],
+        false,
     );
 
     assert!(result.is_ok());
@@ -56,6 +60,7 @@ fn test_edit_priority() {
         None,
         None,
         None,
+        vec![],
     )
     .unwrap();
 
@@ -70,6 +75,9 @@ fn test_edit_priority() {
         false,
         None,
         false,
+        false,
+        vec![],
+        vec![],
         false,
     );
 
@@ -91,6 +99,7 @@ fn test_edit_add_invalid_tag_fails() {
         None,
         None,
         None,
+        vec![],
     )
     .unwrap();
 
@@ -105,6 +114,9 @@ fn test_edit_add_invalid_tag_fails() {
         false,
         None,
         false,
+        false,
+        vec![],
+        vec![],
         false,
     );
 
@@ -130,6 +142,7 @@ fn test_edit_add_tags_preserves_existing() {
         None,
         None,
         None,
+        vec![],
     )
     .unwrap();
 
@@ -145,6 +158,9 @@ fn test_edit_add_tags_preserves_existing() {
         false,
         None,
         false,
+        false,
+        vec![],
+        vec![],
         false,
     );
 
@@ -174,6 +190,7 @@ fn test_edit_remove_specific_tag() {
         None,
         None,
         None,
+        vec![],
     )
     .unwrap();
 
@@ -189,6 +206,9 @@ fn test_edit_remove_specific_tag() {
         false,
         None,
         false,
+        false,
+        vec![],
+        vec![],
         false,
     );
 
@@ -215,6 +235,7 @@ fn test_edit_add_and_remove_tags_simultaneously() {
         None,
         None,
         None,
+        vec![],
     )
     .unwrap();
 
@@ -230,6 +251,9 @@ fn test_edit_add_and_remove_tags_simultaneously() {
         false,
         None,
         false,
+        false,
+        vec![],
+        vec![],
         false,
     );
 
@@ -256,6 +280,7 @@ fn test_edit_clear_all_tags() {
         None,
         None,
         None,
+        vec![],
     )
     .unwrap();
 
@@ -272,6 +297,9 @@ fn test_edit_clear_all_tags() {
         None,
         false,
         true, // clear_tags
+        vec![],
+        vec![],
+        false,
     );
 
     assert!(result.is_ok());
@@ -294,6 +322,7 @@ fn test_edit_remove_nonexistent_tag_fails() {
         None,
         None,
         None,
+        vec![],
     )
     .unwrap();
 
@@ -309,6 +338,9 @@ fn test_edit_remove_nonexistent_tag_fails() {
         false,
         None,
         false,
+        false,
+        vec![],
+        vec![],
         false,
     );
 
@@ -339,6 +371,9 @@ fn test_edit_invalid_id() {
         None,
         false,
         false,
+        vec![],
+        vec![],
+        false,
     );
 
     assert!(result.is_err());
@@ -357,6 +392,7 @@ fn test_edit_due_date() {
         None,
         None,
         None,
+        vec![],
     )
     .unwrap();
 
@@ -373,6 +409,9 @@ fn test_edit_due_date() {
         false,
         Some(due_date), // Set due date
         false,
+        false,
+        vec![],
+        vec![],
         false,
     );
 
@@ -395,6 +434,7 @@ fn test_edit_clear_due_date() {
         None,
         Some(due_date),
         None,
+        vec![],
     )
     .unwrap();
 
@@ -409,6 +449,9 @@ fn test_edit_clear_due_date() {
         false,
         None,
         true, // clear_due
+        false,
+        vec![],
+        vec![],
         false,
     );
 

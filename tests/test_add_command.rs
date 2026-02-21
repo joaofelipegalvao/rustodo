@@ -18,6 +18,7 @@ fn test_add_simple_task() {
         None,
         None,
         None,
+        vec![],
     );
 
     assert!(result.is_ok());
@@ -46,6 +47,7 @@ fn test_add_task_with_all_metadata() {
         None,
         Some(due_date),
         Some(Recurrence::Weekly),
+        vec![],
     );
 
     assert!(result.is_ok());
@@ -73,6 +75,7 @@ fn test_add_multiple_tasks_preserves_order() {
         None,
         None,
         None,
+        vec![],
     )
     .unwrap();
     add::execute(
@@ -83,6 +86,7 @@ fn test_add_multiple_tasks_preserves_order() {
         None,
         None,
         None,
+        vec![],
     )
     .unwrap();
     add::execute(
@@ -93,6 +97,7 @@ fn test_add_multiple_tasks_preserves_order() {
         None,
         None,
         None,
+        vec![],
     )
     .unwrap();
 
@@ -115,6 +120,7 @@ fn test_add_recurring_task_requires_due_date() {
         None,
         None, // No due date
         Some(Recurrence::Daily),
+        vec![],
     );
 
     // Should fail validation
@@ -135,6 +141,7 @@ fn test_add_empty_text_fails() {
         None,
         None,
         None,
+        vec![],
     );
 
     assert!(result.is_err());
@@ -153,6 +160,7 @@ fn test_add_whitespace_only_text_fails() {
         None,
         None,
         None,
+        vec![],
     );
 
     assert!(result.is_err());
@@ -171,6 +179,7 @@ fn test_add_with_invalid_tags_fails() {
         None,
         None,
         None,
+        vec![],
     );
 
     assert!(result.is_err());
@@ -194,6 +203,7 @@ fn test_add_with_duplicate_tags_fails() {
         None,
         None,
         None,
+        vec![],
     );
 
     assert!(result.is_err());
