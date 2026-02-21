@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.8.0](https://github.com/joaofelipegalvao/todo-cli/compare/v2.7.0..v2.8.0) - 2026-02-21
+
+### Features
+
+- Add automatic tag normalization with fuzzy matching - ([4bcbfb2](https://github.com/joaofelipegalvao/todo-cli/commit/4bcbfb2b2f5c72f90865be21d8401f60c96f7ecf))
+
+### Documentation
+
+- *(changelog)* Update for 2.7.0 [skip ci] - ([0b71a1e](https://github.com/joaofelipegalvao/todo-cli/commit/0b71a1eaf71816072012d1f965b41ba614c5b48b))
 ## [2.7.0](https://github.com/joaofelipegalvao/todo-cli/compare/v2.6.1..v2.7.0) - 2026-02-21
 
 ### Features
@@ -298,6 +307,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Features
 
 - V1 - basic todo CLI with add/list commands - ([9580ae2](https://github.com/joaofelipegalvao/todo-cli/commit/9580ae297837c9a6c5d4b18868d2f3abac1b1b9e))
+[2.8.0]: https://github.com/joaofelipegalvao/todo-cli/compare/v2.7.0...v2.8.0
 [2.7.0]: https://github.com/joaofelipegalvao/todo-cli/compare/v2.6.1...v2.7.0
 [2.6.1]: https://github.com/joaofelipegalvao/todo-cli/compare/v2.6.0...v2.6.1
 [2.6.0]: https://github.com/joaofelipegalvao/todo-cli/compare/v2.5.0...v2.6.0
