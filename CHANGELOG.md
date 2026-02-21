@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.7.0](https://github.com/joaofelipegalvao/todo-cli/compare/v2.6.1..v2.7.0) - 2026-02-21
+
+### Features
+
+- Add stats command for productivity statistics - ([9d235a9](https://github.com/joaofelipegalvao/todo-cli/commit/9d235a93d7f76bcdca3a5ff34c1937d0e6963199))
+
+### Documentation
+
+- *(changelog)* Update for 2.6.1 [skip ci] - ([92e0dbe](https://github.com/joaofelipegalvao/todo-cli/commit/92e0dbe1b8b1a9d479d63d591e157a6d01bff198))
 ## [2.6.1](https://github.com/joaofelipegalvao/todo-cli/compare/v2.6.0..v2.6.1) - 2026-02-21
 
 ### Refactoring
@@ -289,6 +298,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Features
 
 - V1 - basic todo CLI with add/list commands - ([9580ae2](https://github.com/joaofelipegalvao/todo-cli/commit/9580ae297837c9a6c5d4b18868d2f3abac1b1b9e))
+[2.7.0]: https://github.com/joaofelipegalvao/todo-cli/compare/v2.6.1...v2.7.0
 [2.6.1]: https://github.com/joaofelipegalvao/todo-cli/compare/v2.6.0...v2.6.1
 [2.6.0]: https://github.com/joaofelipegalvao/todo-cli/compare/v2.5.0...v2.6.0
 [2.5.0]: https://github.com/joaofelipegalvao/todo-cli/compare/v2.4.1...v2.5.0
