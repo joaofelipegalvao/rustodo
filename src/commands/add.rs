@@ -5,6 +5,7 @@ use colored::Colorize;
 use crate::error::TodoError;
 use crate::models::{Priority, Recurrence, Task};
 use crate::storage::Storage;
+use crate::tag_normalizer::{collect_existing_tags, normalize_tags};
 use crate::validation;
 
 #[allow(clippy::too_many_arguments)]
@@ -30,16 +31,17 @@ pub fn execute(
 
     let new_id = tasks.len() + 1;
 
-    // Validate dependencies
     for &dep_id in &depends_on {
         if dep_id == new_id {
             return Err(TodoError::SelfDependency { task_id: new_id }.into());
         }
         validation::validate_task_id(dep_id, tasks.len())?;
-        // No cycle detection needed for new tasks - they have no dependents yet.
     }
 
-    let mut task = Task::new(text, priority, tags, project, due, recur);
+    let existing_tags = collect_existing_tags(&tasks);
+    let (normalized_tags, normalization_messages) = normalize_tags(tags, &existing_tags);
+
+    let mut task = Task::new(text, priority, normalized_tags, project, due, recur);
     task.depends_on = depends_on;
     tasks.push(task);
 
@@ -47,6 +49,10 @@ pub fn execute(
     storage.save(&tasks)?;
 
     let ok = "✓".green();
+
+    for msg in &normalization_messages {
+        println!("  {} Tag normalized: {}", "~".yellow(), msg.yellow());
+    }
 
     if let Some(pattern) = recur {
         println!("{} Added task #{} with {} recurrence", ok, id, pattern);

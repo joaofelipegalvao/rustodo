@@ -19,6 +19,7 @@ mod display;
 mod error;
 mod models;
 mod storage;
+mod tag_normalizer;
 mod utils;
 mod validation;
 

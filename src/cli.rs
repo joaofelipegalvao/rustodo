@@ -5,7 +5,7 @@ use crate::models::{DueFilter, Priority, Recurrence, RecurrenceFilter, SortBy, S
 #[derive(Parser)]
 #[command(name = "todo-list")]
 #[command(author = "github.com/joaofelipegalvao")]
-#[command(version = "2.7.0")]
+#[command(version = "2.8.0")]
 #[command(about = "A modern, powerful task manager built with Rust", long_about = None)]
 #[command(after_help = "EXAMPLES:\n    \
     # Add a task to a project with a natural language date\n    \

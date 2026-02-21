@@ -9,5 +9,6 @@ pub mod display;
 pub mod error;
 pub mod models;
 pub mod storage;
+pub mod tag_normalizer;
 pub mod utils;
 pub mod validation;

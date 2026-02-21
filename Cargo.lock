@@ -643,6 +643,7 @@ dependencies = [
  "regex",
  "serde",
  "serde_json",
+ "strsim",
  "tempfile",
  "thiserror",
 ]
