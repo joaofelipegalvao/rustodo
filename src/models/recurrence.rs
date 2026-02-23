@@ -43,7 +43,7 @@ impl Recurrence {
     ///
     /// ```
     /// use chrono::NaiveDate;
-    /// use todo_cli::models::Recurrence;
+    /// use rustodo::models::Recurrence;
     ///
     /// let date = NaiveDate::from_ymd_opt(2025, 2, 10).unwrap();
     ///

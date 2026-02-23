@@ -178,7 +178,7 @@ impl Task {
     ///
     /// ```
     /// use chrono::NaiveDate;
-    /// use todo_cli::models::{Task, Priority, Recurrence};
+    /// use rustodo::models::{Task, Priority, Recurrence};
     ///
     /// let task = Task::new(
     ///     "Weekly review".to_string(),

@@ -42,7 +42,7 @@ static RE_IN_N_MONTHS: LazyLock<regex::Regex> =
 /// # Examples
 ///
 /// ```
-/// use todo_cli::date_parser::parse_date;
+/// use rustodo::date_parser::parse_date;
 ///
 /// let date = parse_date("tomorrow").unwrap();
 /// let date = parse_date("next friday").unwrap();
