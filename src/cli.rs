@@ -36,7 +36,7 @@ use crate::models::{DueFilter, Priority, Recurrence, RecurrenceFilter, SortBy, S
     todo done 3\n\n    \
     # Set recurrence pattern\n    \
     todo recur 5 daily\n\n\
-For more information, visit: https://github.com/joaofelipegalvao/todo-cli
+For more information, visit: https://github.com/joaofelipegalvao/rustodo
 ")]
 pub struct Cli {
     #[command(subcommand)]

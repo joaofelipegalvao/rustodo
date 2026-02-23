@@ -59,7 +59,7 @@ impl Storage for JsonStorage {
 /// Returns the path to the todos.json file (re-exported for compatibility)
 pub fn get_data_file_path() -> Result<PathBuf> {
     let project_dirs =
-        ProjectDirs::from("", "", "todo-cli").context("Failed to determine project directories")?;
+        ProjectDirs::from("", "", "rustodo").context("Failed to determine project directories")?;
 
     let data_dir = project_dirs.data_dir();
     fs::create_dir_all(data_dir).context(format!(
