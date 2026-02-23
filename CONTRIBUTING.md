@@ -1,8 +1,8 @@
 # Contributing
 
-Thank you for considering contributing to [todo-cli](https://github.com/joaofelipegalvao/todo-cli)!
+Thank you for considering contributing to [rustodo](https://github.com/joaofelipegalvao/rustodo)!
 
-When contributing, please first discuss the change you wish to make via [issue](https://github.com/joaofelipegalvao/todo-cli/issues) or any other method with the owner of this repository before making a change.
+When contributing, please first discuss the change you wish to make via [issue](https://github.com/joaofelipegalvao/rustodo/issues) or any other method with the owner of this repository before making a change.
 
 ---
 
@@ -12,7 +12,7 @@ When contributing, please first discuss the change you wish to make via [issue](
 2. Clone your forked repository:
 
 ```sh
-git clone https://github.com/{username}/todo-cli && cd todo-cli
+git clone https://github.com/{username}/rustodo && cd rustodo
 ```
 
 1. Install [Rust](https://www.rust-lang.org/) 1.70 or later and build the project:

@@ -5,14 +5,14 @@
 ### Via Cargo
 
 ```bash
-cargo install todo-cli
+cargo install rustodo
 ```
 
 ### From Source
 
 ```bash
-git clone https://github.com/joaofelipegalvao/todo-cli
-cd todo-cli
+git clone https://github.com/joaofelipegalvao/rustodo
+cd rustodo
 cargo build --release
 cargo install --path .
 ```
@@ -26,9 +26,9 @@ cargo install --path .
 
 Tasks are automatically saved to a platform-specific location:
 
-- **Linux:** `~/.local/share/todo-cli/todos.json`
-- **macOS:** `~/Library/Application Support/todo-cli/todos.json`
-- **Windows:** `%APPDATA%\todo-cli\todos.json`
+- **Linux:** `~/.local/share/rustodo/todos.json`
+- **macOS:** `~/Library/Application Support/rustodo/todos.json`
+- **Windows:** `%APPDATA%\rustodo\todos.json`
 
 The CLI creates this directory automatically on first use. You can view your data location with:
 
@@ -56,7 +56,7 @@ todo info
 ```
 Todo-List Information
 
-Data file: /home/user/.local/share/todo-cli/todos.json
+Data file: /home/user/.local/share/rustodo/todos.json
 Status: exists ✓
 Size: 1245 bytes
 ```
@@ -616,7 +616,7 @@ Use dependencies to model a real sequence of work. Keep dependency chains short 
 todo info
 
 # Copy to backup
-cp ~/.local/share/todo-cli/todos.json ~/backup/todos-$(date +%Y%m%d).json
+cp ~/.local/share/rustodo/todos.json ~/backup/todos-$(date +%Y%m%d).json
 ```
 
 ## Troubleshooting
@@ -631,13 +631,13 @@ export PATH="$PATH:$HOME/.cargo/bin"
 
 **"No changes made"** — The value you're setting is already the current one. Use `todo list` to check the current state.
 
-**Recurring task created a duplicate** — This is a bug. Please [open an issue](https://github.com/joaofelipegalvao/todo-cli/issues) with steps to reproduce.
+**Recurring task created a duplicate** — This is a bug. Please [open an issue](https://github.com/joaofelipegalvao/rustodo/issues) with steps to reproduce.
 
 **Activity chart shows 0 for old completions** — Tasks completed before v2.7.0 don't have a `completed_at` date. Re-complete them to start tracking.
 
 ## Bug Reports
 
-Found a bug? Please [open an issue](https://github.com/joaofelipegalvao/todo-cli/issues) with:
+Found a bug? Please [open an issue](https://github.com/joaofelipegalvao/rustodo/issues) with:
 
 - Description of the problem
 - Steps to reproduce
