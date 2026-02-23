@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.8.1](https://github.com/joaofelipegalvao/todo-cli/compare/v2.8.0..v2.8.1) - 2026-02-23
+
+### Bug Fixes
+
+- Update test imports from todo_cli to rustodo - ([3711a3a](https://github.com/joaofelipegalvao/todo-cli/commit/3711a3adcf0ed6a761df1b0d75d2284baf1866f4))
+
+### Documentation
+
+- *(changelog)* Update for 2.8.0 [skip ci] - ([9dbb54a](https://github.com/joaofelipegalvao/todo-cli/commit/9dbb54ae8ed1a9acb00d575d4c8406178e9270b8))
+- Add logo, demo gif and contributing guide - ([4b493ec](https://github.com/joaofelipegalvao/todo-cli/commit/4b493ecf458596e2b924b9f0b6bbd12b46420f39))
+- Att GUIDE.md - ([515126e](https://github.com/joaofelipegalvao/todo-cli/commit/515126e0bdec0728e6f80d627a6658058aabbfa2))
 ## [2.8.0](https://github.com/joaofelipegalvao/todo-cli/compare/v2.7.0..v2.8.0) - 2026-02-21
 
 ### Features
@@ -307,6 +318,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Features
 
 - V1 - basic todo CLI with add/list commands - ([9580ae2](https://github.com/joaofelipegalvao/todo-cli/commit/9580ae297837c9a6c5d4b18868d2f3abac1b1b9e))
+[2.8.1]: https://github.com/joaofelipegalvao/todo-cli/compare/v2.8.0...v2.8.1
 [2.8.0]: https://github.com/joaofelipegalvao/todo-cli/compare/v2.7.0...v2.8.0
 [2.7.0]: https://github.com/joaofelipegalvao/todo-cli/compare/v2.6.1...v2.7.0
 [2.6.1]: https://github.com/joaofelipegalvao/todo-cli/compare/v2.6.0...v2.6.1
