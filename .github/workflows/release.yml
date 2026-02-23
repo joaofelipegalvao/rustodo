@@ -142,23 +142,6 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-      - name: Bump version
-        id: bump
-        run: |
-          BUMP=${{ needs.check.outputs.bump }}
-          echo "Bumping: $BUMP"
-
-          LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
-          LAST_VERSION=${LAST_TAG#v}
-          echo "Last tag version: $LAST_VERSION"
-          cargo set-version "$LAST_VERSION"
-
-          cargo set-version --bump $BUMP
-
-          NEW_VERSION=$(grep '^version' Cargo.toml | head -1 | sed 's/version = "\(.*\)"/\1/')
-          echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
-          echo "New version: $NEW_VERSION"
-
       - name: Download all artifacts
         uses: actions/download-artifact@v4
         with:
