@@ -2,9 +2,9 @@
 //! Test utilities and fixtures
 
 use chrono::NaiveDate;
-use todo_cli::models::{Priority, Recurrence, Task};
-use todo_cli::storage::Storage;
-use todo_cli::storage::memory::InMemoryStorage;
+use rustodo::models::{Priority, Recurrence, Task};
+use rustodo::storage::Storage;
+use rustodo::storage::memory::InMemoryStorage;
 
 /// Test fixture providing an isolated in-memory storage environment
 pub struct TestEnv {

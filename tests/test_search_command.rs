@@ -1,4 +1,4 @@
-use todo_cli::{
+use rustodo::{
     commands::{add, done},
     models::Priority,
 };

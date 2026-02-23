@@ -3,8 +3,8 @@
 mod helpers;
 
 use helpers::{TestEnv, days_from_now};
-use todo_cli::commands::add;
-use todo_cli::models::{Priority, Recurrence};
+use rustodo::commands::add;
+use rustodo::models::{Priority, Recurrence};
 
 #[test]
 fn test_add_simple_task() {

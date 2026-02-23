@@ -3,8 +3,8 @@
 mod helpers;
 
 use helpers::{TestEnv, days_from_now};
-use todo_cli::commands::{add, edit};
-use todo_cli::models::Priority;
+use rustodo::commands::{add, edit};
+use rustodo::models::Priority;
 
 #[test]
 fn test_edit_text() {
