@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Bug Fixes
+
+- Update CLI name to rustodo and bump version to 2.8.4 - ([e0b52ff](https://github.com/joaofelipegalvao/todo-cli/commit/e0b52ffc5c977e0a42a4d9bf7a94495c687eb6b0))
+
+### Refactoring
+
+- Use rustodo lib crate in main.rs instead of redeclaring modules - ([526e21c](https://github.com/joaofelipegalvao/todo-cli/commit/526e21c22377edf51c1230eaae66fcafffe6f136))
+
+### Documentation
+
+- *(changelog)* Update for 2.8.3 [skip ci] - ([ca4b15f](https://github.com/joaofelipegalvao/todo-cli/commit/ca4b15f1fb281e9e63b38543edbc60a527e7e654))
 ## [2.8.3](https://github.com/joaofelipegalvao/todo-cli/compare/v2.8.2..v2.8.3) - 2026-02-23
 
 ### Bug Fixes
