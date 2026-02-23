@@ -1,14 +1,17 @@
 [package]
-name = "todo-cli"
+name = "rustodo"
 version = "2.8.0"
 edition = "2024"
 authors = ["João Felipe Galvão <github.com/joaofelipegalvao>"]
 description = "A modern, powerful task manager built with Rust"
 license = "MIT"
 repository = "https://github.com/joaofelipegalvao/todo-cli"
+readme = "README.md"
+keywords = ["todo", "task-manager", "cli", "productivity", "terminal"]
+categories = ["command-line-utilities"]
 
 [lib]
-name = "todo_cli"
+name = "rustodo"
 path = "src/lib.rs"
 
 [dependencies]

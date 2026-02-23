@@ -514,6 +514,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "rustodo"
+version = "2.8.0"
+dependencies = [
+ "anyhow",
+ "chrono",
+ "chrono-english",
+ "clap",
+ "colored",
+ "directories",
+ "regex",
+ "serde",
+ "serde_json",
+ "strsim",
+ "tempfile",
+ "thiserror",
+]
+
+[[package]]
 name = "rustversion"
 version = "1.0.22"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -628,24 +646,6 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn",
-]
-
-[[package]]
-name = "todo-cli"
-version = "2.8.0"
-dependencies = [
- "anyhow",
- "chrono",
- "chrono-english",
- "clap",
- "colored",
- "directories",
- "regex",
- "serde",
- "serde_json",
- "strsim",
- "tempfile",
- "thiserror",
 ]
 
 [[package]]
