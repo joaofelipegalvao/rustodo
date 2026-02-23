@@ -12,20 +12,9 @@ use anyhow::Result;
 use clap::Parser;
 use colored::Colorize;
 
-mod cli;
-mod commands;
-mod date_parser;
-mod display;
-mod error;
-mod models;
-mod storage;
-mod tag_normalizer;
-mod utils;
-mod validation;
-
-use cli::{Cli, Commands};
-
-use crate::storage::{JsonStorage, Storage};
+use rustodo::cli::{Cli, Commands};
+use rustodo::storage::{JsonStorage, Storage};
+use rustodo::{commands, date_parser};
 
 /// Main entry point for the todo-list application.
 ///
