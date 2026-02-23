@@ -38,7 +38,7 @@ jobs:
           echo "Commits since last tag:"
           echo "$COMMITS"
 
-          COMMITS=$(echo "$COMMITS" | grep -v "\[skip ci\]" | grep -v "^chore(release)" | grep -v "^docs(changelog)")
+          COMMITS=$(echo "$COMMITS" | grep -v "\[skip ci\]" | grep -v "^chore(release)")
 
           if [ -z "$COMMITS" ]; then
             echo "should_release=false" >> $GITHUB_OUTPUT
@@ -186,7 +186,7 @@ jobs:
       - name: Commit CHANGELOG and push
         run: |
           git add CHANGELOG.md
-          git commit -m "docs(changelog): update for ${{ steps.bump.outputs.new_version }} [skip ci]" || echo "No changes to commit"
+          git commit -m "chore(release): update for ${{ steps.bump.outputs.new_version }} [skip ci]" || echo "No changes to commit"
           git push origin main --follow-tags
 
       - name: Create GitHub Release
