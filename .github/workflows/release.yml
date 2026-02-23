@@ -38,6 +38,14 @@ jobs:
           echo "Commits since last tag:"
           echo "$COMMITS"
 
+          COMMITS=$(echo "$COMMITS" | grep -v "\[skip ci\]" | grep -v "^chore(release)" | grep -v "^docs(changelog)")
+
+          if [ -z "$COMMITS" ]; then
+            echo "should_release=false" >> $GITHUB_OUTPUT
+            echo "bump=none" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
           if echo "$COMMITS" | grep -qE "BREAKING CHANGE|!:"; then
             echo "should_release=true" >> $GITHUB_OUTPUT
             echo "bump=major" >> $GITHUB_OUTPUT
