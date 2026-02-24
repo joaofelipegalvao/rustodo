@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.8.6](https://github.com/joaofelipegalvao/todo-cli/compare/v2.8.5..v2.8.6) - 2026-02-24
+
+### Bug Fixes
+
+- Correct ownership in display_lists doctest - ([6a6954e](https://github.com/joaofelipegalvao/todo-cli/commit/6a6954e06fe1038aea430fb410c733f9ab32a09b))
+
+### Documentation
+
+- Add rustdoc comments to all public modules and types - ([1931034](https://github.com/joaofelipegalvao/todo-cli/commit/1931034f3489cb1a7be905501984c410eb2b914e))
 ## [2.8.5](https://github.com/joaofelipegalvao/todo-cli/compare/v2.8.3..v2.8.5) - 2026-02-23
 
 ### Bug Fixes
@@ -14,20 +23,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Refactoring
 
 - Use rustodo lib crate in main.rs instead of redeclaring modules - ([526e21c](https://github.com/joaofelipegalvao/todo-cli/commit/526e21c22377edf51c1230eaae66fcafffe6f136))
-
-### Documentation
-
-- *(changelog)* Update for 2.8.3 [skip ci] - ([ca4b15f](https://github.com/joaofelipegalvao/todo-cli/commit/ca4b15f1fb281e9e63b38543edbc60a527e7e654))
-- *(changelog)* Update for 2.8.4 [skip ci] - ([4f0967f](https://github.com/joaofelipegalvao/todo-cli/commit/4f0967f257647c543786a2bef0b8a77eb189a104))
 ## [2.8.3](https://github.com/joaofelipegalvao/todo-cli/compare/v2.8.2..v2.8.3) - 2026-02-23
 
 ### Bug Fixes
 
 - Update project name from todo-cli to rustodo - ([7c46f77](https://github.com/joaofelipegalvao/todo-cli/commit/7c46f77cff9cdef73762ab091bb918bc122819bb))
-
-### Documentation
-
-- *(changelog)* Update for 2.8.2 [skip ci] - ([c29c4d8](https://github.com/joaofelipegalvao/todo-cli/commit/c29c4d8ca5d35b4add06f31549d1f98c8e23c99c))
 ## [2.8.2](https://github.com/joaofelipegalvao/todo-cli/compare/v2.8.1..v2.8.2) - 2026-02-23
 
 ### Bug Fixes
@@ -36,7 +36,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Documentation
 
-- *(changelog)* Update for 2.8.1 [skip ci] - ([294f735](https://github.com/joaofelipegalvao/todo-cli/commit/294f7356167697d89a3a59e7bb0a886237e99401))
 - Fix crate name in doctest examples - ([4e54e41](https://github.com/joaofelipegalvao/todo-cli/commit/4e54e4170267756751797760bbb091bc3be7d391))
 - Update repo name from todo-cli to rustodo - ([bac5888](https://github.com/joaofelipegalvao/todo-cli/commit/bac5888863ca1929e258459ef8cad4f18dd43682))
 ## [2.8.1](https://github.com/joaofelipegalvao/todo-cli/compare/v2.8.0..v2.8.1) - 2026-02-23
@@ -47,7 +46,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Documentation
 
-- *(changelog)* Update for 2.8.0 [skip ci] - ([9dbb54a](https://github.com/joaofelipegalvao/todo-cli/commit/9dbb54ae8ed1a9acb00d575d4c8406178e9270b8))
 - Add logo, demo gif and contributing guide - ([4b493ec](https://github.com/joaofelipegalvao/todo-cli/commit/4b493ecf458596e2b924b9f0b6bbd12b46420f39))
 - Att GUIDE.md - ([515126e](https://github.com/joaofelipegalvao/todo-cli/commit/515126e0bdec0728e6f80d627a6658058aabbfa2))
 ## [2.8.0](https://github.com/joaofelipegalvao/todo-cli/compare/v2.7.0..v2.8.0) - 2026-02-21
@@ -55,55 +53,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Features
 
 - Add automatic tag normalization with fuzzy matching - ([4bcbfb2](https://github.com/joaofelipegalvao/todo-cli/commit/4bcbfb2b2f5c72f90865be21d8401f60c96f7ecf))
-
-### Documentation
-
-- *(changelog)* Update for 2.7.0 [skip ci] - ([0b71a1e](https://github.com/joaofelipegalvao/todo-cli/commit/0b71a1eaf71816072012d1f965b41ba614c5b48b))
 ## [2.7.0](https://github.com/joaofelipegalvao/todo-cli/compare/v2.6.1..v2.7.0) - 2026-02-21
 
 ### Features
 
 - Add stats command for productivity statistics - ([9d235a9](https://github.com/joaofelipegalvao/todo-cli/commit/9d235a93d7f76bcdca3a5ff34c1937d0e6963199))
-
-### Documentation
-
-- *(changelog)* Update for 2.6.1 [skip ci] - ([92e0dbe](https://github.com/joaofelipegalvao/todo-cli/commit/92e0dbe1b8b1a9d479d63d591e157a6d01bff198))
 ## [2.6.1](https://github.com/joaofelipegalvao/todo-cli/compare/v2.6.0..v2.6.1) - 2026-02-21
 
 ### Refactoring
 
 - Simplify error handling and if-let patterns - ([ff4ad5d](https://github.com/joaofelipegalvao/todo-cli/commit/ff4ad5d84dd03b833a96a32a67185df1f3f3cad6))
-
-### Documentation
-
-- *(changelog)* Update for 2.6.0 [skip ci] - ([0d5096e](https://github.com/joaofelipegalvao/todo-cli/commit/0d5096e0715b34a23d0630e35c5ce773321b83c1))
 ## [2.6.0](https://github.com/joaofelipegalvao/todo-cli/compare/v2.5.0..v2.6.0) - 2026-02-20
 
 ### Features
 
 - Add task dependencies system with cycle detection - ([7b1f422](https://github.com/joaofelipegalvao/todo-cli/commit/7b1f4223155b37bf8b0a56b1fb0bdb768db3c651))
-
-### Documentation
-
-- *(changelog)* Update for 2.5.0 [skip ci] - ([49a9ac1](https://github.com/joaofelipegalvao/todo-cli/commit/49a9ac1f1cf070f43ac2580a01b50805b06babd3))
 ## [2.5.0](https://github.com/joaofelipegalvao/todo-cli/compare/v2.4.1..v2.5.0) - 2026-02-20
 
 ### Features
 
 - Add project system for organizing tasks - ([7308a0b](https://github.com/joaofelipegalvao/todo-cli/commit/7308a0b5592d3e791fd2dde2efc34ebfd4fb8634))
-
-### Documentation
-
-- *(changelog)* Update for 2.4.1 [skip ci] - ([4881949](https://github.com/joaofelipegalvao/todo-cli/commit/48819496edb4d454984c818f4a8115e5563d2a9b))
 ## [2.4.1](https://github.com/joaofelipegalvao/todo-cli/compare/v2.4.0..v2.4.1) - 2026-02-20
 
 ### Performance
 
 - Optimize date parsing with LazyLock and add past date validation - ([fb6c20a](https://github.com/joaofelipegalvao/todo-cli/commit/fb6c20afc879fc2faba64096766152e5af3484c3))
-
-### Documentation
-
-- *(changelog)* Update for 2.4.0 [skip ci] - ([8efc531](https://github.com/joaofelipegalvao/todo-cli/commit/8efc531eba5c57277044c9ae9329a858c1bd05ab))
 ## [2.4.0](https://github.com/joaofelipegalvao/todo-cli/compare/v2.3.4..v2.4.0) - 2026-02-20
 
 ### Features
@@ -115,10 +89,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - *(ci)* Remove GitHub API dependency from git-cliff config - ([f64a7f8](https://github.com/joaofelipegalvao/todo-cli/commit/f64a7f8d252019aebc670bcbb28abeda47e6234b))
 - *(ci)* Hardcode repo URL in cliff.toml template to fix Tera scope issue - ([df40c3e](https://github.com/joaofelipegalvao/todo-cli/commit/df40c3e88a7aecbd70b42f4a07daaa93be69c9a2))
 - Collapse nested if-let and add GitHub token to git-cliff steps - ([ce24bfd](https://github.com/joaofelipegalvao/todo-cli/commit/ce24bfdb0e9bdf674727d7a850afa5aafef7798c))
-
-### Documentation
-
-- *(changelog)* Update for 2.3.4 [skip ci] - ([1d5e57a](https://github.com/joaofelipegalvao/todo-cli/commit/1d5e57aee589e84783d066a7cb57d1c113ffbc93))
 ## [2.3.4](https://github.com/joaofelipegalvao/todo-cli/compare/v2.3.3..v2.3.4) - 2026-02-19
 
 ### Bug Fixes
@@ -191,7 +161,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Documentation
 
 - *(advanced)* Add v2.1.0 recurring tasks guide - ([f5ce3d1](https://github.com/joaofelipegalvao/todo-cli/commit/f5ce3d118f2a9b1ab765ae4987080d7b50b374c0))
-- *(changelog)* Add v2.1.0 release notes - ([b5eb6b6](https://github.com/joaofelipegalvao/todo-cli/commit/b5eb6b6dadfc5241134b5f87f2afa1d6ef95a7a7))
 - *(guide)* Document recurring tasks - ([208c38e](https://github.com/joaofelipegalvao/todo-cli/commit/208c38ed00226c7b7fcc2a3552a761576a25264a))
 - *(readme)* Update with recurring tasks features - ([c70fe76](https://github.com/joaofelipegalvao/todo-cli/commit/c70fe76dadee2b46e380e371f45bf42daae82d27))
 - Update mkdocs navigation - ([d574d78](https://github.com/joaofelipegalvao/todo-cli/commit/d574d787c07ea5f1770c513054b963fbe60963ba))
@@ -203,7 +172,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Documentation
 
-- *(changelog)* Add v2.0.0 release notes - ([a57d855](https://github.com/joaofelipegalvao/todo-cli/commit/a57d85504d2bea73912431e2de2d814a5cf45483))
 - *(mkdocs)* Document v2.0 modular architecture refactor - ([7e731d2](https://github.com/joaofelipegalvao/todo-cli/commit/7e731d2196a84084b62d90f6aa5e41daf62aa84b))
 - *(readme)* V2.0.0 modular architecture refactor - ([ed37b35](https://github.com/joaofelipegalvao/todo-cli/commit/ed37b351436b5bfca97fa5d3349e51c92eb30b8c))
 ## [1.9.0](https://github.com/joaofelipegalvao/todo-cli/compare/v1.8.0..v1.9.0) - 2026-02-10
@@ -218,7 +186,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Documentation
 
-- *(changelog)* Add v1.9.0 release notes - ([49ace3c](https://github.com/joaofelipegalvao/todo-cli/commit/49ace3cc95885a88db0d6145f4068479bbedaa31))
 - *(guide)* Document edit command and confirmation prompts - ([027bf6c](https://github.com/joaofelipegalvao/todo-cli/commit/027bf6c89732b2050e6b74adf95d12ec127eb44a))
 - *(mkdocs)* Document TableLayout architecture and layout decisions - ([131528f](https://github.com/joaofelipegalvao/todo-cli/commit/131528f0ef9cf46cd713e5d3dc6e0c5ba7153f91))
 - *(readme)* Highlight TableLayout-based display architecture - ([00d6e75](https://github.com/joaofelipegalvao/todo-cli/commit/00d6e75ed1c44ec2c3db4ced124cdfadcd208e60))
@@ -352,6 +319,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Features
 
 - V1 - basic todo CLI with add/list commands - ([9580ae2](https://github.com/joaofelipegalvao/todo-cli/commit/9580ae297837c9a6c5d4b18868d2f3abac1b1b9e))
+[2.8.6]: https://github.com/joaofelipegalvao/todo-cli/compare/v2.8.5...v2.8.6
 [2.8.5]: https://github.com/joaofelipegalvao/todo-cli/compare/v2.8.3...v2.8.5
 [2.8.3]: https://github.com/joaofelipegalvao/todo-cli/compare/v2.8.2...v2.8.3
 [2.8.2]: https://github.com/joaofelipegalvao/todo-cli/compare/v2.8.1...v2.8.2
