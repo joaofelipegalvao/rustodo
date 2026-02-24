@@ -1,0 +1,445 @@
+//! Integration tests for the `projects` command
+//!
+//! Covers:
+//! - Happy path: single project, multiple projects, mixed (with/without project)
+//! - Task counts (pending vs done)
+//! - No projects found
+//! - Project filter in `list` command
+//! - Project assignment and removal via `edit`
+//! - Case-insensitive project filter
+//! - Project name validation
+
+mod helpers;
+
+use helpers::TestEnv;
+use rustodo::commands::{add, done, edit, list, projects};
+use rustodo::models::{Priority, SortBy, StatusFilter};
+
+// ─── helpers ─────────────────────────────────────────────────────────────────
+
+fn add_task(env: &TestEnv, text: &str, project: Option<&str>) -> usize {
+    add::execute(
+        env.storage(),
+        text.to_string(),
+        Priority::Medium,
+        vec![],
+        project.map(|s| s.to_string()),
+        None,
+        None,
+        vec![],
+    )
+    .unwrap();
+    env.task_count()
+}
+
+// ─── projects command ─────────────────────────────────────────────────────────
+
+#[test]
+fn test_projects_no_projects_fails() {
+    let env = TestEnv::new();
+    add_task(&env, "Task without project", None);
+
+    let result = projects::execute(env.storage());
+    assert!(result.is_err());
+    let msg = result.unwrap_err().to_string();
+    assert!(msg.to_lowercase().contains("project"), "got: {}", msg);
+}
+
+#[test]
+fn test_projects_empty_storage_fails() {
+    let env = TestEnv::new();
+
+    let result = projects::execute(env.storage());
+    assert!(result.is_err());
+}
+
+#[test]
+fn test_projects_single_project() {
+    let env = TestEnv::new();
+    add_task(&env, "Task A", Some("Backend"));
+    add_task(&env, "Task B", Some("Backend"));
+
+    let result = projects::execute(env.storage());
+    assert!(result.is_ok());
+
+    // Verify counts via storage
+    let tasks = env.load_tasks();
+    let backend_tasks: Vec<_> = tasks
+        .iter()
+        .filter(|t| t.project.as_deref() == Some("Backend"))
+        .collect();
+    assert_eq!(backend_tasks.len(), 2);
+}
+
+#[test]
+fn test_projects_multiple_projects() {
+    let env = TestEnv::new();
+    add_task(&env, "API endpoint", Some("Backend"));
+    add_task(&env, "Button component", Some("Frontend"));
+    add_task(&env, "Write docs", Some("Docs"));
+
+    let result = projects::execute(env.storage());
+    assert!(result.is_ok());
+
+    let tasks = env.load_tasks();
+    let project_names: Vec<_> = tasks
+        .iter()
+        .filter_map(|t| t.project.as_deref())
+        .collect::<std::collections::HashSet<_>>()
+        .into_iter()
+        .collect();
+    assert_eq!(project_names.len(), 3);
+}
+
+#[test]
+fn test_projects_pending_and_done_counts() {
+    let env = TestEnv::new();
+    add_task(&env, "Task A", Some("Backend"));
+    add_task(&env, "Task B", Some("Backend"));
+    add_task(&env, "Task C", Some("Backend"));
+
+    done::execute(env.storage(), 1).unwrap();
+
+    let tasks = env.load_tasks();
+    let backend: Vec<_> = tasks
+        .iter()
+        .filter(|t| t.project.as_deref() == Some("Backend"))
+        .collect();
+
+    let pending = backend.iter().filter(|t| !t.completed).count();
+    let done_count = backend.iter().filter(|t| t.completed).count();
+
+    assert_eq!(pending, 2);
+    assert_eq!(done_count, 1);
+    assert_eq!(backend.len(), 3);
+}
+
+#[test]
+fn test_projects_mixed_with_and_without_project() {
+    let env = TestEnv::new();
+    add_task(&env, "Task with project", Some("Backend"));
+    add_task(&env, "Task without project", None);
+    add_task(&env, "Another without project", None);
+
+    let result = projects::execute(env.storage());
+    assert!(result.is_ok());
+
+    // Only 1 project should exist
+    let tasks = env.load_tasks();
+    let with_project = tasks.iter().filter(|t| t.project.is_some()).count();
+    let without_project = tasks.iter().filter(|t| t.project.is_none()).count();
+    assert_eq!(with_project, 1);
+    assert_eq!(without_project, 2);
+}
+
+#[test]
+fn test_projects_all_tasks_completed() {
+    let env = TestEnv::new();
+    add_task(&env, "Task A", Some("Backend"));
+    add_task(&env, "Task B", Some("Backend"));
+
+    done::execute(env.storage(), 1).unwrap();
+    done::execute(env.storage(), 2).unwrap();
+
+    let result = projects::execute(env.storage());
+    assert!(result.is_ok());
+
+    let tasks = env.load_tasks();
+    let all_done = tasks
+        .iter()
+        .filter(|t| t.project.as_deref() == Some("Backend"))
+        .all(|t| t.completed);
+    assert!(all_done);
+}
+
+// ─── list --project filter ────────────────────────────────────────────────────
+
+#[test]
+fn test_list_filter_by_project() {
+    let env = TestEnv::new();
+    add_task(&env, "Backend task 1", Some("Backend"));
+    add_task(&env, "Backend task 2", Some("Backend"));
+    add_task(&env, "Frontend task", Some("Frontend"));
+    add_task(&env, "No project task", None);
+
+    let result = list::execute(
+        env.storage(),
+        StatusFilter::All,
+        None,
+        None,
+        None,
+        None,
+        Some("Backend".to_string()),
+        None,
+    );
+    assert!(result.is_ok());
+}
+
+#[test]
+fn test_list_filter_by_project_case_insensitive() {
+    let env = TestEnv::new();
+    add_task(&env, "Backend task", Some("Backend"));
+
+    // lowercase "backend" should match "Backend"
+    let result = list::execute(
+        env.storage(),
+        StatusFilter::All,
+        None,
+        None,
+        None,
+        None,
+        Some("backend".to_string()),
+        None,
+    );
+    assert!(result.is_ok());
+}
+
+#[test]
+fn test_list_filter_by_nonexistent_project_fails() {
+    let env = TestEnv::new();
+    add_task(&env, "Task", Some("Backend"));
+
+    let result = list::execute(
+        env.storage(),
+        StatusFilter::All,
+        None,
+        None,
+        None,
+        None,
+        Some("Nonexistent".to_string()),
+        None,
+    );
+    assert!(result.is_err());
+}
+
+#[test]
+fn test_list_filter_project_with_status() {
+    let env = TestEnv::new();
+    add_task(&env, "Done task", Some("Backend"));
+    add_task(&env, "Pending task", Some("Backend"));
+
+    done::execute(env.storage(), 1).unwrap();
+
+    let result = list::execute(
+        env.storage(),
+        StatusFilter::Pending,
+        None,
+        None,
+        None,
+        None,
+        Some("Backend".to_string()),
+        None,
+    );
+    assert!(result.is_ok());
+}
+
+#[test]
+fn test_list_filter_project_with_sort() {
+    use helpers::days_from_now;
+
+    let env = TestEnv::new();
+
+    add::execute(
+        env.storage(),
+        "Later task".to_string(),
+        Priority::Medium,
+        vec![],
+        Some("Backend".to_string()),
+        Some(days_from_now(10)),
+        None,
+        vec![],
+    )
+    .unwrap();
+
+    add::execute(
+        env.storage(),
+        "Earlier task".to_string(),
+        Priority::Medium,
+        vec![],
+        Some("Backend".to_string()),
+        Some(days_from_now(2)),
+        None,
+        vec![],
+    )
+    .unwrap();
+
+    let result = list::execute(
+        env.storage(),
+        StatusFilter::All,
+        None,
+        None,
+        Some(SortBy::Due),
+        None,
+        Some("Backend".to_string()),
+        None,
+    );
+    assert!(result.is_ok());
+}
+
+// ─── project via edit ─────────────────────────────────────────────────────────
+
+#[test]
+fn test_edit_assign_project() {
+    let env = TestEnv::new();
+    add_task(&env, "Task without project", None);
+
+    let result = edit::execute(
+        env.storage(),
+        1,
+        None,
+        None,
+        vec![],
+        vec![],
+        Some("Backend".to_string()),
+        false,
+        None,
+        false,
+        false,
+        vec![],
+        vec![],
+        false,
+    );
+
+    assert!(result.is_ok());
+
+    let tasks = env.load_tasks();
+    assert_eq!(tasks[0].project.as_deref(), Some("Backend"));
+}
+
+#[test]
+fn test_edit_change_project() {
+    let env = TestEnv::new();
+    add_task(&env, "Task", Some("Backend"));
+
+    let result = edit::execute(
+        env.storage(),
+        1,
+        None,
+        None,
+        vec![],
+        vec![],
+        Some("Frontend".to_string()),
+        false,
+        None,
+        false,
+        false,
+        vec![],
+        vec![],
+        false,
+    );
+
+    assert!(result.is_ok());
+
+    let tasks = env.load_tasks();
+    assert_eq!(tasks[0].project.as_deref(), Some("Frontend"));
+}
+
+#[test]
+fn test_edit_clear_project() {
+    let env = TestEnv::new();
+    add_task(&env, "Task", Some("Backend"));
+
+    let result = edit::execute(
+        env.storage(),
+        1,
+        None,
+        None,
+        vec![],
+        vec![],
+        None,
+        true, // clear_project
+        None,
+        false,
+        false,
+        vec![],
+        vec![],
+        false,
+    );
+
+    assert!(result.is_ok());
+
+    let tasks = env.load_tasks();
+    assert!(tasks[0].project.is_none());
+}
+
+#[test]
+fn test_edit_no_change_when_same_project() {
+    let env = TestEnv::new();
+    add_task(&env, "Task", Some("Backend"));
+
+    // Setting to same value should report "no changes"
+    let result = edit::execute(
+        env.storage(),
+        1,
+        None,
+        None,
+        vec![],
+        vec![],
+        Some("Backend".to_string()),
+        false,
+        None,
+        false,
+        false,
+        vec![],
+        vec![],
+        false,
+    );
+
+    assert!(result.is_ok());
+}
+
+// ─── project name validation ──────────────────────────────────────────────────
+
+#[test]
+fn test_add_empty_project_name_fails() {
+    let env = TestEnv::new();
+
+    let result = add::execute(
+        env.storage(),
+        "Task".to_string(),
+        Priority::Medium,
+        vec![],
+        Some("".to_string()),
+        None,
+        None,
+        vec![],
+    );
+
+    assert!(result.is_err());
+}
+
+#[test]
+fn test_add_project_name_too_long_fails() {
+    let env = TestEnv::new();
+
+    let result = add::execute(
+        env.storage(),
+        "Task".to_string(),
+        Priority::Medium,
+        vec![],
+        Some("x".repeat(101)),
+        None,
+        None,
+        vec![],
+    );
+
+    assert!(result.is_err());
+}
+
+#[test]
+fn test_add_project_name_exactly_max_length_ok() {
+    let env = TestEnv::new();
+
+    let result = add::execute(
+        env.storage(),
+        "Task".to_string(),
+        Priority::Medium,
+        vec![],
+        Some("x".repeat(100)),
+        None,
+        None,
+        vec![],
+    );
+
+    assert!(result.is_ok());
+}
