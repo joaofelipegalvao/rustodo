@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.8.8](https://github.com/joaofelipegalvao/rustodo/compare/v2.8.7..v2.8.8) - 2026-02-24
+
+### Bug Fixes
+
+- Update logo path in README - ([d8eb225](https://github.com/joaofelipegalvao/rustodo/commit/d8eb225b34cb105328c749e28c6adcd2d7207a95))
+
+### Documentation
+
+- Add Codecov and docs.rs badges - ([5a1bf6d](https://github.com/joaofelipegalvao/rustodo/commit/5a1bf6da9d4a86eaf4ec5298c311bdf3cd6c87af))
 ## [2.8.7](https://github.com/joaofelipegalvao/rustodo/compare/v2.8.6..v2.8.7) - 2026-02-24
 
 ### Bug Fixes
@@ -329,6 +338,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Features
 
 - V1 - basic todo CLI with add/list commands - ([9580ae2](https://github.com/joaofelipegalvao/rustodo/commit/9580ae297837c9a6c5d4b18868d2f3abac1b1b9e))
+[2.8.8]: https://github.com/joaofelipegalvao/rustodo/compare/v2.8.7...v2.8.8
 [2.8.7]: https://github.com/joaofelipegalvao/rustodo/compare/v2.8.6...v2.8.7
 [2.8.6]: https://github.com/joaofelipegalvao/rustodo/compare/v2.8.5...v2.8.6
 [2.8.5]: https://github.com/joaofelipegalvao/rustodo/compare/v2.8.3...v2.8.5
