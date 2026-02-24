@@ -5,6 +5,8 @@
         <img src="https://img.shields.io/github/v/release/joaofelipegalvao/rustodo?style=flat&labelColor=1C2C2E&color=C96329&logo=GitHub&logoColor=white"></a>
     <a href="https://crates.io/crates/rustodo">
         <img src="https://img.shields.io/crates/v/rustodo?style=flat&labelColor=1C2C2E&color=C96329&logo=Rust&logoColor=white"></a>
+  <a href="https://codecov.io/gh/joaofelipegalvao/rustodo">
+    <img src="https://img.shields.io/codecov/c/gh/joaofelipegalvao/rustodo?style=flat&labelColor=1C2C2E&color=C96329&logo=Codecov&logoColor=white"></a>
     <br>
     <a href="https://github.com/joaofelipegalvao/rustodo/actions/workflows/ci.yml">
         <img src="https://img.shields.io/github/actions/workflow/status/joaofelipegalvao/rustodo/ci.yml?style=flat&labelColor=1C2C2E&color=BEC5C9&logo=GitHub%20Actions&logoColor=BEC5C9&label=ci"></a>
