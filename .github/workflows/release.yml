@@ -72,12 +72,19 @@ jobs:
           - os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
             suffix: linux-amd64
+            binary: todo
           - os: macos-latest
             target: aarch64-apple-darwin
             suffix: darwin-arm64
+            binary: todo
           - os: macos-latest
             target: x86_64-apple-darwin
             suffix: darwin-amd64
+            binary: todo
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            suffix: windows-amd64
+            binary: todo.exe
 
     runs-on: ${{ matrix.os }}
 
@@ -96,10 +103,18 @@ jobs:
       - name: Build release binary
         run: cargo build --release --target ${{ matrix.target }}
 
-      - name: Rename binary
+      - name: Rename binary (Unix)
+        if: matrix.os != 'windows-latest'
         run: |
           mkdir -p dist
-          cp target/${{ matrix.target }}/release/todo dist/todo-${{ matrix.suffix }}
+          cp target/${{ matrix.target }}/release/${{ matrix.binary }} dist/todo-${{ matrix.suffix }}
+
+      - name: Rename binary (Windows)
+        if: matrix.os == 'windows-latest'
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path dist
+          Copy-Item "target/${{ matrix.target }}/release/${{ matrix.binary }}" "dist/todo-${{ matrix.suffix }}.exe"
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
@@ -199,4 +214,5 @@ jobs:
             dist/todo-linux-amd64
             dist/todo-darwin-arm64
             dist/todo-darwin-amd64
+            dist/todo-windows-amd64.exe
           token: ${{ secrets.GITHUB_TOKEN }}
