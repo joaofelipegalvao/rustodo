@@ -10,13 +10,13 @@ body = """
     - {% if commit.scope %}*({{ commit.scope }})* {% endif %}\
         {% if commit.breaking %}[**breaking**] {% endif %}\
         {{ commit.message | upper_first }} - \
-        ([{{ commit.id | truncate(length=7, end="") }}](https://github.com/joaofelipegalvao/todo-cli/commit/{{ commit.id }}))\
+        ([{{ commit.id | truncate(length=7, end="") }}](https://github.com/joaofelipegalvao/rustodo/commit/{{ commit.id }}))\
 {% endmacro -%}
 
 {% if version %}\
     {% if previous.version %}\
         ## [{{ version | trim_start_matches(pat="v") }}]\
-          (https://github.com/joaofelipegalvao/todo-cli/compare/{{ previous.version }}..{{ version }}) - {{ timestamp | date(format="%Y-%m-%d") }}
+          (https://github.com/joaofelipegalvao/rustodo/compare/{{ previous.version }}..{{ version }}) - {{ timestamp | date(format="%Y-%m-%d") }}
     {% else %}\
         ## [{{ version | trim_start_matches(pat="v") }}] - {{ timestamp | date(format="%Y-%m-%d") }}
     {% endif %}\
@@ -40,16 +40,16 @@ footer = """
 {% for release in releases %}\
     {% if release.version %}\
         {% if release.previous.version %}\
-[{{ release.version | trim_start_matches(pat="v") }}]: https://github.com/joaofelipegalvao/todo-cli/compare/{{ release.previous.version }}...{{ release.version }}
+[{{ release.version | trim_start_matches(pat="v") }}]: https://github.com/joaofelipegalvao/rustodo/compare/{{ release.previous.version }}...{{ release.version }}
         {% else %}\
-[{{ release.version | trim_start_matches(pat="v") }}]: https://github.com/joaofelipegalvao/todo-cli/releases/tag/{{ release.version }}
+[{{ release.version | trim_start_matches(pat="v") }}]: https://github.com/joaofelipegalvao/rustodo/releases/tag/{{ release.version }}
         {% endif %}\
     {% endif %}\
 {% endfor %}
 """
 trim = true
 postprocessors = [
-  { pattern = '\((\w+\s)?#([0-9]+)\)', replace = "([#${2}](https://github.com/joaofelipegalvao/todo-cli/issues/${2}))" },
+  { pattern = '\((\w+\s)?#([0-9]+)\)', replace = "([#${2}](https://github.com/joaofelipegalvao/rustodo/issues/${2}))" },
 ]
 
 [git]
@@ -57,7 +57,7 @@ conventional_commits = true
 filter_unconventional = true
 split_commits = false
 commit_preprocessors = [
-  { pattern = '\((\w+\s)?#([0-9]+)\)', replace = "([#${2}](https://github.com/joaofelipegalvao/todo-cli/issues/${2}))" },
+  { pattern = '\((\w+\s)?#([0-9]+)\)', replace = "([#${2}](https://github.com/joaofelipegalvao/rustodo/issues/${2}))" },
 ]
 commit_parsers = [
   { message = "^feat", group = "<!-- 0 -->Features" },
