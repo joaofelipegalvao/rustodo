@@ -7,7 +7,22 @@ use crate::models::Task;
 ///
 /// # Returns
 ///
-/// A string like "in 3 days", "due today", or "late 2 days"
+/// A relative string based on today's date:
+/// - `"late N days"` if the due date is in the past
+/// - `"due today"` if due today
+/// - `"in N days"` if due in the future
+///
+/// Returns an empty string if the task has no due date.
+///
+/// # Examples
+///
+/// ```no_run
+/// use rustodo::models::{Task, Priority};
+///
+/// // Note: the exact output depends on today's date at runtime.
+/// let task = Task::new("Buy milk".to_string(), Priority::Medium, vec![], None, None, None);
+/// // returns "" when task has no due date
+/// ```
 pub fn get_due_text(task: &Task) -> String {
     let Some(due) = task.due_date else {
         return String::new();

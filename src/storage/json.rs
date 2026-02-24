@@ -1,5 +1,15 @@
-//! JSON file-based storage implementation
-
+//! JSON file-based storage implementation.
+//!
+//! Tasks are stored as a pretty-printed JSON array at a platform-specific
+//! path resolved by [`get_data_file_path`]:
+//!
+//! | Platform | Path |
+//! |----------|------|
+//! | Linux | `~/.local/share/rustodo/todos.json` |
+//! | macOS | `~/Library/Application Support/rustodo/todos.json` |
+//! | Windows | `%APPDATA%\rustodo\todos.json` |
+//!
+//! The directory is created automatically on first use.
 use anyhow::{Context, Result};
 use directories::ProjectDirs;
 use std::{fs, path::PathBuf};
@@ -13,13 +23,23 @@ pub struct JsonStorage {
 }
 
 impl JsonStorage {
-    /// Create a new JSON storage using default OS-specific location
+    /// Creates a new [`JsonStorage`] pointing to the default OS data directory.
+    ///
+    /// The data directory is created automatically if it does not exist.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the OS data directory cannot be determined or
+    /// if the directory cannot be created.
     pub fn new() -> Result<Self> {
         let file_path = get_data_file_path()?;
         Ok(Self { file_path })
     }
 
-    /// Create a JSON storage at a custom path (for testing)
+    /// Creates a [`JsonStorage`] at an arbitrary path.
+    ///
+    /// Intended for use in tests where a [`tempfile::TempDir`] provides an
+    /// isolated, automatically-cleaned directory.
     #[cfg(test)]
     pub fn with_path(file_path: PathBuf) -> Self {
         Self { file_path }

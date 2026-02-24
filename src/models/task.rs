@@ -46,7 +46,42 @@ pub struct Task {
 }
 
 impl Task {
-    /// Creates a new task with the given parameters.
+    /// Creates a new pending task.
+    ///
+    /// Sets `completed = false`, `created_at` to today, and leaves
+    /// `parent_id`, `depends_on`, and `completed_at` at their zero values.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rustodo::models::{Task, Priority, Recurrence};
+    /// use chrono::NaiveDate;
+    ///
+    /// // Minimal task
+    /// let task = Task::new(
+    ///     "Buy milk".to_string(),
+    ///     Priority::Medium,
+    ///     vec![],
+    ///     None,
+    ///     None,
+    ///     None,
+    /// );
+    /// assert_eq!(task.text, "Buy milk");
+    /// assert!(!task.completed);
+    ///
+    /// // Task with all fields
+    /// let due = NaiveDate::from_ymd_opt(2030, 6, 1).unwrap();
+    /// let task = Task::new(
+    ///     "Weekly review".to_string(),
+    ///     Priority::High,
+    ///     vec!["work".to_string()],
+    ///     Some("Backend".to_string()),
+    ///     Some(due),
+    ///     Some(Recurrence::Weekly),
+    /// );
+    /// assert_eq!(task.priority, Priority::High);
+    /// assert_eq!(task.recurrence, Some(Recurrence::Weekly));
+    /// ```
     pub fn new(
         text: String,
         priority: Priority,
