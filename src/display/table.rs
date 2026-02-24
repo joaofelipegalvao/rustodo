@@ -9,6 +9,20 @@ const PRIORITY_WIDTH: usize = 1;
 const STATUS_WIDTH: usize = 3;
 const RECUR_WIDTH: usize = 1;
 
+/// Computes column widths and renders a task list table to stdout.
+///
+/// Column visibility is **contextual**: `Project`, `Tags`, `Due`, and
+/// `Recurrence` columns are only shown when at least one task in the current
+/// view has that field set, keeping the output compact for simple lists.
+///
+/// # Arguments
+///
+/// * `tasks` — slice of `(1-based ID, &Task)` pairs to render.
+/// * `all_tasks` — the full, unfiltered task list, used to resolve dependency
+///   blocking status.
+///
+/// Construct via [`TableLayout::new`] and then call the display methods, or
+/// use the convenience wrapper [`display_lists`] which handles everything.
 pub struct TableLayout<'a> {
     id: usize,
     priority: usize,
@@ -197,9 +211,35 @@ fn calculate_column_widths(tasks: &[(usize, &Task)]) -> (usize, usize, usize, us
     )
 }
 
-/// Renders the task list to stdout.
+/// Renders a labeled task list table to stdout.
 ///
-/// `all_tasks` is borrowed as `&[Task]` — no clone, no extra allocation.
+/// Prints a title line, a column header, a separator, one row per task, a
+/// closing separator, and a `X of Y completed (Z%)` summary line.
+///
+/// # Arguments
+///
+/// * `tasks`     — `(1-based ID, &Task)` pairs to display.
+/// * `title`     — Section heading printed above the table.
+/// * `all_tasks` — Full task list used to compute blocked status.
+///
+/// # Example
+///
+/// ```no_run
+/// use rustodo::display::display_lists;
+/// use rustodo::models::{Task, Priority};
+///
+/// let task = Task::new(
+///     "Buy milk".to_string(),
+///     Priority::Medium,
+///     vec![],
+///     None,
+///     None,
+///     None,
+/// );
+/// let tasks = vec![&task];
+/// let indexed: Vec<(usize, &Task)> = tasks.iter().enumerate().map(|(i, t)| (i + 1, *t)).collect();
+/// display_lists(&indexed, "My tasks", &[task]);
+/// ```
 pub fn display_lists(tasks: &[(usize, &Task)], title: &str, all_tasks: &[Task]) {
     println!("\n{}:\n", title);
 

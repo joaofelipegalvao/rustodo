@@ -1,3 +1,9 @@
+//! Handler for `todo remove <ID>`.
+//!
+//! Shows the task text, optionally prompts for confirmation, removes the task
+//! from the list, and saves. IDs are re-indexed automatically by the storage
+//! layer on next load.
+
 use anyhow::Result;
 use colored::Colorize;
 

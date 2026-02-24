@@ -1,51 +1,59 @@
 use clap::ValueEnum;
 
-/// Filter for task completion status.
+/// Filters tasks by completion status.
+///
+/// Used by `todo list --status` and `todo search --status`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
 pub enum StatusFilter {
-    /// Show only pending tasks
+    /// Show only pending tasks.
     Pending,
-    /// Show only completed tasks
+    /// Show only completed tasks.
     Done,
-    /// Show all tasks (default)
+    /// Show all tasks (default).
     All,
 }
 
-/// Filter for task due dates.
+/// Filters tasks by their due-date window.
+///
+/// Used by `todo list --due`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
 pub enum DueFilter {
-    /// Tasks past their due date
+    /// Tasks whose due date is strictly before today.
     Overdue,
-    /// Tasks due in the next 7 days
+    /// Tasks due within the next 7 days (inclusive of today).
     Soon,
-    /// Tasks with any due date set
+    /// Tasks that have any due date set.
     WithDue,
-    /// Tasks without a due date
+    /// Tasks that have no due date.
     NoDue,
 }
 
-/// Filter for task recurrence patterns.
+/// Filters tasks by recurrence pattern.
+///
+/// Used by `todo list --recurrence`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
 pub enum RecurrenceFilter {
-    /// Show only tasks that repeat daily
+    /// Only tasks with a daily recurrence.
     Daily,
-    /// Show only tasks that repeat weekly
+    /// Only tasks with a weekly recurrence.
     Weekly,
-    /// Show only tasks that repeat monthly
+    /// Only tasks with a monthly recurrence.
     Monthly,
-    /// Show any recurring task (daily, weekly, or monthly)
+    /// Any task that has a recurrence set (daily, weekly, or monthly).
     Recurring,
-    /// Show only non-recurring tasks
+    /// Tasks with no recurrence pattern.
     NonRecurring,
 }
 
-/// Sorting options for task lines.
+/// Sort order for `todo list`.
+///
+/// Used by `todo list --sort`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
 pub enum SortBy {
-    /// Sort by priority (High -> Medium -> Low)
+    /// Sort by priority: High → Medium → Low.
     Priority,
-    /// Sort by due date (earliest first)
+    /// Sort by due date, earliest first. Tasks without a due date appear last.
     Due,
-    /// Sort by creation date (oldest first)
+    /// Sort by creation date, oldest first.
     Created,
 }

@@ -118,6 +118,18 @@ pub fn validate_tags(tags: &[String]) -> Result<(), TodoError> {
     Ok(())
 }
 
+/// Validates a project name is not empty and within length limits.
+///
+/// # Rules
+///
+/// - Name cannot be empty or whitespace-only
+/// - Name cannot exceed 100 characters (trimmed)
+///
+/// # Errors
+///
+/// Returns:
+/// - `TodoError::EmptyProjectName` if the name is empty
+/// - `TodoError::ProjectNameTooLong` if the name exceeds 100 characters
 pub fn validate_project_name(name: &str) -> Result<(), TodoError> {
     let trimmed = name.trim();
 

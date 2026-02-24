@@ -1,3 +1,8 @@
+//! Handler for `todo tags`.
+//!
+//! Collects all unique tags across the task list and prints each one with
+//! the number of tasks it appears on.
+
 use anyhow::Result;
 use colored::Colorize;
 

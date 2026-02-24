@@ -1,3 +1,10 @@
+//! Handler for `todo done <ID>`.
+//!
+//! Marks a task as completed. If the task has pending dependencies it is
+//! rejected with a [`TodoError::TaskBlocked`]
+//! error. For recurring tasks a new occurrence is automatically created via
+//! [`Task::create_next_recurrence`](crate::models::Task::create_next_recurrence).
+
 use anyhow::Result;
 use colored::Colorize;
 

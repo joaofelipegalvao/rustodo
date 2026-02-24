@@ -1,3 +1,11 @@
+//! Handler for `todo stats`.
+//!
+//! Computes and prints:
+//! - Overview counts (total, completed, pending, overdue, blocked)
+//! - Breakdown by priority
+//! - Breakdown by project
+//! - A bar chart of completions over the last 7 days
+
 use anyhow::Result;
 use chrono::{Duration, Local};
 use colored::Colorize;

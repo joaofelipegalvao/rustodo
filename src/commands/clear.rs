@@ -1,3 +1,8 @@
+//! Handler for `todo clear`.
+//!
+//! Prompts the user for confirmation (unless `--yes` is passed) then deletes
+//! the entire data file from disk.
+
 use std::fs;
 
 use anyhow::{Context, Result};

@@ -1,3 +1,8 @@
+//! Handler for `todo projects`.
+//!
+//! Collects all unique project names across the task list and prints each one
+//! with its pending and done task counts.
+
 use anyhow::Result;
 use colored::Colorize;
 

@@ -1,3 +1,11 @@
+//! Handler for `todo add`.
+//!
+//! Validates input, normalizes tags against existing ones via
+//! [`tag_normalizer`](crate::tag_normalizer), creates a new [`Task`], appends
+//! it to storage, and prints a confirmation message.
+//!
+//! [`Task`]: crate::models::Task
+
 use anyhow::Result;
 use chrono::NaiveDate;
 use colored::Colorize;

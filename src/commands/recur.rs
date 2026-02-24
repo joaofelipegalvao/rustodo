@@ -1,3 +1,9 @@
+//! Handler for `todo recur <ID> <PATTERN>`.
+//!
+//! Sets or updates the recurrence pattern on a task. Requires the task to
+//! already have a due date — without one there is no base date from which to
+//! calculate the next occurrence.
+
 use anyhow::Result;
 use colored::Colorize;
 

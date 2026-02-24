@@ -1,3 +1,12 @@
+//! Shared terminal utilities.
+//!
+//! Currently exposes a single helper, [`confirm`], which prints a yes/no
+//! prompt and reads a single line from stdin. Used by [`commands::remove`]
+//! and [`commands::clear`] before destructive operations.
+//!
+//! [`commands::remove`]: crate::commands::remove
+//! [`commands::clear`]: crate::commands::clear
+
 use anyhow::Result;
 use colored::Colorize;
 use std::io::{self, Write};

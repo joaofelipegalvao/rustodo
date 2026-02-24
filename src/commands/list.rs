@@ -1,3 +1,9 @@
+//! Handler for `todo list`.
+//!
+//! Loads all tasks, applies filters (status, priority, due, tag, project,
+//! recurrence) in sequence, optionally sorts the result, and delegates
+//! rendering to [`display::display_lists`](crate::display::display_lists).
+
 use anyhow::Result;
 
 use crate::display::display_lists;

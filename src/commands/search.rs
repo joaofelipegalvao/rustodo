@@ -1,3 +1,9 @@
+//! Handler for `todo search <QUERY>`.
+//!
+//! Case-insensitive substring search over task descriptions, with optional
+//! tag, project, and status filters. Delegates rendering to
+//! [`display::display_lists`](crate::display::display_lists).
+
 use anyhow::Result;
 
 use crate::display::display_lists;

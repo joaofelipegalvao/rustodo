@@ -1,3 +1,8 @@
+//! Handler for `todo info`.
+//!
+//! Prints the path to the active data file, whether it exists, and its size
+//! on disk. Useful for locating the file for backups or debugging.
+
 use std::fs;
 
 use anyhow::Result;

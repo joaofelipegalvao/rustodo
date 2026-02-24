@@ -1,3 +1,7 @@
+//! Handler for `todo undone <ID>`.
+//!
+//! Reverts a completed task back to pending status, clearing `completed_at`.
+
 use anyhow::Result;
 use colored::Colorize;
 

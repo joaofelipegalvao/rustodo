@@ -1,3 +1,8 @@
+//! Handler for `todo norecur <ID>`.
+//!
+//! Removes the recurrence pattern from a single task without deleting it.
+//! The task remains and can still be completed manually.
+
 use anyhow::Result;
 use colored::Colorize;
 

@@ -1,3 +1,10 @@
+//! Handler for `todo edit <ID>`.
+//!
+//! Applies partial updates to an existing task. Only fields explicitly
+//! provided by the caller are changed; everything else is preserved.
+//! Validates dependency additions for self-references and cycles before
+//! mutating any state.
+
 use anyhow::Result;
 use chrono::NaiveDate;
 use colored::Colorize;

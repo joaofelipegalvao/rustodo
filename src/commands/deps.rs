@@ -1,3 +1,10 @@
+//! Handler for `todo deps <ID>`.
+//!
+//! Prints a dependency graph for a single task showing:
+//! - Tasks it depends on, with their completion status
+//! - Tasks that depend on it (reverse edges)
+//! - Whether the task is currently blocked, and by which IDs
+
 use anyhow::Result;
 use colored::Colorize;
 
