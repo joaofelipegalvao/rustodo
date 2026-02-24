@@ -228,17 +228,16 @@ fn calculate_column_widths(tasks: &[(usize, &Task)]) -> (usize, usize, usize, us
 /// use rustodo::display::display_lists;
 /// use rustodo::models::{Task, Priority};
 ///
-/// let task = Task::new(
+/// let all_tasks = vec![Task::new(
 ///     "Buy milk".to_string(),
 ///     Priority::Medium,
 ///     vec![],
 ///     None,
 ///     None,
 ///     None,
-/// );
-/// let tasks = vec![&task];
-/// let indexed: Vec<(usize, &Task)> = tasks.iter().enumerate().map(|(i, t)| (i + 1, *t)).collect();
-/// display_lists(&indexed, "My tasks", &[task]);
+/// )];
+/// let indexed: Vec<(usize, &Task)> = all_tasks.iter().enumerate().map(|(i, t)| (i + 1, t)).collect();
+/// display_lists(&indexed, "My tasks", &all_tasks);
 /// ```
 pub fn display_lists(tasks: &[(usize, &Task)], title: &str, all_tasks: &[Task]) {
     println!("\n{}:\n", title);
