@@ -1,5 +1,5 @@
 <p align="center">
-    <img src="assets/logo.svg" width="280">
+    <img src="https://raw.githubusercontent.com/joaofelipegalvao/rustodo/main/assets/logo.png" width="280">
     <br>
     <a href="https://github.com/joaofelipegalvao/rustodo/releases">
         <img src="https://img.shields.io/github/v/release/joaofelipegalvao/rustodo?style=flat&labelColor=1C2C2E&color=C96329&logo=GitHub&logoColor=white"></a>
