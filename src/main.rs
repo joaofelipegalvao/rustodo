@@ -62,26 +62,7 @@ fn main() {
 /// - No tasks match the specified filters
 fn run(cli: Cli, storage: &impl Storage) -> Result<()> {
     match cli.command {
-        Commands::Add(args) => {
-            // Parse due date from string (supports natural language)
-            let due_date = if let Some(due_str) = args.due {
-                Some(date_parser::parse_date_not_in_past(&due_str)?)
-            } else {
-                None
-            };
-
-            commands::add::execute(
-                storage,
-                args.text,
-                args.priority,
-                args.tag,
-                args.project,
-                due_date,
-                args.recurrence,
-                args.depends_on,
-            )
-        }
-
+        Commands::Add(args) => commands::add::execute(storage, args),
         Commands::List {
             status,
             priority,

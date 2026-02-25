@@ -12,6 +12,7 @@
 mod helpers;
 
 use helpers::TestEnv;
+use rustodo::cli::AddArgs;
 use rustodo::commands::{add, done, edit, list, projects};
 use rustodo::models::{Priority, SortBy, StatusFilter};
 
@@ -20,13 +21,15 @@ use rustodo::models::{Priority, SortBy, StatusFilter};
 fn add_task(env: &TestEnv, text: &str, project: Option<&str>) -> usize {
     add::execute(
         env.storage(),
-        text.to_string(),
-        Priority::Medium,
-        vec![],
-        project.map(|s| s.to_string()),
-        None,
-        None,
-        vec![],
+        AddArgs {
+            text: text.to_string(),
+            priority: Priority::Medium,
+            tag: vec![],
+            project: project.map(|s| s.to_string()),
+            due: None,
+            recurrence: None,
+            depends_on: vec![],
+        },
     )
     .unwrap();
     env.task_count()
@@ -241,25 +244,29 @@ fn test_list_filter_project_with_sort() {
 
     add::execute(
         env.storage(),
-        "Later task".to_string(),
-        Priority::Medium,
-        vec![],
-        Some("Backend".to_string()),
-        Some(days_from_now(10)),
-        None,
-        vec![],
+        AddArgs {
+            text: "Later task".to_string(),
+            priority: Priority::Medium,
+            tag: vec![],
+            project: Some("Backend".to_string()),
+            due: Some(days_from_now(10).to_string()),
+            recurrence: None,
+            depends_on: vec![],
+        },
     )
     .unwrap();
 
     add::execute(
         env.storage(),
-        "Earlier task".to_string(),
-        Priority::Medium,
-        vec![],
-        Some("Backend".to_string()),
-        Some(days_from_now(2)),
-        None,
-        vec![],
+        AddArgs {
+            text: "Earlier task".to_string(),
+            priority: Priority::Medium,
+            tag: vec![],
+            project: Some("Backend".to_string()),
+            due: Some(days_from_now(2).to_string()),
+            recurrence: None,
+            depends_on: vec![],
+        },
     )
     .unwrap();
 
@@ -396,13 +403,15 @@ fn test_add_empty_project_name_fails() {
 
     let result = add::execute(
         env.storage(),
-        "Task".to_string(),
-        Priority::Medium,
-        vec![],
-        Some("".to_string()),
-        None,
-        None,
-        vec![],
+        AddArgs {
+            text: "Task".to_string(),
+            priority: Priority::Medium,
+            tag: vec![],
+            project: Some("".to_string()),
+            due: None,
+            recurrence: None,
+            depends_on: vec![],
+        },
     );
 
     assert!(result.is_err());
@@ -414,13 +423,15 @@ fn test_add_project_name_too_long_fails() {
 
     let result = add::execute(
         env.storage(),
-        "Task".to_string(),
-        Priority::Medium,
-        vec![],
-        Some("x".repeat(101)),
-        None,
-        None,
-        vec![],
+        AddArgs {
+            text: "Task".to_string(),
+            priority: Priority::Medium,
+            tag: vec![],
+            project: Some("x".repeat(101)),
+            due: None,
+            recurrence: None,
+            depends_on: vec![],
+        },
     );
 
     assert!(result.is_err());
@@ -432,13 +443,15 @@ fn test_add_project_name_exactly_max_length_ok() {
 
     let result = add::execute(
         env.storage(),
-        "Task".to_string(),
-        Priority::Medium,
-        vec![],
-        Some("x".repeat(100)),
-        None,
-        None,
-        vec![],
+        AddArgs {
+            text: "Task".to_string(),
+            priority: Priority::Medium,
+            tag: vec![],
+            project: Some("x".repeat(100)),
+            due: None,
+            recurrence: None,
+            depends_on: vec![],
+        },
     );
 
     assert!(result.is_ok());

@@ -3,6 +3,7 @@
 mod helpers;
 
 use helpers::{TestEnv, days_from_now};
+use rustodo::cli::AddArgs;
 use rustodo::commands::add;
 use rustodo::models::{Priority, Recurrence};
 
@@ -12,13 +13,15 @@ fn test_add_simple_task() {
 
     let result = add::execute(
         env.storage(),
-        "Buy milk".to_string(),
-        Priority::Medium,
-        vec![],
-        None,
-        None,
-        None,
-        vec![],
+        AddArgs {
+            text: "Buy milk".to_string(),
+            priority: Priority::Medium,
+            tag: vec![],
+            project: None,
+            due: None,
+            recurrence: None,
+            depends_on: vec![],
+        },
     );
 
     assert!(result.is_ok());
@@ -41,13 +44,15 @@ fn test_add_task_with_all_metadata() {
 
     let result = add::execute(
         env.storage(),
-        "Complete project".to_string(),
-        Priority::High,
-        vec!["work".to_string(), "urgent".to_string()],
-        None,
-        Some(due_date),
-        Some(Recurrence::Weekly),
-        vec![],
+        AddArgs {
+            text: "Complete project".to_string(),
+            priority: Priority::High,
+            tag: vec!["work".to_string(), "urgent".to_string()],
+            project: None,
+            due: Some(due_date.to_string()),
+            recurrence: Some(Recurrence::Weekly),
+            depends_on: vec![],
+        },
     );
 
     assert!(result.is_ok());
@@ -69,35 +74,41 @@ fn test_add_multiple_tasks_preserves_order() {
 
     add::execute(
         env.storage(),
-        "Task 1".to_string(),
-        Priority::Low,
-        vec![],
-        None,
-        None,
-        None,
-        vec![],
+        AddArgs {
+            text: "Task 1".to_string(),
+            priority: Priority::Low,
+            tag: vec![],
+            project: None,
+            due: None,
+            recurrence: None,
+            depends_on: vec![],
+        },
     )
     .unwrap();
     add::execute(
         env.storage(),
-        "Task 2".to_string(),
-        Priority::Medium,
-        vec![],
-        None,
-        None,
-        None,
-        vec![],
+        AddArgs {
+            text: "Task 2".to_string(),
+            priority: Priority::Medium,
+            tag: vec![],
+            project: None,
+            due: None,
+            recurrence: None,
+            depends_on: vec![],
+        },
     )
     .unwrap();
     add::execute(
         env.storage(),
-        "Task 3".to_string(),
-        Priority::High,
-        vec![],
-        None,
-        None,
-        None,
-        vec![],
+        AddArgs {
+            text: "Task 3".to_string(),
+            priority: Priority::High,
+            tag: vec![],
+            project: None,
+            due: None,
+            recurrence: None,
+            depends_on: vec![],
+        },
     )
     .unwrap();
 
@@ -114,13 +125,15 @@ fn test_add_recurring_task_requires_due_date() {
 
     let result = add::execute(
         env.storage(),
-        "Daily standup".to_string(),
-        Priority::Medium,
-        vec![],
-        None,
-        None, // No due date
-        Some(Recurrence::Daily),
-        vec![],
+        AddArgs {
+            text: "Daily standup".to_string(),
+            priority: Priority::Medium,
+            tag: vec![],
+            project: None,
+            due: None, // No due date
+            recurrence: Some(Recurrence::Daily),
+            depends_on: vec![],
+        },
     );
 
     // Should fail validation
@@ -135,13 +148,15 @@ fn test_add_empty_text_fails() {
 
     let result = add::execute(
         env.storage(),
-        "".to_string(),
-        Priority::Medium,
-        vec![],
-        None,
-        None,
-        None,
-        vec![],
+        AddArgs {
+            text: "".to_string(),
+            priority: Priority::Medium,
+            tag: vec![],
+            project: None,
+            due: None,
+            recurrence: None,
+            depends_on: vec![],
+        },
     );
 
     assert!(result.is_err());
@@ -154,13 +169,15 @@ fn test_add_whitespace_only_text_fails() {
 
     let result = add::execute(
         env.storage(),
-        "   \t\n  ".to_string(),
-        Priority::Medium,
-        vec![],
-        None,
-        None,
-        None,
-        vec![],
+        AddArgs {
+            text: "   \t\n  ".to_string(),
+            priority: Priority::Medium,
+            tag: vec![],
+            project: None,
+            due: None,
+            recurrence: None,
+            depends_on: vec![],
+        },
     );
 
     assert!(result.is_err());
@@ -173,13 +190,15 @@ fn test_add_with_invalid_tags_fails() {
     // Tag with spaces
     let result = add::execute(
         env.storage(),
-        "Task".to_string(),
-        Priority::Medium,
-        vec!["invalid tag".to_string()],
-        None,
-        None,
-        None,
-        vec![],
+        AddArgs {
+            text: "Task".to_string(),
+            priority: Priority::Medium,
+            tag: vec!["invalid tag".to_string()],
+            project: None,
+            due: None,
+            recurrence: None,
+            depends_on: vec![],
+        },
     );
 
     assert!(result.is_err());
@@ -197,13 +216,15 @@ fn test_add_with_duplicate_tags_fails() {
 
     let result = add::execute(
         env.storage(),
-        "Task".to_string(),
-        Priority::Medium,
-        vec!["work".to_string(), "Work".to_string()], // Case-insensitive duplicate
-        None,
-        None,
-        None,
-        vec![],
+        AddArgs {
+            text: "Task".to_string(),
+            priority: Priority::Medium,
+            tag: vec!["work".to_string(), "Work".to_string()], // Case-insensitive duplicate
+            project: None,
+            due: None,
+            recurrence: None,
+            depends_on: vec![],
+        },
     );
 
     assert!(result.is_err());

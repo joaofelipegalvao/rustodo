@@ -7,39 +7,35 @@
 //! [`Task`]: crate::models::Task
 
 use anyhow::Result;
-use chrono::NaiveDate;
 use colored::Colorize;
 
+use crate::cli::AddArgs;
 use crate::error::TodoError;
-use crate::models::{Priority, Recurrence, Task};
+use crate::models::Task;
 use crate::storage::Storage;
 use crate::tag_normalizer::{collect_existing_tags, normalize_tags};
-use crate::validation;
+use crate::{date_parser, validation};
 
-#[allow(clippy::too_many_arguments)]
-pub fn execute(
-    storage: &impl Storage,
-    text: String,
-    priority: Priority,
-    tags: Vec<String>,
-    project: Option<String>,
-    due: Option<NaiveDate>,
-    recur: Option<Recurrence>,
-    depends_on: Vec<usize>,
-) -> Result<()> {
-    validation::validate_task_text(&text)?;
-    validation::validate_tags(&tags)?;
-    if let Some(ref p) = project {
+pub fn execute(storage: &impl Storage, args: AddArgs) -> Result<()> {
+    validation::validate_task_text(&args.text)?;
+    validation::validate_tags(&args.tag)?;
+    if let Some(ref p) = args.project {
         validation::validate_project_name(p)?;
     }
+
+    let due = if let Some(ref due_str) = args.due {
+        Some(date_parser::parse_date_not_in_past(due_str)?)
+    } else {
+        None
+    };
+
     validation::validate_due_date(due, false)?;
-    validation::validate_recurrence(recur, due)?;
+    validation::validate_recurrence(args.recurrence, due)?;
 
     let mut tasks = storage.load()?;
-
     let new_id = tasks.len() + 1;
 
-    for &dep_id in &depends_on {
+    for &dep_id in &args.depends_on {
         if dep_id == new_id {
             return Err(TodoError::SelfDependency { task_id: new_id }.into());
         }
@@ -47,10 +43,17 @@ pub fn execute(
     }
 
     let existing_tags = collect_existing_tags(&tasks);
-    let (normalized_tags, normalization_messages) = normalize_tags(tags, &existing_tags);
+    let (normalized_tags, normalization_messages) = normalize_tags(args.tag, &existing_tags);
 
-    let mut task = Task::new(text, priority, normalized_tags, project, due, recur);
-    task.depends_on = depends_on;
+    let mut task = Task::new(
+        args.text,
+        args.priority,
+        normalized_tags,
+        args.project,
+        due,
+        args.recurrence,
+    );
+    task.depends_on = args.depends_on;
     tasks.push(task);
 
     let id = tasks.len();
@@ -62,7 +65,7 @@ pub fn execute(
         println!("  {} Tag normalized: {}", "~".yellow(), msg.yellow());
     }
 
-    if let Some(pattern) = recur {
+    if let Some(pattern) = args.recurrence {
         println!("{} Added task #{} with {} recurrence", ok, id, pattern);
     } else {
         println!("{} Added task #{}", ok, id);

@@ -256,13 +256,52 @@ impl Task {
     }
 }
 
+/// Counts the tasks of a project, returning (total, completed).
+///
+/// Project name comparison is case-insensitive for consistency.
+/// Centralizes the logic that was previously duplicated in `stats.rs` and `projects.rs`.
+///
+/// # Example
+///
+/// ```
+/// use rustodo::models::{Task, Priority};
+///
+/// let tasks = vec![
+///     Task::new("A".to_string(), Priority::Medium, vec![], Some("Work".to_string()), None, None),
+///     Task::new("B".to_string(), Priority::Medium, vec![], Some("Work".to_string()), None, None),
+/// ];
+/// let (total, done) = rustodo::models::count_by_project(&tasks, "work");
+/// assert_eq!(total, 2);
+/// assert_eq!(done, 0);
+/// ```
+pub fn count_by_project(tasks: &[Task], project: &str) -> (usize, usize) {
+    let project_lower = project.to_lowercase();
+    let matching: Vec<_> = tasks
+        .iter()
+        .filter(|t| {
+            t.project
+                .as_deref()
+                .map(|p| p.to_lowercase() == project_lower)
+                .unwrap_or(false)
+        })
+        .collect();
+
+    let total = matching.len();
+    let done = matching.iter().filter(|t| t.completed).count();
+    (total, done)
+}
+
 /// Detects a dependency cycle using iterative DFS.
 ///
 /// Returns `Err` with the cycle description if adding `dep_id → task_id`
 /// would create a cycle, `Ok(())` otherwise.
 ///
 /// `tasks` is the full 0-indexed list; IDs are 1-based.
-pub fn detect_cycle(tasks: &[Task], task_id: usize, new_dep_id: usize) -> Result<(), String> {
+pub(crate) fn detect_cycle(
+    tasks: &[Task],
+    task_id: usize,
+    new_dep_id: usize,
+) -> Result<(), String> {
     // Would adding "task_id depends on new_dep_id" create a cycle?
     // A cycle exists if task_id is reachable FROM new_dep_id via depends_on edges.
     // i.e. check if task_id appears in the transitive deps of new_dep_id.
@@ -448,5 +487,59 @@ mod tests {
             next.depends_on.is_empty(),
             "recurrences should not inherit dependencies"
         );
+    }
+
+    #[test]
+    fn test_count_by_project_basic() {
+        let mut t1 = Task::new(
+            "A".to_string(),
+            Priority::Medium,
+            vec![],
+            Some("Work".to_string()),
+            None,
+            None,
+        );
+        let t2 = Task::new(
+            "B".to_string(),
+            Priority::Medium,
+            vec![],
+            Some("Work".to_string()),
+            None,
+            None,
+        );
+        let t3 = Task::new(
+            "C".to_string(),
+            Priority::Medium,
+            vec![],
+            Some("Personal".to_string()),
+            None,
+            None,
+        );
+        t1.completed = true;
+
+        let tasks = vec![t1, t2, t3];
+        let (total, done) = count_by_project(&tasks, "work");
+        assert_eq!(total, 2);
+        assert_eq!(done, 1);
+    }
+
+    #[test]
+    fn test_count_by_project_case_insensitive() {
+        let t1 = Task::new(
+            "A".to_string(),
+            Priority::Medium,
+            vec![],
+            Some("Backend".to_string()),
+            None,
+            None,
+        );
+        let tasks = vec![t1];
+
+        let (total1, _) = count_by_project(&tasks, "backend");
+        let (total2, _) = count_by_project(&tasks, "BACKEND");
+        let (total3, _) = count_by_project(&tasks, "Backend");
+        assert_eq!(total1, 1);
+        assert_eq!(total2, 1);
+        assert_eq!(total3, 1);
     }
 }

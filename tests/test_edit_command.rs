@@ -3,6 +3,7 @@
 mod helpers;
 
 use helpers::{TestEnv, days_from_now};
+use rustodo::cli::AddArgs;
 use rustodo::commands::{add, edit};
 use rustodo::models::Priority;
 
@@ -13,13 +14,15 @@ fn test_edit_text() {
     // Setup: Create task
     add::execute(
         env.storage(),
-        "Old text".to_string(),
-        Priority::Medium,
-        vec![],
-        None,
-        None,
-        None,
-        vec![],
+        AddArgs {
+            text: "Old text".to_string(),
+            priority: Priority::Medium,
+            tag: vec![],
+            project: None,
+            due: None,
+            recurrence: None,
+            depends_on: vec![],
+        },
     )
     .unwrap();
 
@@ -54,13 +57,15 @@ fn test_edit_priority() {
 
     add::execute(
         env.storage(),
-        "Task".to_string(),
-        Priority::Low,
-        vec![],
-        None,
-        None,
-        None,
-        vec![],
+        AddArgs {
+            text: "Task".to_string(),
+            priority: Priority::Low,
+            tag: vec![],
+            project: None,
+            due: None,
+            recurrence: None,
+            depends_on: vec![],
+        },
     )
     .unwrap();
 
@@ -93,13 +98,15 @@ fn test_edit_add_invalid_tag_fails() {
 
     add::execute(
         env.storage(),
-        "Task".to_string(),
-        Priority::Medium,
-        vec![],
-        None,
-        None,
-        None,
-        vec![],
+        AddArgs {
+            text: "Task".to_string(),
+            priority: Priority::Medium,
+            tag: vec![],
+            project: None,
+            due: None,
+            recurrence: None,
+            depends_on: vec![],
+        },
     )
     .unwrap();
 
@@ -136,13 +143,15 @@ fn test_edit_add_tags_preserves_existing() {
     // Setup: Task with one tag
     add::execute(
         env.storage(),
-        "Task".to_string(),
-        Priority::Medium,
-        vec!["work".to_string()],
-        None,
-        None,
-        None,
-        vec![],
+        AddArgs {
+            text: "Task".to_string(),
+            priority: Priority::Medium,
+            tag: vec!["work".to_string()],
+            project: None,
+            due: None,
+            recurrence: None,
+            depends_on: vec![],
+        },
     )
     .unwrap();
 
@@ -180,17 +189,19 @@ fn test_edit_remove_specific_tag() {
     // Setup: Task with multiple tags
     add::execute(
         env.storage(),
-        "Task".to_string(),
-        Priority::Medium,
-        vec![
-            "work".to_string(),
-            "urgent".to_string(),
-            "frontend".to_string(),
-        ],
-        None,
-        None,
-        None,
-        vec![],
+        AddArgs {
+            text: "Task".to_string(),
+            priority: Priority::Medium,
+            tag: vec![
+                "work".to_string(),
+                "urgent".to_string(),
+                "frontend".to_string(),
+            ],
+            project: None,
+            due: None,
+            recurrence: None,
+            depends_on: vec![],
+        },
     )
     .unwrap();
 
@@ -229,13 +240,15 @@ fn test_edit_add_and_remove_tags_simultaneously() {
     // Setup
     add::execute(
         env.storage(),
-        "Task".to_string(),
-        Priority::Medium,
-        vec!["work".to_string(), "old".to_string()],
-        None,
-        None,
-        None,
-        vec![],
+        AddArgs {
+            text: "Task".to_string(),
+            priority: Priority::Medium,
+            tag: vec!["work".to_string(), "old".to_string()],
+            project: None,
+            due: None,
+            recurrence: None,
+            depends_on: vec![],
+        },
     )
     .unwrap();
 
@@ -274,13 +287,15 @@ fn test_edit_clear_all_tags() {
     // Setup
     add::execute(
         env.storage(),
-        "Task".to_string(),
-        Priority::Medium,
-        vec!["work".to_string(), "urgent".to_string()],
-        None,
-        None,
-        None,
-        vec![],
+        AddArgs {
+            text: "Task".to_string(),
+            priority: Priority::Medium,
+            tag: vec!["work".to_string(), "urgent".to_string()],
+            project: None,
+            due: None,
+            recurrence: None,
+            depends_on: vec![],
+        },
     )
     .unwrap();
 
@@ -316,13 +331,15 @@ fn test_edit_remove_nonexistent_tag_fails() {
     // Setup: Task with only 'work' tag
     add::execute(
         env.storage(),
-        "Task".to_string(),
-        Priority::Medium,
-        vec!["work".to_string()],
-        None,
-        None,
-        None,
-        vec![],
+        AddArgs {
+            text: "Task".to_string(),
+            priority: Priority::Medium,
+            tag: vec!["work".to_string()],
+            project: None,
+            due: None,
+            recurrence: None,
+            depends_on: vec![],
+        },
     )
     .unwrap();
 
@@ -386,13 +403,15 @@ fn test_edit_due_date() {
 
     add::execute(
         env.storage(),
-        "Task".to_string(),
-        Priority::Medium,
-        vec![],
-        None,
-        None,
-        None,
-        vec![],
+        AddArgs {
+            text: "Task".to_string(),
+            priority: Priority::Medium,
+            tag: vec![],
+            project: None,
+            due: None,
+            recurrence: None,
+            depends_on: vec![],
+        },
     )
     .unwrap();
 
@@ -407,7 +426,7 @@ fn test_edit_due_date() {
         vec![],
         None,
         false,
-        Some(due_date), // Set due date
+        Some(due_date),
         false,
         false,
         vec![],
@@ -428,13 +447,15 @@ fn test_edit_clear_due_date() {
     let due_date = days_from_now(7);
     add::execute(
         env.storage(),
-        "Task".to_string(),
-        Priority::Medium,
-        vec![],
-        None,
-        Some(due_date),
-        None,
-        vec![],
+        AddArgs {
+            text: "Task".to_string(),
+            priority: Priority::Medium,
+            tag: vec![],
+            project: None,
+            due: Some(due_date.to_string()),
+            recurrence: None,
+            depends_on: vec![],
+        },
     )
     .unwrap();
 

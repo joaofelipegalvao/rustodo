@@ -3,6 +3,7 @@
 use std::vec;
 
 use rustodo::{
+    cli::AddArgs,
     commands::{add, done},
     models::Priority,
 };
@@ -14,13 +15,15 @@ mod helpers;
 fn add_simple(env: &TestEnv, text: &str) -> usize {
     add::execute(
         env.storage(),
-        text.to_string(),
-        Priority::Medium,
-        vec![],
-        None,
-        None,
-        None,
-        vec![],
+        AddArgs {
+            text: text.to_string(),
+            priority: Priority::Medium,
+            tag: vec![],
+            project: None,
+            due: None,
+            recurrence: None,
+            depends_on: vec![],
+        },
     )
     .unwrap();
     env.task_count()
@@ -29,13 +32,15 @@ fn add_simple(env: &TestEnv, text: &str) -> usize {
 fn add_with_deps(env: &TestEnv, text: &str, depends_on: Vec<usize>) -> usize {
     add::execute(
         env.storage(),
-        text.to_string(),
-        Priority::Medium,
-        vec![],
-        None,
-        None,
-        None,
-        depends_on,
+        AddArgs {
+            text: text.to_string(),
+            priority: Priority::Medium,
+            tag: vec![],
+            project: None,
+            due: None,
+            recurrence: None,
+            depends_on,
+        },
     )
     .unwrap();
     env.task_count()

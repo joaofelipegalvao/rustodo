@@ -10,6 +10,7 @@
 mod helpers;
 
 use helpers::TestEnv;
+use rustodo::cli::AddArgs;
 use rustodo::commands::{add, done, undone};
 use rustodo::models::Priority;
 
@@ -18,13 +19,15 @@ use rustodo::models::Priority;
 fn add_simple(env: &TestEnv, text: &str) -> usize {
     add::execute(
         env.storage(),
-        text.to_string(),
-        Priority::Medium,
-        vec![],
-        None,
-        None,
-        None,
-        vec![],
+        AddArgs {
+            text: text.to_string(),
+            priority: Priority::Medium,
+            tag: vec![],
+            project: None,
+            due: None,
+            recurrence: None,
+            depends_on: vec![],
+        },
     )
     .unwrap();
     env.task_count()

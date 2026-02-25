@@ -15,6 +15,7 @@
 mod helpers;
 
 use helpers::{TestEnv, days_from_now};
+use rustodo::cli::AddArgs;
 use rustodo::commands::{add, clear_recur, done, recur};
 use rustodo::models::{Priority, Recurrence};
 
@@ -23,13 +24,15 @@ use rustodo::models::{Priority, Recurrence};
 fn add_with_due(env: &TestEnv, text: &str, days: i64) -> usize {
     add::execute(
         env.storage(),
-        text.to_string(),
-        Priority::Medium,
-        vec![],
-        None,
-        Some(days_from_now(days)),
-        None,
-        vec![],
+        AddArgs {
+            text: text.to_string(),
+            priority: Priority::Medium,
+            tag: vec![],
+            project: None,
+            due: Some(days_from_now(days).to_string()),
+            recurrence: None,
+            depends_on: vec![],
+        },
     )
     .unwrap();
     env.task_count()
@@ -38,13 +41,15 @@ fn add_with_due(env: &TestEnv, text: &str, days: i64) -> usize {
 fn add_recurring(env: &TestEnv, text: &str, days: i64, pattern: Recurrence) -> usize {
     add::execute(
         env.storage(),
-        text.to_string(),
-        Priority::Medium,
-        vec![],
-        None,
-        Some(days_from_now(days)),
-        Some(pattern),
-        vec![],
+        AddArgs {
+            text: text.to_string(),
+            priority: Priority::Medium,
+            tag: vec![],
+            project: None,
+            due: Some(days_from_now(days).to_string()),
+            recurrence: Some(pattern),
+            depends_on: vec![],
+        },
     )
     .unwrap();
     env.task_count()
@@ -53,13 +58,15 @@ fn add_recurring(env: &TestEnv, text: &str, days: i64, pattern: Recurrence) -> u
 fn add_simple(env: &TestEnv, text: &str) -> usize {
     add::execute(
         env.storage(),
-        text.to_string(),
-        Priority::Medium,
-        vec![],
-        None,
-        None,
-        None,
-        vec![],
+        AddArgs {
+            text: text.to_string(),
+            priority: Priority::Medium,
+            tag: vec![],
+            project: None,
+            due: None,
+            recurrence: None,
+            depends_on: vec![],
+        },
     )
     .unwrap();
     env.task_count()
@@ -191,13 +198,15 @@ fn test_clear_recur_preserves_due_date() {
     let due = days_from_now(5);
     add::execute(
         env.storage(),
-        "Task".to_string(),
-        Priority::Medium,
-        vec![],
-        None,
-        Some(due),
-        Some(Recurrence::Weekly),
-        vec![],
+        AddArgs {
+            text: "Task".to_string(),
+            priority: Priority::Medium,
+            tag: vec![],
+            project: None,
+            due: Some(due.to_string()),
+            recurrence: Some(Recurrence::Weekly),
+            depends_on: vec![],
+        },
     )
     .unwrap();
 
@@ -216,13 +225,15 @@ fn test_done_daily_recurring_creates_next_occurrence() {
     let due = days_from_now(1);
     add::execute(
         env.storage(),
-        "Daily standup".to_string(),
-        Priority::Medium,
-        vec![],
-        None,
-        Some(due),
-        Some(Recurrence::Daily),
-        vec![],
+        AddArgs {
+            text: "Daily standup".to_string(),
+            priority: Priority::Medium,
+            tag: vec![],
+            project: None,
+            due: Some(due.to_string()),
+            recurrence: Some(Recurrence::Daily),
+            depends_on: vec![],
+        },
     )
     .unwrap();
 
@@ -241,13 +252,15 @@ fn test_done_weekly_recurring_creates_next_occurrence() {
     let due = days_from_now(3);
     add::execute(
         env.storage(),
-        "Weekly review".to_string(),
-        Priority::Medium,
-        vec![],
-        None,
-        Some(due),
-        Some(Recurrence::Weekly),
-        vec![],
+        AddArgs {
+            text: "Weekly review".to_string(),
+            priority: Priority::Medium,
+            tag: vec![],
+            project: None,
+            due: Some(due.to_string()),
+            recurrence: Some(Recurrence::Weekly),
+            depends_on: vec![],
+        },
     )
     .unwrap();
 
@@ -267,13 +280,15 @@ fn test_done_monthly_recurring_creates_next_occurrence() {
     let due = NaiveDate::from_ymd_opt(2030, 6, 15).unwrap();
     add::execute(
         env.storage(),
-        "Monthly report".to_string(),
-        Priority::Medium,
-        vec![],
-        None,
-        Some(due),
-        Some(Recurrence::Monthly),
-        vec![],
+        AddArgs {
+            text: "Monthly report".to_string(),
+            priority: Priority::Medium,
+            tag: vec![],
+            project: None,
+            due: Some(due.to_string()),
+            recurrence: Some(Recurrence::Monthly),
+            depends_on: vec![],
+        },
     )
     .unwrap();
 
@@ -293,13 +308,15 @@ fn test_done_recurring_preserves_metadata() {
     let due = days_from_now(1);
     add::execute(
         env.storage(),
-        "Tagged task".to_string(),
-        Priority::High,
-        vec!["work".to_string(), "urgent".to_string()],
-        Some("Backend".to_string()),
-        Some(due),
-        Some(Recurrence::Daily),
-        vec![],
+        AddArgs {
+            text: "Tagged task".to_string(),
+            priority: Priority::High,
+            tag: vec!["work".to_string(), "urgent".to_string()],
+            project: Some("Backend".to_string()),
+            due: Some(due.to_string()),
+            recurrence: Some(Recurrence::Daily),
+            depends_on: vec![],
+        },
     )
     .unwrap();
 
@@ -320,13 +337,15 @@ fn test_done_recurring_sets_parent_id() {
     let env = TestEnv::new();
     add::execute(
         env.storage(),
-        "Task".to_string(),
-        Priority::Medium,
-        vec![],
-        None,
-        Some(days_from_now(1)),
-        Some(Recurrence::Daily),
-        vec![],
+        AddArgs {
+            text: "Task".to_string(),
+            priority: Priority::Medium,
+            tag: vec![],
+            project: None,
+            due: Some(days_from_now(1).to_string()),
+            recurrence: Some(Recurrence::Daily),
+            depends_on: vec![],
+        },
     )
     .unwrap();
 
@@ -342,13 +361,15 @@ fn test_done_recurring_does_not_duplicate_if_next_exists() {
     let due = days_from_now(1);
     add::execute(
         env.storage(),
-        "Task".to_string(),
-        Priority::Medium,
-        vec![],
-        None,
-        Some(due),
-        Some(Recurrence::Daily),
-        vec![],
+        AddArgs {
+            text: "Task".to_string(),
+            priority: Priority::Medium,
+            tag: vec![],
+            project: None,
+            due: Some(due.to_string()),
+            recurrence: Some(Recurrence::Daily),
+            depends_on: vec![],
+        },
     )
     .unwrap();
 

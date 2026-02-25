@@ -13,6 +13,7 @@
 mod helpers;
 
 use helpers::TestEnv;
+use rustodo::cli::AddArgs;
 use rustodo::commands::{add, done, search};
 use rustodo::models::{Priority, StatusFilter};
 
@@ -21,13 +22,15 @@ use rustodo::models::{Priority, StatusFilter};
 fn add_task(env: &TestEnv, text: &str, tags: Vec<&str>, project: Option<&str>) -> usize {
     add::execute(
         env.storage(),
-        text.to_string(),
-        Priority::Medium,
-        tags.into_iter().map(|s| s.to_string()).collect(),
-        project.map(|s| s.to_string()),
-        None,
-        None,
-        vec![],
+        AddArgs {
+            text: text.to_string(),
+            priority: Priority::Medium,
+            tag: tags.into_iter().map(|s| s.to_string()).collect(),
+            project: project.map(|s| s.to_string()),
+            due: None,
+            recurrence: None,
+            depends_on: vec![],
+        },
     )
     .unwrap();
     env.task_count()

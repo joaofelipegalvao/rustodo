@@ -11,7 +11,6 @@
 //! | [`DueFilter`] | Filter tasks by due-date window |
 //! | [`RecurrenceFilter`] | Filter tasks by recurrence pattern |
 //! | [`SortBy`] | Sort order options for task lists |
-//! | [`detect_cycle`] | Dependency cycle detection via iterative DFS |
 
 mod filters;
 mod priority;
@@ -21,4 +20,5 @@ mod task;
 pub use filters::{DueFilter, RecurrenceFilter, SortBy, StatusFilter};
 pub use priority::Priority;
 pub use recurrence::Recurrence;
-pub use task::{Task, detect_cycle};
+pub(crate) use task::detect_cycle;
+pub use task::{Task, count_by_project};

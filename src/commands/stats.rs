@@ -10,6 +10,7 @@ use anyhow::Result;
 use chrono::{Duration, Local};
 use colored::Colorize;
 
+use crate::models::count_by_project;
 use crate::storage::Storage;
 
 pub fn execute(storage: &impl Storage) -> Result<()> {
@@ -89,17 +90,13 @@ pub fn execute(storage: &impl Storage) -> Result<()> {
     if !projects.is_empty() {
         section("By Project");
         for project in &projects {
-            let t: Vec<_> = tasks
-                .iter()
-                .filter(|t| t.project.as_deref() == Some(project))
-                .collect();
-            let d = t.iter().filter(|t| t.completed).count();
-            let p = percent(d, t.len());
+            let (total_p, done_p) = count_by_project(&tasks, project);
+            let pct_p = percent(done_p, total_p);
             println!(
                 "  {:<24} {}  ({}% done)",
                 project.bright_white(),
-                format!("{} tasks", t.len()).cyan(),
-                p,
+                format!("{} tasks", total_p).cyan(),
+                pct_p,
             );
         }
         let no_project = tasks.iter().filter(|t| t.project.is_none()).count();

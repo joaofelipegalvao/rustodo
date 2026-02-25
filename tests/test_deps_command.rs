@@ -13,6 +13,7 @@
 mod helpers;
 
 use helpers::TestEnv;
+use rustodo::cli::AddArgs;
 use rustodo::commands::{add, deps, done, edit};
 use rustodo::models::Priority;
 
@@ -21,13 +22,15 @@ use rustodo::models::Priority;
 fn add_simple(env: &TestEnv, text: &str) -> usize {
     add::execute(
         env.storage(),
-        text.to_string(),
-        Priority::Medium,
-        vec![],
-        None,
-        None,
-        None,
-        vec![],
+        AddArgs {
+            text: text.to_string(),
+            priority: Priority::Medium,
+            tag: vec![],
+            project: None,
+            due: None,
+            recurrence: None,
+            depends_on: vec![],
+        },
     )
     .unwrap();
     env.task_count()
@@ -36,13 +39,15 @@ fn add_simple(env: &TestEnv, text: &str) -> usize {
 fn add_with_deps(env: &TestEnv, text: &str, depends_on: Vec<usize>) -> usize {
     add::execute(
         env.storage(),
-        text.to_string(),
-        Priority::Medium,
-        vec![],
-        None,
-        None,
-        None,
-        depends_on,
+        AddArgs {
+            text: text.to_string(),
+            priority: Priority::Medium,
+            tag: vec![],
+            project: None,
+            due: None,
+            recurrence: None,
+            depends_on,
+        },
     )
     .unwrap();
     env.task_count()
@@ -186,13 +191,15 @@ fn test_add_self_dependency_fails() {
     // Task ID will be 1, so depends_on=[1] is a self-reference
     let result = add::execute(
         env.storage(),
-        "Self-referencing task".to_string(),
-        Priority::Medium,
-        vec![],
-        None,
-        None,
-        None,
-        vec![1],
+        AddArgs {
+            text: "Self-referencing task".to_string(),
+            priority: Priority::Medium,
+            tag: vec![],
+            project: None,
+            due: None,
+            recurrence: None,
+            depends_on: vec![1],
+        },
     );
 
     assert!(result.is_err());
@@ -484,15 +491,19 @@ fn test_recurrence_does_not_inherit_deps() {
     let env = TestEnv::new();
     add_simple(&env, "Blocker");
 
+    let due_str = format!("{}", days_from_now(1).format("%Y-%m-%d"));
+
     add::execute(
         env.storage(),
-        "Recurring task".to_string(),
-        Priority::Medium,
-        vec![],
-        None,
-        Some(days_from_now(1)),
-        Some(Recurrence::Daily),
-        vec![1], // depends on task 1
+        AddArgs {
+            text: "Recurring task".to_string(),
+            priority: Priority::Medium,
+            tag: vec![],
+            project: None,
+            due: Some(due_str),
+            recurrence: Some(Recurrence::Daily),
+            depends_on: vec![1],
+        },
     )
     .unwrap();
 

@@ -7,6 +7,7 @@ use anyhow::Result;
 use colored::Colorize;
 
 use crate::error::TodoError;
+use crate::models::count_by_project;
 use crate::storage::Storage;
 
 pub fn execute(storage: &impl Storage) -> Result<()> {
@@ -27,16 +28,8 @@ pub fn execute(storage: &impl Storage) -> Result<()> {
 
     println!("\nProjects:\n");
     for project in &projects {
-        let total = tasks
-            .iter()
-            .filter(|t| t.project.as_deref() == Some(project))
-            .count();
-        let pending = tasks
-            .iter()
-            .filter(|t| t.project.as_deref() == Some(project) && !t.completed)
-            .count();
-        let done = total - pending;
-
+        let (total, done) = count_by_project(&tasks, project);
+        let pending = total - done;
         println!("  {} ({} pending, {} done)", project.cyan(), pending, done,);
     }
 
