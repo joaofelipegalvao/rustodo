@@ -13,8 +13,8 @@ use clap::Parser;
 use colored::Colorize;
 
 use rustodo::cli::{Cli, Commands};
+use rustodo::commands;
 use rustodo::storage::{JsonStorage, Storage};
-use rustodo::{commands, date_parser};
 
 /// Main entry point for the todo-list application.
 ///
@@ -79,45 +79,7 @@ fn run(cli: Cli, storage: &impl Storage) -> Result<()> {
 
         Commands::Remove { id, yes } => commands::remove::execute(storage, id, yes),
 
-        Commands::Edit {
-            id,
-            text,
-            priority,
-            add_tag,
-            remove_tag,
-            project,
-            clear_project,
-            due,
-            clear_due,
-            clear_tags,
-            add_dep,
-            remove_dep,
-            clear_deps,
-        } => {
-            // Parse due date from string (supports natural language)
-            let due_date = if let Some(due_str) = due {
-                Some(date_parser::parse_date(&due_str)?)
-            } else {
-                None
-            };
-
-            commands::edit::execute(
-                storage,
-                id,
-                text,
-                priority,
-                add_tag,
-                remove_tag,
-                project,
-                clear_project,
-                due_date,
-                clear_due,
-                clear_tags,
-                add_dep,
-                remove_dep,
-                clear_deps,
-            )
-        }
+        Commands::Edit(args) => commands::edit::execute(storage, args),
 
         Commands::Clear { yes } => commands::clear::execute(storage, yes),
 

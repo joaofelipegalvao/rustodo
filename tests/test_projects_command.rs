@@ -12,7 +12,7 @@
 mod helpers;
 
 use helpers::TestEnv;
-use rustodo::cli::AddArgs;
+use rustodo::cli::{AddArgs, EditArgs};
 use rustodo::commands::{add, done, edit, list, projects};
 use rustodo::models::{Priority, SortBy, StatusFilter};
 
@@ -292,19 +292,21 @@ fn test_edit_assign_project() {
 
     let result = edit::execute(
         env.storage(),
-        1,
-        None,
-        None,
-        vec![],
-        vec![],
-        Some("Backend".to_string()),
-        false,
-        None,
-        false,
-        false,
-        vec![],
-        vec![],
-        false,
+        EditArgs {
+            id: 1,
+            text: None,
+            priority: None,
+            add_tag: vec![],
+            remove_tag: vec![],
+            project: Some("Backend".to_string()),
+            clear_project: false,
+            due: None,
+            clear_due: false,
+            clear_tags: false,
+            add_dep: vec![],
+            remove_dep: vec![],
+            clear_deps: false,
+        },
     );
 
     assert!(result.is_ok());
@@ -320,19 +322,21 @@ fn test_edit_change_project() {
 
     let result = edit::execute(
         env.storage(),
-        1,
-        None,
-        None,
-        vec![],
-        vec![],
-        Some("Frontend".to_string()),
-        false,
-        None,
-        false,
-        false,
-        vec![],
-        vec![],
-        false,
+        EditArgs {
+            id: 1,
+            text: None,
+            priority: None,
+            add_tag: vec![],
+            remove_tag: vec![],
+            project: Some("Frontend".to_string()),
+            clear_project: false,
+            due: None,
+            clear_due: false,
+            clear_tags: false,
+            add_dep: vec![],
+            remove_dep: vec![],
+            clear_deps: false,
+        },
     );
 
     assert!(result.is_ok());
@@ -348,19 +352,21 @@ fn test_edit_clear_project() {
 
     let result = edit::execute(
         env.storage(),
-        1,
-        None,
-        None,
-        vec![],
-        vec![],
-        None,
-        true, // clear_project
-        None,
-        false,
-        false,
-        vec![],
-        vec![],
-        false,
+        EditArgs {
+            id: 1,
+            text: None,
+            priority: None,
+            add_tag: vec![],
+            remove_tag: vec![],
+            project: None,
+            clear_project: true, // clear_project
+            due: None,
+            clear_due: false,
+            clear_tags: false,
+            add_dep: vec![],
+            remove_dep: vec![],
+            clear_deps: false,
+        },
     );
 
     assert!(result.is_ok());
@@ -377,19 +383,21 @@ fn test_edit_no_change_when_same_project() {
     // Setting to same value should report "no changes"
     let result = edit::execute(
         env.storage(),
-        1,
-        None,
-        None,
-        vec![],
-        vec![],
-        Some("Backend".to_string()),
-        false,
-        None,
-        false,
-        false,
-        vec![],
-        vec![],
-        false,
+        EditArgs {
+            id: 1,
+            text: None,
+            priority: None,
+            add_tag: vec![],
+            remove_tag: vec![],
+            project: Some("Backend".to_string()),
+            clear_project: false,
+            due: None,
+            clear_due: false,
+            clear_tags: false,
+            add_dep: vec![],
+            remove_dep: vec![],
+            clear_deps: false,
+        },
     );
 
     assert!(result.is_ok());

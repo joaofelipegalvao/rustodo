@@ -154,48 +154,7 @@ pub enum Commands {
         Project operations:\n  \
         todo edit 3 --project \"Backend\"   # Assign to a project\n  \
         todo edit 3 --clear-project         # Remove from project")]
-    Edit {
-        /// 1-based task ID.
-        #[arg(value_name = "ID")]
-        id: usize,
-
-        /// New task description.
-        #[arg(long)]
-        text: Option<String>,
-        /// New priority level.
-        #[arg(long, value_enum)]
-        priority: Option<Priority>,
-        /// Tags to add (comma-separated or repeat flag).
-        #[arg(long, value_delimiter = ',')]
-        add_tag: Vec<String>,
-        /// Tags to remove tags (comma-separated or repeat flag).
-        #[arg(long, value_delimiter = ',')]
-        remove_tag: Vec<String>,
-        /// Assign task to a project.
-        #[arg(long, short = 'p', conflicts_with = "clear_project")]
-        project: Option<String>,
-        /// Remove task from its current project.
-        #[arg(long, conflicts_with = "project")]
-        clear_project: bool,
-        /// New due date - accepts natural language or YYYY-MM-DD.
-        #[arg(long, value_name = "DATE|EXPRESSION")]
-        due: Option<String>,
-        /// Remove the due date.
-        #[arg(long, conflicts_with = "due")]
-        clear_due: bool,
-        /// Remove all tags.
-        #[arg(long, conflicts_with_all = ["add_tag", "remove_tag"])]
-        clear_tags: bool,
-        /// Task IDs to add as dependencies.
-        #[arg(long, value_name = "ID", conflicts_with = "clear_deps")]
-        add_dep: Vec<usize>,
-        /// Task IDs Remove task IDs from dependencies.
-        #[arg(long, value_name = "ID", conflicts_with = "clear_deps")]
-        remove_dep: Vec<usize>,
-        /// Remove all dependencies from this task.
-        #[arg(long, conflicts_with_all = ["add_dep", "remove_dep"])]
-        clear_deps: bool,
-    },
+    Edit(EditArgs),
 
     /// Clear all tasks
     #[command(visible_alias = "reset")]
@@ -304,4 +263,50 @@ pub struct AddArgs {
     /// Task IDs this task depends on (must be completed first).
     #[arg(long, value_name = "ID")]
     pub depends_on: Vec<usize>,
+}
+/// Arguments for the `edit` subcommand.
+///
+/// Extracted into its own struct so clap can derive the full argument set
+/// cleanly, and so callers can construct it programmatically in tests.
+#[derive(Args)]
+pub struct EditArgs {
+    /// 1-based task ID.
+    #[arg(value_name = "ID")]
+    pub id: usize,
+    /// New task description.
+    #[arg(long)]
+    pub text: Option<String>,
+    /// New priority level.
+    #[arg(long, value_enum)]
+    pub priority: Option<Priority>,
+    /// Tags to add (comma-separated or repeat flag).
+    #[arg(long, value_delimiter = ',')]
+    pub add_tag: Vec<String>,
+    /// Tags to remove (comma-separated or repeat flag).
+    #[arg(long, value_delimiter = ',')]
+    pub remove_tag: Vec<String>,
+    /// Assign task to a project.
+    #[arg(long, short = 'p', conflicts_with = "clear_project")]
+    pub project: Option<String>,
+    /// Remove task from its current project.
+    #[arg(long, conflicts_with = "project")]
+    pub clear_project: bool,
+    /// New due date - accepts natural language or YYYY-MM-DD.
+    #[arg(long, value_name = "DATE|EXPRESSION")]
+    pub due: Option<String>,
+    /// Remove the due date.
+    #[arg(long, conflicts_with = "due")]
+    pub clear_due: bool,
+    /// Remove all tags.
+    #[arg(long, conflicts_with_all = ["add_tag", "remove_tag"])]
+    pub clear_tags: bool,
+    /// Task IDs to add as dependencies.
+    #[arg(long, value_name = "ID", conflicts_with = "clear_deps")]
+    pub add_dep: Vec<usize>,
+    /// Task IDs to remove from dependencies.
+    #[arg(long, value_name = "ID", conflicts_with = "clear_deps")]
+    pub remove_dep: Vec<usize>,
+    /// Remove all dependencies from this task.
+    #[arg(long, conflicts_with_all = ["add_dep", "remove_dep"])]
+    pub clear_deps: bool,
 }

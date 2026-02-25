@@ -6,65 +6,56 @@
 //! mutating any state.
 
 use anyhow::Result;
-use chrono::NaiveDate;
 use colored::Colorize;
 
+use crate::cli::EditArgs;
+use crate::date_parser;
 use crate::error::TodoError;
-use crate::models::{Priority, detect_cycle};
+use crate::models::detect_cycle;
 use crate::storage::Storage;
 use crate::validation::{self, validate_task_id};
 
-#[allow(clippy::too_many_arguments)]
-pub fn execute(
-    storage: &impl Storage,
-    id: usize,
-    text: Option<String>,
-    priority: Option<Priority>,
-    add_tag: Vec<String>,
-    remove_tag: Vec<String>,
-    project: Option<String>,
-    clear_project: bool,
-    due: Option<NaiveDate>,
-    clear_due: bool,
-    clear_tags: bool,
-    add_dep: Vec<usize>,
-    remove_dep: Vec<usize>,
-    clear_deps: bool,
-) -> Result<()> {
+pub fn execute(storage: &impl Storage, args: EditArgs) -> Result<()> {
+    let due = if let Some(ref due_str) = args.due {
+        Some(date_parser::parse_date(due_str)?)
+    } else {
+        None
+    };
+
     let mut tasks = storage.load()?;
-    validate_task_id(id, tasks.len())?;
+    validate_task_id(args.id, tasks.len())?;
 
     let mut changes = Vec::new();
 
     // === Validate dependencies before mutating ===
-    for &dep_id in &add_dep {
-        if dep_id == id {
-            return Err(TodoError::SelfDependency { task_id: id }.into());
+    for &dep_id in &args.add_dep {
+        if dep_id == args.id {
+            return Err(TodoError::SelfDependency { task_id: args.id }.into());
         }
         validate_task_id(dep_id, tasks.len())?;
-        detect_cycle(&tasks, id, dep_id).map_err(TodoError::DependencyCycle)?;
-        if tasks[id - 1].depends_on.contains(&dep_id) {
+        detect_cycle(&tasks, args.id, dep_id).map_err(TodoError::DependencyCycle)?;
+        if tasks[args.id - 1].depends_on.contains(&dep_id) {
             return Err(TodoError::DuplicateDependency {
-                task_id: id,
+                task_id: args.id,
                 dep_id,
             }
             .into());
         }
     }
-    for &dep_id in &remove_dep {
-        if !tasks[id - 1].depends_on.contains(&dep_id) {
+    for &dep_id in &args.remove_dep {
+        if !tasks[args.id - 1].depends_on.contains(&dep_id) {
             return Err(TodoError::DependencyNotFound {
-                task_id: id,
+                task_id: args.id,
                 dep_id,
             }
             .into());
         }
     }
 
-    let task = &mut tasks[id - 1];
+    let task = &mut tasks[args.id - 1];
 
     // === Text ===
-    if let Some(new_text) = text {
+    if let Some(new_text) = args.text {
         if new_text.trim().is_empty() {
             return Err(anyhow::anyhow!("Task text cannot be empty"));
         }
@@ -75,7 +66,7 @@ pub fn execute(
     }
 
     // === Priority ===
-    if let Some(new_priority) = priority
+    if let Some(new_priority) = args.priority
         && task.priority != new_priority
     {
         task.priority = new_priority;
@@ -83,12 +74,12 @@ pub fn execute(
     }
 
     // === Project ===
-    if clear_project {
+    if args.clear_project {
         if task.project.is_some() {
             let old = task.project.take().unwrap();
             changes.push(format!("project cleared -> was {}", old.dimmed()));
         }
-    } else if let Some(new_project) = project {
+    } else if let Some(new_project) = args.project {
         validation::validate_project_name(&new_project)?;
         if task.project.as_deref() != Some(&new_project) {
             task.project = Some(new_project.clone());
@@ -97,7 +88,7 @@ pub fn execute(
     }
 
     // === Tags ===
-    if clear_tags {
+    if args.clear_tags {
         if !task.tags.is_empty() {
             let old_tags = task.tags.clone();
             task.tags.clear();
@@ -108,12 +99,12 @@ pub fn execute(
         }
     } else {
         // Remove specific tags
-        if !remove_tag.is_empty() {
+        if !args.remove_tag.is_empty() {
             let before_len = task.tags.len();
             let mut removed = Vec::new();
 
             task.tags.retain(|t| {
-                if remove_tag.contains(t) {
+                if args.remove_tag.contains(t) {
                     removed.push(t.clone());
                     false
                 } else {
@@ -127,18 +118,18 @@ pub fn execute(
                 // User tried to remove tags that don't exist
                 return Err(anyhow::anyhow!(
                     "None of the specified tags [{}] exist in task #{}",
-                    remove_tag.join(", "),
-                    id
+                    args.remove_tag.join(", "),
+                    args.id
                 ));
             }
         }
 
         // Add new tags
-        if !add_tag.is_empty() {
-            validation::validate_tags(&add_tag)?;
+        if !args.add_tag.is_empty() {
+            validation::validate_tags(&args.add_tag)?;
             let mut added = Vec::new();
 
-            for new_tag in &add_tag {
+            for new_tag in &args.add_tag {
                 if !task.tags.contains(new_tag) {
                     task.tags.push(new_tag.clone());
                     added.push(new_tag.clone());
@@ -152,7 +143,7 @@ pub fn execute(
     }
 
     // === Due date ===
-    if clear_due {
+    if args.clear_due {
         if task.due_date.is_some() {
             task.due_date = None;
             changes.push("due date → cleared".dimmed().to_string());
@@ -165,7 +156,7 @@ pub fn execute(
     }
 
     // === Dependencies ===
-    if clear_deps {
+    if args.clear_deps {
         if !task.depends_on.is_empty() {
             let old = task
                 .depends_on
@@ -176,20 +167,22 @@ pub fn execute(
             changes.push(format!("dependencies cleared → was [{}]", old.dimmed()));
         }
     } else {
-        if !remove_dep.is_empty() {
-            task.depends_on.retain(|d| !remove_dep.contains(d));
-            let removed = remove_dep
+        if !args.remove_dep.is_empty() {
+            task.depends_on.retain(|d| !args.remove_dep.contains(d));
+            let removed = args
+                .remove_dep
                 .iter()
                 .map(|id| format!("#{}", id))
                 .collect::<Vec<_>>()
                 .join(", ");
             changes.push(format!("removed deps → [{}]", removed.red()));
         }
-        if !add_dep.is_empty() {
-            for dep_id in &add_dep {
+        if !args.add_dep.is_empty() {
+            for dep_id in &args.add_dep {
                 task.depends_on.push(*dep_id);
             }
-            let added = add_dep
+            let added = args
+                .add_dep
                 .iter()
                 .map(|id| format!("#{}", id))
                 .collect::<Vec<_>>()
@@ -209,7 +202,7 @@ pub fn execute(
 
     storage.save(&tasks)?;
 
-    println!("{} Task #{} updated:", "✓".green(), id);
+    println!("{} Task #{} updated:", "✓".green(), args.id);
     for change in changes {
         println!("  • {}", change);
     }

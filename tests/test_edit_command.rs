@@ -3,7 +3,7 @@
 mod helpers;
 
 use helpers::{TestEnv, days_from_now};
-use rustodo::cli::AddArgs;
+use rustodo::cli::{AddArgs, EditArgs};
 use rustodo::commands::{add, edit};
 use rustodo::models::Priority;
 
@@ -29,19 +29,21 @@ fn test_edit_text() {
     // Execute: Edit text
     let result = edit::execute(
         env.storage(),
-        1, // ID
-        Some("New text".to_string()),
-        None,   // priority
-        vec![], // add_tag
-        vec![], // remove_tag
-        None,   // due
-        false,
-        None,
-        false, // clear_due
-        false, // clear_tags
-        vec![],
-        vec![],
-        false,
+        EditArgs {
+            id: 1, // ID
+            text: Some("New text".to_string()),
+            priority: None,
+            add_tag: vec![],
+            remove_tag: vec![],
+            project: None,
+            clear_project: false,
+            due: None,
+            clear_due: false,
+            clear_tags: false,
+            add_dep: vec![],
+            remove_dep: vec![],
+            clear_deps: false,
+        },
     );
 
     assert!(result.is_ok());
@@ -71,19 +73,21 @@ fn test_edit_priority() {
 
     let result = edit::execute(
         env.storage(),
-        1,
-        None,
-        Some(Priority::High), // Change to High
-        vec![],
-        vec![],
-        None,
-        false,
-        None,
-        false,
-        false,
-        vec![],
-        vec![],
-        false,
+        EditArgs {
+            id: 1,
+            text: None,
+            priority: Some(Priority::High), // Change to High
+            add_tag: vec![],
+            remove_tag: vec![],
+            project: None,
+            clear_project: false,
+            due: None,
+            clear_due: false,
+            clear_tags: false,
+            add_dep: vec![],
+            remove_dep: vec![],
+            clear_deps: false,
+        },
     );
 
     assert!(result.is_ok());
@@ -112,19 +116,21 @@ fn test_edit_add_invalid_tag_fails() {
 
     let result = edit::execute(
         env.storage(),
-        1,
-        None,
-        None,
-        vec!["invalid tag".to_string()],
-        vec![],
-        None,
-        false,
-        None,
-        false,
-        false,
-        vec![],
-        vec![],
-        false,
+        EditArgs {
+            id: 1,
+            text: None,
+            priority: None,
+            add_tag: vec!["invalid tag".to_string()],
+            remove_tag: vec![],
+            project: None,
+            clear_project: false,
+            due: None,
+            clear_due: false,
+            clear_tags: false,
+            add_dep: vec![],
+            remove_dep: vec![],
+            clear_deps: false,
+        },
     );
 
     assert!(result.is_err());
@@ -158,19 +164,21 @@ fn test_edit_add_tags_preserves_existing() {
     // Execute: Add another tag
     let result = edit::execute(
         env.storage(),
-        1,
-        None,
-        None,
-        vec!["urgent".to_string()], // Add tag
-        vec![],
-        None,
-        false,
-        None,
-        false,
-        false,
-        vec![],
-        vec![],
-        false,
+        EditArgs {
+            id: 1,
+            text: None,
+            priority: None,
+            add_tag: vec!["urgent".to_string()],
+            remove_tag: vec![],
+            project: None,
+            clear_project: false,
+            due: None,
+            clear_due: false,
+            clear_tags: false,
+            add_dep: vec![],
+            remove_dep: vec![],
+            clear_deps: false,
+        },
     );
 
     assert!(result.is_ok());
@@ -205,22 +213,23 @@ fn test_edit_remove_specific_tag() {
     )
     .unwrap();
 
-    // Execute: Remove one tag
     let result = edit::execute(
         env.storage(),
-        1,
-        None,
-        None,
-        vec![],
-        vec!["urgent".to_string()], // Remove only this
-        None,
-        false,
-        None,
-        false,
-        false,
-        vec![],
-        vec![],
-        false,
+        EditArgs {
+            id: 1,
+            text: None,
+            priority: None,
+            add_tag: vec![],
+            remove_tag: vec!["urgent".to_string()],
+            project: None,
+            clear_project: false,
+            due: None,
+            clear_due: false,
+            clear_tags: false,
+            add_dep: vec![],
+            remove_dep: vec![],
+            clear_deps: false,
+        },
     );
 
     assert!(result.is_ok());
@@ -252,22 +261,23 @@ fn test_edit_add_and_remove_tags_simultaneously() {
     )
     .unwrap();
 
-    // Execute: Remove 'old', add 'new'
     let result = edit::execute(
         env.storage(),
-        1,
-        None,
-        None,
-        vec!["new".to_string()], // Add
-        vec!["old".to_string()], // Remove
-        None,
-        false,
-        None,
-        false,
-        false,
-        vec![],
-        vec![],
-        false,
+        EditArgs {
+            id: 1,
+            text: None,
+            priority: None,
+            add_tag: vec!["new".to_string()],
+            remove_tag: vec!["old".to_string()],
+            project: None,
+            clear_project: false,
+            due: None,
+            clear_due: false,
+            clear_tags: false,
+            add_dep: vec![],
+            remove_dep: vec![],
+            clear_deps: false,
+        },
     );
 
     assert!(result.is_ok());
@@ -299,22 +309,23 @@ fn test_edit_clear_all_tags() {
     )
     .unwrap();
 
-    // Execute: Clear all tags
     let result = edit::execute(
         env.storage(),
-        1,
-        None,
-        None,
-        vec![],
-        vec![],
-        None,
-        false,
-        None,
-        false,
-        true, // clear_tags
-        vec![],
-        vec![],
-        false,
+        EditArgs {
+            id: 1,
+            text: None,
+            priority: None,
+            add_tag: vec![],
+            remove_tag: vec![],
+            project: None,
+            clear_project: false,
+            due: None,
+            clear_due: false,
+            clear_tags: true,
+            add_dep: vec![],
+            remove_dep: vec![],
+            clear_deps: false,
+        },
     );
 
     assert!(result.is_ok());
@@ -328,7 +339,6 @@ fn test_edit_clear_all_tags() {
 fn test_edit_remove_nonexistent_tag_fails() {
     let env = TestEnv::new();
 
-    // Setup: Task with only 'work' tag
     add::execute(
         env.storage(),
         AddArgs {
@@ -346,19 +356,21 @@ fn test_edit_remove_nonexistent_tag_fails() {
     // Execute: Try to remove tag that doesn't exist
     let result = edit::execute(
         env.storage(),
-        1,
-        None,
-        None,
-        vec![],
-        vec!["nonexistent".to_string()],
-        None,
-        false,
-        None,
-        false,
-        false,
-        vec![],
-        vec![],
-        false,
+        EditArgs {
+            id: 1,
+            text: None,
+            priority: None,
+            add_tag: vec![],
+            remove_tag: vec!["nonexistent".to_string()],
+            project: None,
+            clear_project: false,
+            due: None,
+            clear_due: false,
+            clear_tags: false,
+            add_dep: vec![],
+            remove_dep: vec![],
+            clear_deps: false,
+        },
     );
 
     // Should fail
@@ -378,19 +390,21 @@ fn test_edit_invalid_id() {
     // No tasks exist
     let result = edit::execute(
         env.storage(),
-        99,
-        None,
-        None,
-        vec![],
-        vec![],
-        None,
-        false,
-        None,
-        false,
-        false,
-        vec![],
-        vec![],
-        false,
+        EditArgs {
+            id: 99,
+            text: None,
+            priority: None,
+            add_tag: vec![],
+            remove_tag: vec![],
+            project: None,
+            clear_project: false,
+            due: None,
+            clear_due: false,
+            clear_tags: false,
+            add_dep: vec![],
+            remove_dep: vec![],
+            clear_deps: false,
+        },
     );
 
     assert!(result.is_err());
@@ -419,19 +433,21 @@ fn test_edit_due_date() {
 
     let result = edit::execute(
         env.storage(),
-        1,
-        None,
-        None,
-        vec![],
-        vec![],
-        None,
-        false,
-        Some(due_date),
-        false,
-        false,
-        vec![],
-        vec![],
-        false,
+        EditArgs {
+            id: 1,
+            text: None,
+            priority: None,
+            add_tag: vec![],
+            remove_tag: vec![],
+            project: None,
+            clear_project: false,
+            due: Some(due_date.to_string()),
+            clear_due: false,
+            clear_tags: false,
+            add_dep: vec![],
+            remove_dep: vec![],
+            clear_deps: false,
+        },
     );
 
     assert!(result.is_ok());
@@ -461,19 +477,21 @@ fn test_edit_clear_due_date() {
 
     let result = edit::execute(
         env.storage(),
-        1,
-        None,
-        None,
-        vec![],
-        vec![],
-        None,
-        false,
-        None,
-        true, // clear_due
-        false,
-        vec![],
-        vec![],
-        false,
+        EditArgs {
+            id: 1,
+            text: None,
+            priority: None,
+            add_tag: vec![],
+            remove_tag: vec![],
+            project: None,
+            clear_project: false,
+            due: None,
+            clear_due: true, // clear_due
+            clear_tags: false,
+            add_dep: vec![],
+            remove_dep: vec![],
+            clear_deps: false,
+        },
     );
 
     assert!(result.is_ok());

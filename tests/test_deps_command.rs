@@ -13,7 +13,7 @@
 mod helpers;
 
 use helpers::TestEnv;
-use rustodo::cli::AddArgs;
+use rustodo::cli::{AddArgs, EditArgs};
 use rustodo::commands::{add, deps, done, edit};
 use rustodo::models::Priority;
 
@@ -218,19 +218,21 @@ fn test_edit_add_self_dependency_fails() {
 
     let result = edit::execute(
         env.storage(),
-        1,
-        None,
-        None,
-        vec![],
-        vec![],
-        None,
-        false,
-        None,
-        false,
-        false,
-        vec![1], // add_dep pointing to itself
-        vec![],
-        false,
+        EditArgs {
+            id: 1,
+            text: None,
+            priority: None,
+            add_tag: vec![],
+            remove_tag: vec![],
+            project: None,
+            clear_project: false,
+            due: None,
+            clear_due: false,
+            clear_tags: false,
+            add_dep: vec![1],
+            remove_dep: vec![],
+            clear_deps: false,
+        },
     );
 
     assert!(result.is_err());
@@ -253,19 +255,21 @@ fn test_edit_direct_cycle_fails() {
     // Now try to make A depend on B → cycle A→B→A
     let result = edit::execute(
         env.storage(),
-        1,
-        None,
-        None,
-        vec![],
-        vec![],
-        None,
-        false,
-        None,
-        false,
-        false,
-        vec![2], // add_dep: A depends on B
-        vec![],
-        false,
+        EditArgs {
+            id: 1,
+            text: None,
+            priority: None,
+            add_tag: vec![],
+            remove_tag: vec![],
+            project: None,
+            clear_project: false,
+            due: None,
+            clear_due: false,
+            clear_tags: false,
+            add_dep: vec![2], // add_dep: A depends on B
+            remove_dep: vec![],
+            clear_deps: false,
+        },
     );
 
     assert!(result.is_err());
@@ -283,19 +287,21 @@ fn test_edit_transitive_cycle_fails() {
     // Try to make A depend on C → cycle A→C→B→A
     let result = edit::execute(
         env.storage(),
-        1,
-        None,
-        None,
-        vec![],
-        vec![],
-        None,
-        false,
-        None,
-        false,
-        false,
-        vec![3],
-        vec![],
-        false,
+        EditArgs {
+            id: 1,
+            text: None,
+            priority: None,
+            add_tag: vec![],
+            remove_tag: vec![],
+            project: None,
+            clear_project: false,
+            due: None,
+            clear_due: false,
+            clear_tags: false,
+            add_dep: vec![3],
+            remove_dep: vec![],
+            clear_deps: false,
+        },
     );
 
     assert!(result.is_err());
@@ -313,19 +319,21 @@ fn test_edit_no_cycle_on_valid_dep() {
     // A depends on C is fine (A←C→B, no cycle involving A)
     let result = edit::execute(
         env.storage(),
-        1,
-        None,
-        None,
-        vec![],
-        vec![],
-        None,
-        false,
-        None,
-        false,
-        false,
-        vec![3], // A depends on C
-        vec![],
-        false,
+        EditArgs {
+            id: 1,
+            text: None,
+            priority: None,
+            add_tag: vec![],
+            remove_tag: vec![],
+            project: None,
+            clear_project: false,
+            due: None,
+            clear_due: false,
+            clear_tags: false,
+            add_dep: vec![3], // A depends on C
+            remove_dep: vec![],
+            clear_deps: false,
+        },
     );
 
     assert!(result.is_ok());
@@ -342,19 +350,21 @@ fn test_edit_duplicate_dependency_fails() {
     // Try to add dep 1 again
     let result = edit::execute(
         env.storage(),
-        2,
-        None,
-        None,
-        vec![],
-        vec![],
-        None,
-        false,
-        None,
-        false,
-        false,
-        vec![1], // already a dep
-        vec![],
-        false,
+        EditArgs {
+            id: 2,
+            text: None,
+            priority: None,
+            add_tag: vec![],
+            remove_tag: vec![],
+            project: None,
+            clear_project: false,
+            due: None,
+            clear_due: false,
+            clear_tags: false,
+            add_dep: vec![1], // already a dep
+            remove_dep: vec![],
+            clear_deps: false,
+        },
     );
 
     assert!(result.is_err());
@@ -372,19 +382,21 @@ fn test_edit_remove_existing_dependency() {
 
     let result = edit::execute(
         env.storage(),
-        2,
-        None,
-        None,
-        vec![],
-        vec![],
-        None,
-        false,
-        None,
-        false,
-        false,
-        vec![],
-        vec![1], // remove dep
-        false,
+        EditArgs {
+            id: 2,
+            text: None,
+            priority: None,
+            add_tag: vec![],
+            remove_tag: vec![],
+            project: None,
+            clear_project: false,
+            due: None,
+            clear_due: false,
+            clear_tags: false,
+            add_dep: vec![],
+            remove_dep: vec![1],
+            clear_deps: false,
+        },
     );
 
     assert!(result.is_ok());
@@ -401,19 +413,21 @@ fn test_edit_remove_nonexistent_dependency_fails() {
 
     let result = edit::execute(
         env.storage(),
-        2,
-        None,
-        None,
-        vec![],
-        vec![],
-        None,
-        false,
-        None,
-        false,
-        false,
-        vec![],
-        vec![1], // dep doesn't exist on this task
-        false,
+        EditArgs {
+            id: 2,
+            text: None,
+            priority: None,
+            add_tag: vec![],
+            remove_tag: vec![],
+            project: None,
+            clear_project: false,
+            due: None,
+            clear_due: false,
+            clear_tags: false,
+            add_dep: vec![],
+            remove_dep: vec![1],
+            clear_deps: false,
+        },
     );
 
     assert!(result.is_err());
@@ -430,19 +444,21 @@ fn test_edit_clear_all_dependencies() {
 
     let result = edit::execute(
         env.storage(),
-        3,
-        None,
-        None,
-        vec![],
-        vec![],
-        None,
-        false,
-        None,
-        false,
-        false,
-        vec![],
-        vec![],
-        true, // clear_deps
+        EditArgs {
+            id: 3,
+            text: None,
+            priority: None,
+            add_tag: vec![],
+            remove_tag: vec![],
+            project: None,
+            clear_project: false,
+            due: None,
+            clear_due: false,
+            clear_tags: false,
+            add_dep: vec![],
+            remove_dep: vec![],
+            clear_deps: true, // clear_deps
+        },
     );
 
     assert!(result.is_ok());

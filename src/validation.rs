@@ -265,11 +265,11 @@ mod tests {
     #[test]
     fn test_validate_tags() {
         // Valid tags
-        assert!(validate_tags(&vec!["work".to_string()]).is_ok());
-        assert!(validate_tags(&vec!["work-urgent".to_string()]).is_ok());
-        assert!(validate_tags(&vec!["task_1".to_string()]).is_ok());
+        assert!(validate_tags(&["work".to_string()]).is_ok());
+        assert!(validate_tags(&["work-urgent".to_string()]).is_ok());
+        assert!(validate_tags(&["task_1".to_string()]).is_ok());
         assert!(
-            validate_tags(&vec![
+            validate_tags(&[
                 "work".to_string(),
                 "urgent".to_string(),
                 "high-priority".to_string(),
@@ -278,22 +278,22 @@ mod tests {
         );
 
         // Empty tag
-        assert!(validate_tags(&vec!["".to_string()]).is_err());
-        assert!(validate_tags(&vec!["work".to_string(), "".to_string()]).is_err());
+        assert!(validate_tags(&["".to_string()]).is_err());
+        assert!(validate_tags(&["work".to_string(), "".to_string()]).is_err());
 
         // Invalid characters
-        assert!(validate_tags(&vec!["work@home".to_string()]).is_err());
-        assert!(validate_tags(&vec!["tag with spaces".to_string()]).is_err());
-        assert!(validate_tags(&vec!["tag/slash".to_string()]).is_err());
+        assert!(validate_tags(&["work@home".to_string()]).is_err());
+        assert!(validate_tags(&["tag with spaces".to_string()]).is_err());
+        assert!(validate_tags(&["tag/slash".to_string()]).is_err());
 
         // Too long
         let long_tag = "x".repeat(51);
-        assert!(validate_tags(&vec![long_tag]).is_err());
+        assert!(validate_tags(&[long_tag]).is_err());
 
         // Duplicates (case-insensitive)
-        assert!(validate_tags(&vec!["work".to_string(), "work".to_string()]).is_err());
-        assert!(validate_tags(&vec!["work".to_string(), "Work".to_string()]).is_err());
-        assert!(validate_tags(&vec!["work".to_string(), "WORK".to_string()]).is_err());
+        assert!(validate_tags(&["work".to_string(), "work".to_string()]).is_err());
+        assert!(validate_tags(&["work".to_string(), "Work".to_string()]).is_err());
+        assert!(validate_tags(&["work".to_string(), "WORK".to_string()]).is_err());
     }
 
     #[test]
