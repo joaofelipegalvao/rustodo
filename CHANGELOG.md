@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.8.9](https://github.com/joaofelipegalvao/rustodo/compare/v2.8.8..v2.8.9) - 2026-02-25
+
+### Refactoring
+
+- Simplify command handlers by accepting Args structs directly - ([ab2c0f6](https://github.com/joaofelipegalvao/rustodo/commit/ab2c0f6756605265892fad3acf7eef51a803970b))
 ## [2.8.8](https://github.com/joaofelipegalvao/rustodo/compare/v2.8.7..v2.8.8) - 2026-02-24
 
 ### Bug Fixes
@@ -338,6 +343,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Features
 
 - V1 - basic todo CLI with add/list commands - ([9580ae2](https://github.com/joaofelipegalvao/rustodo/commit/9580ae297837c9a6c5d4b18868d2f3abac1b1b9e))
+[2.8.9]: https://github.com/joaofelipegalvao/rustodo/compare/v2.8.8...v2.8.9
 [2.8.8]: https://github.com/joaofelipegalvao/rustodo/compare/v2.8.7...v2.8.8
 [2.8.7]: https://github.com/joaofelipegalvao/rustodo/compare/v2.8.6...v2.8.7
 [2.8.6]: https://github.com/joaofelipegalvao/rustodo/compare/v2.8.5...v2.8.6
