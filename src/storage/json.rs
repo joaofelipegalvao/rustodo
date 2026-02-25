@@ -62,9 +62,16 @@ impl Storage for JsonStorage {
     fn save(&self, tasks: &[Task]) -> Result<()> {
         let json =
             serde_json::to_string_pretty(tasks).context("Failed to serialize tasks to JSON")?;
+        let tmp_path = self.file_path.with_added_extension("tmp");
 
-        fs::write(&self.file_path, json).context(format!(
+        fs::write(&tmp_path, &json).context(format!(
             "Failed to write to {} - check file permissions",
+            self.file_path.display()
+        ))?;
+
+        fs::rename(&tmp_path, &self.file_path).context(format!(
+            "Failed to rename {} to {}",
+            tmp_path.display(),
             self.file_path.display()
         ))?;
 
@@ -132,5 +139,70 @@ mod tests {
 
         let tasks = storage.load().unwrap();
         assert_eq!(tasks.len(), 0);
+    }
+
+    #[test]
+    fn test_atomic_write_no_tmp_file_after_save() {
+        let tmp = TempDir::new().unwrap();
+        let path = tmp.path().join("todos.json");
+        let storage = JsonStorage::with_path(path.clone());
+
+        let tasks = vec![Task::new(
+            "Test task".to_string(),
+            Priority::Medium,
+            vec![],
+            None,
+            None,
+            None,
+        )];
+
+        storage.save(&tasks).unwrap();
+
+        let tmp_path = path.with_added_extension("tmp");
+        assert!(
+            !tmp_path.exists(),
+            "The .tmp file must not remain after save."
+        );
+
+        let loaded = storage.load().unwrap();
+        assert_eq!(loaded.len(), 1);
+        assert_eq!(loaded[0].text, "Test task");
+    }
+
+    #[test]
+    fn test_atomic_write_preserves_original_on_corrupt_tmp() {
+        let temp = TempDir::new().unwrap();
+        let path = temp.path().join("todos.json");
+        let storage = JsonStorage::with_path(path.clone());
+
+        let original = vec![Task::new(
+            "Original".to_string(),
+            Priority::Medium,
+            vec![],
+            None,
+            None,
+            None,
+        )];
+        storage.save(&original).unwrap();
+
+        let tmp_path = path.with_added_extension("tmp");
+        fs::write(&tmp_path, "corrupted JSON {{{").unwrap();
+        println!("tmp_path: {}", tmp_path.display());
+        println!("tmp exist before save: {}", tmp_path.exists());
+
+        let new_tasks = vec![Task::new(
+            "Updated".to_string(),
+            Priority::High,
+            vec![],
+            None,
+            None,
+            None,
+        )];
+        storage.save(&new_tasks).unwrap();
+
+        assert!(!tmp_path.exists());
+
+        let loaded = storage.load().unwrap();
+        assert_eq!(loaded[0].text, "Updated");
     }
 }
