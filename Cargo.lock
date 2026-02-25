@@ -515,7 +515,7 @@ dependencies = [
 
 [[package]]
 name = "rustodo"
-version = "2.8.10"
+version = "2.8.11"
 dependencies = [
  "anyhow",
  "chrono",
