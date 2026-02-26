@@ -1,3 +1,5 @@
+// src/storage/json.rs
+
 //! JSON file-based storage implementation.
 //!
 //! Tasks are stored as a pretty-printed JSON array at a platform-specific
@@ -13,6 +15,7 @@
 //!
 //!  Writes are atomic (via a `.tmp` file and `rename`) and protected against
 //! concurrent access via an exclusive file lock (`.lock`).
+
 use anyhow::{Context, Result};
 use directories::ProjectDirs;
 use fs4::fs_std::FileExt;
@@ -23,6 +26,7 @@ use std::{
 
 use super::Storage;
 use crate::models::Task;
+use uuid::Uuid;
 
 /// JSON file-based storage implementation
 pub struct JsonStorage {
@@ -56,17 +60,36 @@ impl JsonStorage {
 impl Storage for JsonStorage {
     /// Loads tasks from the JSON file.
     ///
+    /// Automatically migrates tasks without UUIDs by generating and saving them.
+    ///
     /// Returns an empty list if the file does not exist yet.
     fn load(&self) -> Result<Vec<Task>> {
-        match fs::read_to_string(&self.file_path) {
+        // ── 1. Load from disk ────────────────────────────────────────────
+        let mut tasks: Vec<Task> = match fs::read_to_string(&self.file_path) {
             Ok(content) => serde_json::from_str(&content)
-                .context("Failed to parse todos.json - file may be corrupted"),
-            Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(Vec::new()),
-            Err(e) => Err(e).context(format!(
-                "Failed to read todos.json from: {}",
-                self.file_path.display()
-            )),
+                .context("Failed to parse todos.json - file may be corrupted")?,
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => Vec::new(),
+            Err(e) => {
+                return Err(e).context(format!(
+                    "Failed to read todos.json from: {}",
+                    self.file_path.display()
+                ));
+            }
+        };
+
+        let mut modified = false;
+        for task in &mut tasks {
+            if task.uuid.is_nil() {
+                task.uuid = Uuid::new_v4();
+                modified = true;
+            }
         }
+
+        if modified {
+            self.save(&tasks)?;
+        }
+
+        Ok(tasks)
     }
 
     /// Persists tasks atomically using a write-rename strategy.
@@ -156,6 +179,7 @@ mod tests {
         let loaded = storage.load().unwrap();
         assert_eq!(loaded.len(), 1);
         assert_eq!(loaded[0].text, "Test task");
+        assert!(!loaded[0].uuid.is_nil(), "UUID should be generated");
     }
 
     #[test]
@@ -167,6 +191,67 @@ mod tests {
 
         let tasks = storage.load().unwrap();
         assert_eq!(tasks.len(), 0);
+    }
+
+    #[test]
+    fn test_uuid_migration_on_old_json() {
+        let temp = TempDir::new().unwrap();
+        let path = temp.path().join("todos.json");
+
+        // Simulate old JSON without UUIDs
+        let old_json = r#"[
+            {
+                "text": "Old task",
+                "completed": false,
+                "priority": "medium",
+                "tags": [],
+                "created_at": "2025-01-01",
+                "depends_on": []
+            }
+        ]"#;
+        fs::write(&path, old_json).unwrap();
+
+        let storage = JsonStorage::with_path(path.clone());
+
+        // First load should migrate
+        let tasks = storage.load().unwrap();
+        assert_eq!(tasks.len(), 1);
+        assert!(!tasks[0].uuid.is_nil(), "UUID should be generated");
+
+        let first_uuid = tasks[0].uuid;
+
+        // Second load should return SAME UUID (stability test)
+        let tasks2 = storage.load().unwrap();
+        assert_eq!(
+            tasks2[0].uuid, first_uuid,
+            "UUID must be stable across loads"
+        );
+    }
+
+    #[test]
+    fn test_uuid_stability_across_multiple_loads() {
+        let temp = TempDir::new().unwrap();
+        let path = temp.path().join("todos.json");
+        let storage = JsonStorage::with_path(path);
+
+        // Create task
+        let tasks = vec![Task::new(
+            "Stable task".to_string(),
+            Priority::Medium,
+            vec![],
+            None,
+            None,
+            None,
+        )];
+        storage.save(&tasks).unwrap();
+
+        // Load 3 times — UUID must be identical
+        let uuid1 = storage.load().unwrap()[0].uuid;
+        let uuid2 = storage.load().unwrap()[0].uuid;
+        let uuid3 = storage.load().unwrap()[0].uuid;
+
+        assert_eq!(uuid1, uuid2);
+        assert_eq!(uuid2, uuid3);
     }
 
     #[test]
@@ -215,8 +300,6 @@ mod tests {
 
         let tmp_path = path.with_added_extension("tmp");
         fs::write(&tmp_path, "corrupted JSON {{{").unwrap();
-        println!("tmp_path: {}", tmp_path.display());
-        println!("tmp exist before save: {}", tmp_path.exists());
 
         let new_tasks = vec![Task::new(
             "Updated".to_string(),

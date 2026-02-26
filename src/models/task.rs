@@ -1,5 +1,6 @@
 use chrono::{Local, NaiveDate};
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
 use super::filters::{DueFilter, StatusFilter};
 use super::priority::Priority;
@@ -10,8 +11,38 @@ use super::recurrence::Recurrence;
 /// Each task contains a description, completion status, priority level,
 /// optional tags for organization, optional due date for deadline tracking,
 /// and recurrence pattern for repeating tasks.
+///
+/// # UUID for Sync
+///
+/// Each task has a stable UUID that uniquely identifies it across
+/// different storage backends and sync operations. UUIDs are automatically
+/// generated for new tasks and migrated for existing tasks on first load.
+///
+/// # Examples
+///
+/// ```
+/// use rustodo::models::{Task, Priority};
+///
+/// let task = Task::new(
+///     "Buy milk".to_string(),
+///     Priority::Medium,
+///     vec![],
+///     None,
+///     None,
+///     None,
+/// );
+///
+/// // UUID is automatically generated
+/// assert!(!task.uuid.is_nil());
+/// ```
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Task {
+    /// Unique identifier for sync and conflict resolution.
+    ///
+    /// Automatically generated for new tasks via [`Uuid::new_v4()`].
+    /// Old tasks without UUIDs are migrated on first load.
+    #[serde(default)]
+    pub uuid: Uuid,
     /// The task description/content
     pub text: String,
     /// Whether the task has been completed
@@ -46,10 +77,10 @@ pub struct Task {
 }
 
 impl Task {
-    /// Creates a new pending task.
+    /// Creates a new pending task with a unique UUID.
     ///
-    /// Sets `completed = false`, `created_at` to today, and leaves
-    /// `parent_id`, `depends_on`, and `completed_at` at their zero values.
+    /// Sets `completed = false`, `created_at` to today, generates a new UUID,
+    /// and leaves `parent_id`, `depends_on`, and `completed_at` at their zero values.
     ///
     /// # Examples
     ///
@@ -68,6 +99,7 @@ impl Task {
     /// );
     /// assert_eq!(task.text, "Buy milk");
     /// assert!(!task.completed);
+    /// assert!(!task.uuid.is_nil()); // UUID is auto-generated
     ///
     /// // Task with all fields
     /// let due = NaiveDate::from_ymd_opt(2030, 6, 1).unwrap();
@@ -81,6 +113,7 @@ impl Task {
     /// );
     /// assert_eq!(task.priority, Priority::High);
     /// assert_eq!(task.recurrence, Some(Recurrence::Weekly));
+    /// assert!(!task.uuid.is_nil());
     /// ```
     pub fn new(
         text: String,
@@ -91,6 +124,7 @@ impl Task {
         recurrence: Option<Recurrence>,
     ) -> Self {
         Task {
+            uuid: Uuid::new_v4(),
             text,
             completed: false,
             priority,
@@ -191,7 +225,7 @@ impl Task {
             .collect()
     }
 
-    /// Creates a new task for the next recurrence cycle.
+    // Creates a new task for the next recurrence cycle.
     ///
     /// # Arguments
     ///
@@ -207,6 +241,7 @@ impl Task {
     /// - Preserves: text, priority, tags, recurrence pattern
     /// - Resets: completed = false
     /// - Updates: due_date (calculated from recurrence), created_at (now)
+    /// - Generates: New UUID for the next occurrence
     /// - Sets: parent_id (to link the chain)
     ///
     /// # Examples
@@ -230,6 +265,7 @@ impl Task {
     ///     Some(NaiveDate::from_ymd_opt(2025, 2, 17).unwrap())
     /// );
     /// assert_eq!(next.parent_id, Some(1));
+    /// assert_ne!(next.uuid, task.uuid); // New UUID for new occurrence
     /// ```
     pub fn create_next_recurrence(&self, parent_id: usize) -> Option<Task> {
         let recurrence = self.recurrence?;
