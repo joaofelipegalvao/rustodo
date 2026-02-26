@@ -23,6 +23,7 @@ pub fn execute(storage: &impl Storage, id: usize) -> Result<()> {
 
     let old_pattern = task.recurrence.unwrap();
     task.recurrence = None;
+    task.touch();
 
     storage.save(&tasks)?;
 
