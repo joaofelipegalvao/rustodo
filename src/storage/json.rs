@@ -10,9 +10,16 @@
 //! | Windows | `%APPDATA%\rustodo\todos.json` |
 //!
 //! The directory is created automatically on first use.
+//!
+//!  Writes are atomic (via a `.tmp` file and `rename`) and protected against
+//! concurrent access via an exclusive file lock (`.lock`).
 use anyhow::{Context, Result};
 use directories::ProjectDirs;
-use std::{fs, path::PathBuf};
+use fs4::fs_std::FileExt;
+use std::{
+    fs::{self, OpenOptions},
+    path::PathBuf,
+};
 
 use super::Storage;
 use crate::models::Task;
@@ -47,6 +54,9 @@ impl JsonStorage {
 }
 
 impl Storage for JsonStorage {
+    /// Loads tasks from the JSON file.
+    ///
+    /// Returns an empty list if the file does not exist yet.
     fn load(&self) -> Result<Vec<Task>> {
         match fs::read_to_string(&self.file_path) {
             Ok(content) => serde_json::from_str(&content)
@@ -59,14 +69,32 @@ impl Storage for JsonStorage {
         }
     }
 
+    /// Persists tasks atomically using a write-rename strategy.
+    ///
+    /// Acquires an exclusive lock on `todos.json.lock` before writing,
+    /// ensuring concurrent processes do not corrupt the file.
+    /// The lock is released automatically when the function returns.
     fn save(&self, tasks: &[Task]) -> Result<()> {
         let json =
             serde_json::to_string_pretty(tasks).context("Failed to serialize tasks to JSON")?;
+
+        let lock_path = self.file_path.with_added_extension("lock");
+        let lock_file = OpenOptions::new()
+            .create(true)
+            .write(true)
+            .truncate(false)
+            .open(&lock_path)
+            .context("Failed to create lock file")?;
+
+        lock_file
+            .lock_exclusive()
+            .context("Failed to acquire lock")?;
+
         let tmp_path = self.file_path.with_added_extension("tmp");
 
         fs::write(&tmp_path, &json).context(format!(
             "Failed to write to {} - check file permissions",
-            self.file_path.display()
+            tmp_path.display()
         ))?;
 
         fs::rename(&tmp_path, &self.file_path).context(format!(
@@ -204,5 +232,33 @@ mod tests {
 
         let loaded = storage.load().unwrap();
         assert_eq!(loaded[0].text, "Updated");
+    }
+
+    #[test]
+    fn test_lock_file_released_after_save() {
+        let temp = TempDir::new().unwrap();
+        let path = temp.path().join("todos.json");
+        let storage = JsonStorage::with_path(path.clone());
+
+        let tasks = vec![Task::new(
+            "Test task".to_string(),
+            Priority::Medium,
+            vec![],
+            None,
+            None,
+            None,
+        )];
+
+        storage.save(&tasks).unwrap();
+
+        let lock_path = path.with_added_extension("lock");
+        let lock_file = std::fs::OpenOptions::new()
+            .create(true)
+            .write(true)
+            .truncate(false)
+            .open(&lock_path)
+            .unwrap();
+
+        assert!(lock_file.try_lock_exclusive().is_ok());
     }
 }
