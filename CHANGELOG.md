@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.9.0](https://github.com/joaofelipegalvao/rustodo/compare/v2.8.11..v2.9.0) - 2026-02-26
+
+### Features
+
+- Add file locking and atomic writes for safe concurrent access - ([08bc4b9](https://github.com/joaofelipegalvao/rustodo/commit/08bc4b96f54cea49da6b03466bc75a3260872faa))
 ## [2.8.11](https://github.com/joaofelipegalvao/rustodo/compare/v2.8.10..v2.8.11) - 2026-02-25
 
 ### Bug Fixes
@@ -353,6 +358,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Features
 
 - V1 - basic todo CLI with add/list commands - ([9580ae2](https://github.com/joaofelipegalvao/rustodo/commit/9580ae297837c9a6c5d4b18868d2f3abac1b1b9e))
+[2.9.0]: https://github.com/joaofelipegalvao/rustodo/compare/v2.8.11...v2.9.0
 [2.8.11]: https://github.com/joaofelipegalvao/rustodo/compare/v2.8.10...v2.8.11
 [2.8.10]: https://github.com/joaofelipegalvao/rustodo/compare/v2.8.9...v2.8.10
 [2.8.9]: https://github.com/joaofelipegalvao/rustodo/compare/v2.8.8...v2.8.9
