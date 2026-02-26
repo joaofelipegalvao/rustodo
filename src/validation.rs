@@ -6,6 +6,16 @@
 use crate::error::TodoError;
 use crate::models::{Recurrence, Task};
 use chrono::NaiveDate;
+use uuid::Uuid;
+
+/// Resolves a 1-based numeric task ID to its UUID.
+///
+/// # Errors
+/// Returns `TodoError::InvalidTaskId` if the ID is out of range.
+pub fn resolve_uuid(id: usize, tasks: &[Task]) -> Result<Uuid, TodoError> {
+    validate_task_id(id, tasks.len())?;
+    Ok(tasks[id - 1].uuid)
+}
 
 /// Validates that a task ID is within valid range
 ///

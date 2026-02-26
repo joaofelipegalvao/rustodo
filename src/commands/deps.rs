@@ -29,9 +29,10 @@ pub fn execute(storage: &impl Storage, id: usize) -> Result<()> {
         println!("{}", "  No dependencies.".dimmed());
     } else {
         println!("{}:", "  Depends on".dimmed());
-        for &dep_id in &task.depends_on {
-            let idx = dep_id.saturating_sub(1);
-            if let Some(dep) = tasks.get(idx) {
+        for dep_uuid in &task.depends_on {
+            if let Some(pos) = tasks.iter().position(|t| t.uuid == *dep_uuid) {
+                let dep = &tasks[pos];
+                let dep_id = pos + 1;
                 let status = if dep.completed {
                     "✓".green()
                 } else {
@@ -44,21 +45,17 @@ pub fn execute(storage: &impl Storage, id: usize) -> Result<()> {
                 };
                 println!("    {} #{} — {}", status, dep_id, label);
             } else {
-                println!(
-                    "    {} #{} — {}",
-                    "?".yellow(),
-                    dep_id,
-                    "(task not found)".dimmed()
-                );
+                println!("    {} — {}", "?".yellow(), "(task not found)".dimmed());
             }
         }
     }
 
     // === Tasks that depend on this one ===
+    let task_uuid = task.uuid;
     let dependents: Vec<(usize, &_)> = tasks
         .iter()
         .enumerate()
-        .filter(|(i, t)| *i != id - 1 && t.depends_on.contains(&id))
+        .filter(|(i, t)| *i != id - 1 && t.depends_on.contains(&task_uuid))
         .map(|(i, t)| (i + 1, t))
         .collect();
 
@@ -88,7 +85,12 @@ pub fn execute(storage: &impl Storage, id: usize) -> Result<()> {
         let blocking = task.blocking_deps(&tasks);
         let ids = blocking
             .iter()
-            .map(|id| format!("#{}", id))
+            .filter_map(|uuid| {
+                tasks
+                    .iter()
+                    .position(|t| t.uuid == *uuid)
+                    .map(|i| format!("#{}", i + 1))
+            })
             .collect::<Vec<_>>()
             .join(", ");
         println!("  {} Blocked by: {}", "[~]".red(), ids.red());

@@ -42,6 +42,13 @@ pub fn execute(storage: &impl Storage, args: AddArgs) -> Result<()> {
         validation::validate_task_id(dep_id, tasks.len())?;
     }
 
+    let dep_uuids: Vec<uuid::Uuid> = args
+        .depends_on
+        .iter()
+        .map(|&dep_id| validation::resolve_uuid(dep_id, &tasks))
+        .collect::<Result<_, _>>()
+        .map_err(anyhow::Error::from)?;
+
     let existing_tags = collect_existing_tags(&tasks);
     let (normalized_tags, normalization_messages) = normalize_tags(args.tag, &existing_tags);
 
@@ -53,7 +60,7 @@ pub fn execute(storage: &impl Storage, args: AddArgs) -> Result<()> {
         due,
         args.recurrence,
     );
-    task.depends_on = args.depends_on;
+    task.depends_on = dep_uuids;
     tasks.push(task);
 
     let id = tasks.len();

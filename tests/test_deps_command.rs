@@ -111,10 +111,11 @@ fn test_deps_task_required_by_others() {
     assert!(result.is_ok());
 
     let tasks = env.load_tasks();
+    let task1_uuid = tasks[0].uuid;
     let dependents: Vec<usize> = tasks
         .iter()
         .enumerate()
-        .filter(|(_, t)| t.depends_on.contains(&1))
+        .filter(|(_, t)| t.depends_on.contains(&task1_uuid))
         .map(|(i, _)| i + 1)
         .collect();
     assert_eq!(dependents, vec![2, 3]);
@@ -149,8 +150,9 @@ fn test_deps_partially_satisfied() {
     // Dep B still pending
 
     let tasks = env.load_tasks();
+    let dep_b_uuid = tasks[1].uuid;
     let blocking = tasks[2].blocking_deps(&tasks);
-    assert_eq!(blocking, vec![2], "only dep B should be blocking");
+    assert_eq!(blocking, vec![dep_b_uuid], "only dep B should be blocking");
 }
 
 // ─── invalid task ID ────────────────────────────────────────────────────────
@@ -479,8 +481,9 @@ fn test_blocking_deps_returns_only_pending() {
     done::execute(env.storage(), 1).unwrap();
 
     let tasks = env.load_tasks();
+    let task_b_build = tasks[1].uuid;
     let blocking = tasks[2].blocking_deps(&tasks);
-    assert_eq!(blocking, vec![2]);
+    assert_eq!(blocking, vec![task_b_build]);
 }
 
 #[test]

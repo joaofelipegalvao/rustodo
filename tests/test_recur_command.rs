@@ -352,7 +352,8 @@ fn test_done_recurring_sets_parent_id() {
     done::execute(env.storage(), 1).unwrap();
 
     let tasks = env.load_tasks();
-    assert_eq!(tasks[1].parent_id, Some(1));
+    let parent_uuid = tasks[0].uuid;
+    assert_eq!(tasks[1].parent_id, Some(parent_uuid));
 }
 
 #[test]
