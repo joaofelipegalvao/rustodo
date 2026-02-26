@@ -5,36 +5,31 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [2.10.0](https://github.com/joaofelipegalvao/rustodo/compare/v2.9.0..v2.10.0) - 2026-02-26
+## [2.11.0](https://github.com/joaofelipegalvao/rustodo/compare/v2.9.0..v2.11.0) - 2026-02-26
 
 ### Features
 
 - Add stable UUIDs for future sync support - ([2d1c908](https://github.com/joaofelipegalvao/rustodo/commit/2d1c908e303083e165e0e296b954e7cd255e78ab))
-
 ## [2.9.0](https://github.com/joaofelipegalvao/rustodo/compare/v2.8.11..v2.9.0) - 2026-02-26
 
 ### Features
 
 - Add file locking and atomic writes for safe concurrent access - ([08bc4b9](https://github.com/joaofelipegalvao/rustodo/commit/08bc4b96f54cea49da6b03466bc75a3260872faa))
-
 ## [2.8.11](https://github.com/joaofelipegalvao/rustodo/compare/v2.8.10..v2.8.11) - 2026-02-25
 
 ### Bug Fixes
 
 - Implement atomic file writes to prevent corruption on crash - ([2e60812](https://github.com/joaofelipegalvao/rustodo/commit/2e60812f30a254b4b057c5a1b18239c290493cb8))
-
 ## [2.8.10](https://github.com/joaofelipegalvao/rustodo/compare/v2.8.9..v2.8.10) - 2026-02-25
 
 ### Refactoring
 
 - Extract EditArgs struct and simplify edit command signature - ([9474183](https://github.com/joaofelipegalvao/rustodo/commit/94741835453da8fdc6dc548c3b9dd80720d29ae5))
-
 ## [2.8.9](https://github.com/joaofelipegalvao/rustodo/compare/v2.8.8..v2.8.9) - 2026-02-25
 
 ### Refactoring
 
 - Simplify command handlers by accepting Args structs directly - ([ab2c0f6](https://github.com/joaofelipegalvao/rustodo/commit/ab2c0f6756605265892fad3acf7eef51a803970b))
-
 ## [2.8.8](https://github.com/joaofelipegalvao/rustodo/compare/v2.8.7..v2.8.8) - 2026-02-24
 
 ### Bug Fixes
@@ -44,7 +39,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Documentation
 
 - Add Codecov and docs.rs badges - ([5a1bf6d](https://github.com/joaofelipegalvao/rustodo/commit/5a1bf6da9d4a86eaf4ec5298c311bdf3cd6c87af))
-
 ## [2.8.7](https://github.com/joaofelipegalvao/rustodo/compare/v2.8.6..v2.8.7) - 2026-02-24
 
 ### Bug Fixes
@@ -55,7 +49,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Update logo to rustodo and adjust sizing - ([b4c3896](https://github.com/joaofelipegalvao/rustodo/commit/b4c38963636ea3b1da397394bc479c3e0830f7c5))
 - Improve module documentation and fix doc test examples - ([0d07c15](https://github.com/joaofelipegalvao/rustodo/commit/0d07c1592c406605bd3e68ae6c896a346883ea57))
-
 ## [2.8.6](https://github.com/joaofelipegalvao/rustodo/compare/v2.8.5..v2.8.6) - 2026-02-24
 
 ### Bug Fixes
@@ -65,7 +58,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Documentation
 
 - Add rustdoc comments to all public modules and types - ([1931034](https://github.com/joaofelipegalvao/rustodo/commit/1931034f3489cb1a7be905501984c410eb2b914e))
-
 ## [2.8.5](https://github.com/joaofelipegalvao/rustodo/compare/v2.8.3..v2.8.5) - 2026-02-23
 
 ### Bug Fixes
@@ -75,13 +67,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Refactoring
 
 - Use rustodo lib crate in main.rs instead of redeclaring modules - ([526e21c](https://github.com/joaofelipegalvao/rustodo/commit/526e21c22377edf51c1230eaae66fcafffe6f136))
-
 ## [2.8.3](https://github.com/joaofelipegalvao/rustodo/compare/v2.8.2..v2.8.3) - 2026-02-23
 
 ### Bug Fixes
 
 - Update project name from todo-cli to rustodo - ([7c46f77](https://github.com/joaofelipegalvao/rustodo/commit/7c46f77cff9cdef73762ab091bb918bc122819bb))
-
 ## [2.8.2](https://github.com/joaofelipegalvao/rustodo/compare/v2.8.1..v2.8.2) - 2026-02-23
 
 ### Bug Fixes
@@ -92,7 +82,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Fix crate name in doctest examples - ([4e54e41](https://github.com/joaofelipegalvao/rustodo/commit/4e54e4170267756751797760bbb091bc3be7d391))
 - Update repo name from todo-cli to rustodo - ([bac5888](https://github.com/joaofelipegalvao/rustodo/commit/bac5888863ca1929e258459ef8cad4f18dd43682))
-
 ## [2.8.1](https://github.com/joaofelipegalvao/rustodo/compare/v2.8.0..v2.8.1) - 2026-02-23
 
 ### Bug Fixes
@@ -103,43 +92,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add logo, demo gif and contributing guide - ([4b493ec](https://github.com/joaofelipegalvao/rustodo/commit/4b493ecf458596e2b924b9f0b6bbd12b46420f39))
 - Att GUIDE.md - ([515126e](https://github.com/joaofelipegalvao/rustodo/commit/515126e0bdec0728e6f80d627a6658058aabbfa2))
-
 ## [2.8.0](https://github.com/joaofelipegalvao/rustodo/compare/v2.7.0..v2.8.0) - 2026-02-21
 
 ### Features
 
 - Add automatic tag normalization with fuzzy matching - ([4bcbfb2](https://github.com/joaofelipegalvao/rustodo/commit/4bcbfb2b2f5c72f90865be21d8401f60c96f7ecf))
-
 ## [2.7.0](https://github.com/joaofelipegalvao/rustodo/compare/v2.6.1..v2.7.0) - 2026-02-21
 
 ### Features
 
 - Add stats command for productivity statistics - ([9d235a9](https://github.com/joaofelipegalvao/rustodo/commit/9d235a93d7f76bcdca3a5ff34c1937d0e6963199))
-
 ## [2.6.1](https://github.com/joaofelipegalvao/rustodo/compare/v2.6.0..v2.6.1) - 2026-02-21
 
 ### Refactoring
 
 - Simplify error handling and if-let patterns - ([ff4ad5d](https://github.com/joaofelipegalvao/rustodo/commit/ff4ad5d84dd03b833a96a32a67185df1f3f3cad6))
-
 ## [2.6.0](https://github.com/joaofelipegalvao/rustodo/compare/v2.5.0..v2.6.0) - 2026-02-20
 
 ### Features
 
 - Add task dependencies system with cycle detection - ([7b1f422](https://github.com/joaofelipegalvao/rustodo/commit/7b1f4223155b37bf8b0a56b1fb0bdb768db3c651))
-
 ## [2.5.0](https://github.com/joaofelipegalvao/rustodo/compare/v2.4.1..v2.5.0) - 2026-02-20
 
 ### Features
 
 - Add project system for organizing tasks - ([7308a0b](https://github.com/joaofelipegalvao/rustodo/commit/7308a0b5592d3e791fd2dde2efc34ebfd4fb8634))
-
 ## [2.4.1](https://github.com/joaofelipegalvao/rustodo/compare/v2.4.0..v2.4.1) - 2026-02-20
 
 ### Performance
 
 - Optimize date parsing with LazyLock and add past date validation - ([fb6c20a](https://github.com/joaofelipegalvao/rustodo/commit/fb6c20afc879fc2faba64096766152e5af3484c3))
-
 ## [2.4.0](https://github.com/joaofelipegalvao/rustodo/compare/v2.3.4..v2.4.0) - 2026-02-20
 
 ### Features
@@ -151,13 +133,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - *(ci)* Remove GitHub API dependency from git-cliff config - ([f64a7f8](https://github.com/joaofelipegalvao/rustodo/commit/f64a7f8d252019aebc670bcbb28abeda47e6234b))
 - *(ci)* Hardcode repo URL in cliff.toml template to fix Tera scope issue - ([df40c3e](https://github.com/joaofelipegalvao/rustodo/commit/df40c3e88a7aecbd70b42f4a07daaa93be69c9a2))
 - Collapse nested if-let and add GitHub token to git-cliff steps - ([ce24bfd](https://github.com/joaofelipegalvao/rustodo/commit/ce24bfdb0e9bdf674727d7a850afa5aafef7798c))
-
 ## [2.3.4](https://github.com/joaofelipegalvao/rustodo/compare/v2.3.3..v2.3.4) - 2026-02-19
 
 ### Bug Fixes
 
 - *(ci)* Generate CHANGELOG after tag creation so version is resolved correctly - ([50101d4](https://github.com/joaofelipegalvao/rustodo/commit/50101d490fc2df9eece24877a5b5725cd4bc8698))
-
 ## [2.3.3](https://github.com/joaofelipegalvao/rustodo/compare/v2.3.2..v2.3.3) - 2026-02-19
 
 ### Bug Fixes
@@ -167,37 +147,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - *(ci)* Fix CHANGELOG footer template for git-cliff - ([8a4a14c](https://github.com/joaofelipegalvao/rustodo/commit/8a4a14c28187fe091ee9b65dfc68aab2e19e34c8))
 - *(ci)* Sync Cargo.toml version with last git tag before bump - ([743b94e](https://github.com/joaofelipegalvao/rustodo/commit/743b94e5b787d63777a4f83c51928c371ebf7cd0))
 - Test release pipeline - ([61b2197](https://github.com/joaofelipegalvao/rustodo/commit/61b21975ca7c036fe062e785774fde47103ba83a))
-
 ## [2.3.2](https://github.com/joaofelipegalvao/rustodo/compare/v2.3.1..v2.3.2) - 2026-02-19
 
 ### Refactoring
 
 - Remove unused storage functions and fix dead code warnings - ([cf16d2b](https://github.com/joaofelipegalvao/rustodo/commit/cf16d2ba4f60cee8f86437e6ba32cb523a269103))
-
 ## [2.3.1](https://github.com/joaofelipegalvao/rustodo/compare/v2.3.0..v2.3.1) - 2026-02-19
 
 ### Bug Fixes
 
 - Remove unused PathBuf import in storage module - ([0a4f37f](https://github.com/joaofelipegalvao/rustodo/commit/0a4f37f8b0c26ab15002dfbcc29da3882b00921c))
-
 ## [2.3.0](https://github.com/joaofelipegalvao/rustodo/compare/v2.2.2..v2.3.0) - 2026-02-19
 
 ### Features
 
 - *(search)* Add status filter to search command - ([8f3deb4](https://github.com/joaofelipegalvao/rustodo/commit/8f3deb4a69547eaea3d390d3ec956013f983921a))
-
 ## [2.2.2](https://github.com/joaofelipegalvao/rustodo/compare/v2.2.1..v2.2.2) - 2026-02-19
 
 ### Bug Fixes
 
 - Update markdownlint config and remove mkdocs link from README - ([a2faad0](https://github.com/joaofelipegalvao/rustodo/commit/a2faad0e559366831eb24f7e8cef66684e161383))
-
 ## [2.2.1](https://github.com/joaofelipegalvao/rustodo/compare/v2.2.0..v2.2.1) - 2026-02-19
 
 ### Bug Fixes
 
 - Remove unused import and collapse nested if, fix README link - ([fd7646f](https://github.com/joaofelipegalvao/rustodo/commit/fd7646f342eda0d3fa367eab93cec37b34540cb5))
-
 ## [2.2.0](https://github.com/joaofelipegalvao/rustodo/compare/v2.1.0..v2.2.0) - 2026-02-18
 
 ### Features
@@ -213,7 +187,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - *(models)* Add Display impl for Recurrence and fix doc tests - ([c5598fc](https://github.com/joaofelipegalvao/rustodo/commit/c5598fc06e0344ae17e8ad0c810034a61051a5e1))
 - *(storage)* Extract storage trait with json/memory implementations - ([7bda7e3](https://github.com/joaofelipegalvao/rustodo/commit/7bda7e3c54e13d47f82b16e515ade670290f75a4))
 - *(validation)* Expand validation module with comprehensive checks - ([a5f3e6d](https://github.com/joaofelipegalvao/rustodo/commit/a5f3e6dfadd45e42f32ca516344c9acf39e44db0))
-
 ## [2.1.0](https://github.com/joaofelipegalvao/rustodo/compare/v2.0.0..v2.1.0) - 2026-02-12
 
 ### Features
@@ -235,7 +208,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - *(guide)* Document recurring tasks - ([208c38e](https://github.com/joaofelipegalvao/rustodo/commit/208c38ed00226c7b7fcc2a3552a761576a25264a))
 - *(readme)* Update with recurring tasks features - ([c70fe76](https://github.com/joaofelipegalvao/rustodo/commit/c70fe76dadee2b46e380e371f45bf42daae82d27))
 - Update mkdocs navigation - ([d574d78](https://github.com/joaofelipegalvao/rustodo/commit/d574d787c07ea5f1770c513054b963fbe60963ba))
-
 ## [2.0.0](https://github.com/joaofelipegalvao/rustodo/compare/v1.9.0..v2.0.0) - 2026-02-10
 
 ### Refactoring
@@ -246,7 +218,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - *(mkdocs)* Document v2.0 modular architecture refactor - ([7e731d2](https://github.com/joaofelipegalvao/rustodo/commit/7e731d2196a84084b62d90f6aa5e41daf62aa84b))
 - *(readme)* V2.0.0 modular architecture refactor - ([ed37b35](https://github.com/joaofelipegalvao/rustodo/commit/ed37b351436b5bfca97fa5d3349e51c92eb30b8c))
-
 ## [1.9.0](https://github.com/joaofelipegalvao/rustodo/compare/v1.8.0..v1.9.0) - 2026-02-10
 
 ### Features
@@ -262,7 +233,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - *(guide)* Document edit command and confirmation prompts - ([027bf6c](https://github.com/joaofelipegalvao/rustodo/commit/027bf6c89732b2050e6b74adf95d12ec127eb44a))
 - *(mkdocs)* Document TableLayout architecture and layout decisions - ([131528f](https://github.com/joaofelipegalvao/rustodo/commit/131528f0ef9cf46cd713e5d3dc6e0c5ba7153f91))
 - *(readme)* Highlight TableLayout-based display architecture - ([00d6e75](https://github.com/joaofelipegalvao/rustodo/commit/00d6e75ed1c44ec2c3db4ced124cdfadcd208e60))
-
 ## [1.8.0](https://github.com/joaofelipegalvao/rustodo/compare/v1.7.0..v1.8.0) - 2026-02-09
 
 ### Features
@@ -276,7 +246,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Document v1.8.0 global data directory feature - ([a155523](https://github.com/joaofelipegalvao/rustodo/commit/a155523ba27e0b53d3e3db3965342482cec80464))
 - Fix examples and explanations for global data directory - ([b0affd7](https://github.com/joaofelipegalvao/rustodo/commit/b0affd7780e8e2878fd87e5f3417cdb7c7a58a46))
 - Document global data directory and info command - ([70abd90](https://github.com/joaofelipegalvao/rustodo/commit/70abd909b8e5568a0d32088c8806d9deaacf9324))
-
 ## [1.7.0](https://github.com/joaofelipegalvao/rustodo/compare/v1.6.0..v1.7.0) - 2026-02-07
 
 ### Features
@@ -286,62 +255,52 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Documentation
 
 - Migrate project documentation to MkDocs - ([d65332b](https://github.com/joaofelipegalvao/rustodo/commit/d65332b08d31270f886957c10158b43f931f218a))
-
 ## [1.6.0](https://github.com/joaofelipegalvao/rustodo/compare/v1.5.0..v1.6.0) - 2026-02-04
 
 ### Features
 
 - [**breaking**] V1.6.0 - professional CLI with clap - ([9ac0ca8](https://github.com/joaofelipegalvao/rustodo/commit/9ac0ca8d50fffc32aef8f54d67089e1013c66509))
-
 ## [1.5.0](https://github.com/joaofelipegalvao/rustodo/compare/v1.4.0..v1.5.0) - 2026-02-04
 
 ### Features
 
 - [**breaking**] V1.5.0 - due dates, sorting, and tabular task display - ([5c6da3a](https://github.com/joaofelipegalvao/rustodo/commit/5c6da3a797eca3040aa1e90b771b0f771e14ae64))
-
 ## [1.4.0](https://github.com/joaofelipegalvao/rustodo/compare/v1.3.0..v1.4.0) - 2026-02-02
 
 ### Features
 
 - V1.4.0 - tags system and correct task numbering - ([3f0faa5](https://github.com/joaofelipegalvao/rustodo/commit/3f0faa533e2298c658a670bd67a3f6843677f01d))
-
 ## [1.3.0](https://github.com/joaofelipegalvao/rustodo/compare/v1.2.0..v1.3.0) - 2026-01-30
 
 ### Features
 
 - V1.3.0 - JSON serialization with serde - ([d8f5ea9](https://github.com/joaofelipegalvao/rustodo/commit/d8f5ea981707e056b1ef5a1c6c1b1d116587a67f))
-
 ## [1.2.0](https://github.com/joaofelipegalvao/rustodo/compare/v1.1.0..v1.2.0) - 2026-01-30
 
 ### Features
 
 - V1.2.0 - type-safe task architecture with structs and enums - ([f4e9385](https://github.com/joaofelipegalvao/rustodo/commit/f4e9385cdfb7451b3c6725bb95944a412d123f98))
-
 ## [1.1.0](https://github.com/joaofelipegalvao/rustodo/compare/v1.0.0..v1.1.0) - 2026-01-28
 
 ### Features
 
 - [**breaking**] V1.0.1 - translate entire codebase to English - ([e231654](https://github.com/joaofelipegalvao/rustodo/commit/e2316540ad83118558fc4ae6bc70815dd848472d))
 - V1.1.0 - add --medium priority filter - ([c83dd94](https://github.com/joaofelipegalvao/rustodo/commit/c83dd949c00f54df0af6e19698d51c0aa7098db2))
-
 ## [1.0.0](https://github.com/joaofelipegalvao/rustodo/compare/v0.9.0..v1.0.0) - 2026-01-27
 
 ### Features
 
 - V1.0.0 - search command + architectural refactoring - ([8af90a4](https://github.com/joaofelipegalvao/rustodo/commit/8af90a404cb9503236137e0e124d3205cf3d37bd))
-
 ## [0.9.0](https://github.com/joaofelipegalvao/rustodo/compare/v0.8.0..v0.9.0) - 2026-01-27
 
 ### Features
 
 - V0.9.0 - priority sorting with --sort flag - ([0ae4962](https://github.com/joaofelipegalvao/rustodo/commit/0ae49622620d94dffd76e8d167abcae3d371444f))
-
 ## [0.8.0](https://github.com/joaofelipegalvao/rustodo/compare/v0.7.0..v0.8.0) - 2026-01-27
 
 ### Features
 
 - V0.8.0 - priority system with advanced filters - ([a72e487](https://github.com/joaofelipegalvao/rustodo/commit/a72e487b958ee99d0b5dce9acc2249a7d6901d6b))
-
 ## [0.7.0](https://github.com/joaofelipegalvao/rustodo/compare/v0.6.0..v0.7.0) - 2026-01-26
 
 ### Features
@@ -351,7 +310,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Documentation
 
 - Update README for v0.6.0 colored interface - ([75295a9](https://github.com/joaofelipegalvao/rustodo/commit/75295a92d360c03aa95836c412a5ed58a41eb1ef))
-
 ## [0.6.0](https://github.com/joaofelipegalvao/rustodo/compare/v0.5.0..v0.6.0) - 2026-01-25
 
 ### Features
@@ -361,37 +319,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Documentation
 
 - Complete README restructure with comprehensive documentation - ([7f5135c](https://github.com/joaofelipegalvao/rustodo/commit/7f5135c88e5c8f9ece2a80d00f4ac84f06bcab67))
-
 ## [0.5.0](https://github.com/joaofelipegalvao/rustodo/compare/v0.4.2..v0.5.0) - 2026-01-24
 
 ### Features
 
 - V5 - clear command to remove all tasks - ([d443e1b](https://github.com/joaofelipegalvao/rustodo/commit/d443e1b026358bd287ea08f94fe64466046f86b9))
-
 ## [0.4.2](https://github.com/joaofelipegalvao/rustodo/compare/v0.4.1..v0.4.2) - 2026-01-24
 
 ### Features
 
 - V4.2 - add state validation for task operations - ([29f1b0a](https://github.com/joaofelipegalvao/rustodo/commit/29f1b0a2ec6c84f176f6decc61086e553470a705))
-
 ## [0.4.1](https://github.com/joaofelipegalvao/rustodo/compare/v0.4.0..v0.4.1) - 2026-01-24
 
 ### Bug Fixes
 
 - Display bug in list command showing empty lines - ([9a84730](https://github.com/joaofelipegalvao/rustodo/commit/9a84730445b6a8cda7e733307b07fb0af7da27c5))
-
 ## [0.4.0](https://github.com/joaofelipegalvao/rustodo/compare/v0.3.0..v0.4.0) - 2026-01-23
 
 ### Features
 
 - V4 - undone command for task completion toggle - ([630f2e1](https://github.com/joaofelipegalvao/rustodo/commit/630f2e1ec8ba118d36e7e89c2e2e3e1157e9416a))
-
 ## [0.3.0](https://github.com/joaofelipegalvao/rustodo/compare/v0.2.0..v0.3.0) - 2026-01-23
 
 ### Features
 
 - V3 - remove command for task deletion - ([17bbf1a](https://github.com/joaofelipegalvao/rustodo/commit/17bbf1ac3d4f5568a14f102a534560fda9288e95))
-
 ## [0.2.0](https://github.com/joaofelipegalvao/rustodo/compare/v0.1.0..v0.2.0) - 2026-01-23
 
 ### Features
@@ -406,59 +358,59 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - V1 - basic todo CLI with add/list commands - ([f2354c9](https://github.com/joaofelipegalvao/rustodo/commit/f2354c9d7cfda27dd4068954fd72ab7f44a11c3b))
 - V2 - done command with task completion - ([26d6abe](https://github.com/joaofelipegalvao/rustodo/commit/26d6abe4f1f9db639e1794b58e9b9d509bb6d754))
-
 ## [0.1.0] - 2026-01-23
 
 ### Features
 
 - V1 - basic todo CLI with add/list commands - ([9580ae2](https://github.com/joaofelipegalvao/rustodo/commit/9580ae297837c9a6c5d4b18868d2f3abac1b1b9e))
-[2.10.0]: <https://github.com/joaofelipegalvao/rustodo/compare/v2.9.0...v2.10.0>
-[2.9.0]: <https://github.com/joaofelipegalvao/rustodo/compare/v2.8.11...v2.9.0>
-[2.8.11]: <https://github.com/joaofelipegalvao/rustodo/compare/v2.8.10...v2.8.11>
-[2.8.10]: <https://github.com/joaofelipegalvao/rustodo/compare/v2.8.9...v2.8.10>
-[2.8.9]: <https://github.com/joaofelipegalvao/rustodo/compare/v2.8.8...v2.8.9>
-[2.8.8]: <https://github.com/joaofelipegalvao/rustodo/compare/v2.8.7...v2.8.8>
-[2.8.7]: <https://github.com/joaofelipegalvao/rustodo/compare/v2.8.6...v2.8.7>
-[2.8.6]: <https://github.com/joaofelipegalvao/rustodo/compare/v2.8.5...v2.8.6>
-[2.8.5]: <https://github.com/joaofelipegalvao/rustodo/compare/v2.8.3...v2.8.5>
-[2.8.3]: <https://github.com/joaofelipegalvao/rustodo/compare/v2.8.2...v2.8.3>
-[2.8.2]: <https://github.com/joaofelipegalvao/rustodo/compare/v2.8.1...v2.8.2>
-[2.8.1]: <https://github.com/joaofelipegalvao/rustodo/compare/v2.8.0...v2.8.1>
-[2.8.0]: <https://github.com/joaofelipegalvao/rustodo/compare/v2.7.0...v2.8.0>
-[2.7.0]: <https://github.com/joaofelipegalvao/rustodo/compare/v2.6.1...v2.7.0>
-[2.6.1]: <https://github.com/joaofelipegalvao/rustodo/compare/v2.6.0...v2.6.1>
-[2.6.0]: <https://github.com/joaofelipegalvao/rustodo/compare/v2.5.0...v2.6.0>
-[2.5.0]: <https://github.com/joaofelipegalvao/rustodo/compare/v2.4.1...v2.5.0>
-[2.4.1]: <https://github.com/joaofelipegalvao/rustodo/compare/v2.4.0...v2.4.1>
-[2.4.0]: <https://github.com/joaofelipegalvao/rustodo/compare/v2.3.4...v2.4.0>
-[2.3.4]: <https://github.com/joaofelipegalvao/rustodo/compare/v2.3.3...v2.3.4>
-[2.3.3]: <https://github.com/joaofelipegalvao/rustodo/compare/v2.3.2...v2.3.3>
-[2.3.2]: <https://github.com/joaofelipegalvao/rustodo/compare/v2.3.1...v2.3.2>
-[2.3.1]: <https://github.com/joaofelipegalvao/rustodo/compare/v2.3.0...v2.3.1>
-[2.3.0]: <https://github.com/joaofelipegalvao/rustodo/compare/v2.2.2...v2.3.0>
-[2.2.2]: <https://github.com/joaofelipegalvao/rustodo/compare/v2.2.1...v2.2.2>
-[2.2.1]: <https://github.com/joaofelipegalvao/rustodo/compare/v2.2.0...v2.2.1>
-[2.2.0]: <https://github.com/joaofelipegalvao/rustodo/compare/v2.1.0...v2.2.0>
-[2.1.0]: <https://github.com/joaofelipegalvao/rustodo/compare/v2.0.0...v2.1.0>
-[2.0.0]: <https://github.com/joaofelipegalvao/rustodo/compare/v1.9.0...v2.0.0>
-[1.9.0]: <https://github.com/joaofelipegalvao/rustodo/compare/v1.8.0...v1.9.0>
-[1.8.0]: <https://github.com/joaofelipegalvao/rustodo/compare/v1.7.0...v1.8.0>
-[1.7.0]: <https://github.com/joaofelipegalvao/rustodo/compare/v1.6.0...v1.7.0>
-[1.6.0]: <https://github.com/joaofelipegalvao/rustodo/compare/v1.5.0...v1.6.0>
-[1.5.0]: <https://github.com/joaofelipegalvao/rustodo/compare/v1.4.0...v1.5.0>
-[1.4.0]: <https://github.com/joaofelipegalvao/rustodo/compare/v1.3.0...v1.4.0>
-[1.3.0]: <https://github.com/joaofelipegalvao/rustodo/compare/v1.2.0...v1.3.0>
-[1.2.0]: <https://github.com/joaofelipegalvao/rustodo/compare/v1.1.0...v1.2.0>
-[1.1.0]: <https://github.com/joaofelipegalvao/rustodo/compare/v1.0.0...v1.1.0>
-[1.0.0]: <https://github.com/joaofelipegalvao/rustodo/compare/v0.9.0...v1.0.0>
-[0.9.0]: <https://github.com/joaofelipegalvao/rustodo/compare/v0.8.0...v0.9.0>
-[0.8.0]: <https://github.com/joaofelipegalvao/rustodo/compare/v0.7.0...v0.8.0>
-[0.7.0]: <https://github.com/joaofelipegalvao/rustodo/compare/v0.6.0...v0.7.0>
-[0.6.0]: <https://github.com/joaofelipegalvao/rustodo/compare/v0.5.0...v0.6.0>
-[0.5.0]: <https://github.com/joaofelipegalvao/rustodo/compare/v0.4.2...v0.5.0>
-[0.4.2]: <https://github.com/joaofelipegalvao/rustodo/compare/v0.4.1...v0.4.2>
-[0.4.1]: <https://github.com/joaofelipegalvao/rustodo/compare/v0.4.0...v0.4.1>
-[0.4.0]: <https://github.com/joaofelipegalvao/rustodo/compare/v0.3.0...v0.4.0>
-[0.3.0]: <https://github.com/joaofelipegalvao/rustodo/compare/v0.2.0...v0.3.0>
-[0.2.0]: <https://github.com/joaofelipegalvao/rustodo/compare/v0.1.0...v0.2.0>
-[0.1.0]: <https://github.com/joaofelipegalvao/rustodo/releases/tag/v0.1.0>
+[2.11.0]: https://github.com/joaofelipegalvao/rustodo/compare/v2.9.0...v2.11.0
+[2.9.0]: https://github.com/joaofelipegalvao/rustodo/compare/v2.8.11...v2.9.0
+[2.8.11]: https://github.com/joaofelipegalvao/rustodo/compare/v2.8.10...v2.8.11
+[2.8.10]: https://github.com/joaofelipegalvao/rustodo/compare/v2.8.9...v2.8.10
+[2.8.9]: https://github.com/joaofelipegalvao/rustodo/compare/v2.8.8...v2.8.9
+[2.8.8]: https://github.com/joaofelipegalvao/rustodo/compare/v2.8.7...v2.8.8
+[2.8.7]: https://github.com/joaofelipegalvao/rustodo/compare/v2.8.6...v2.8.7
+[2.8.6]: https://github.com/joaofelipegalvao/rustodo/compare/v2.8.5...v2.8.6
+[2.8.5]: https://github.com/joaofelipegalvao/rustodo/compare/v2.8.3...v2.8.5
+[2.8.3]: https://github.com/joaofelipegalvao/rustodo/compare/v2.8.2...v2.8.3
+[2.8.2]: https://github.com/joaofelipegalvao/rustodo/compare/v2.8.1...v2.8.2
+[2.8.1]: https://github.com/joaofelipegalvao/rustodo/compare/v2.8.0...v2.8.1
+[2.8.0]: https://github.com/joaofelipegalvao/rustodo/compare/v2.7.0...v2.8.0
+[2.7.0]: https://github.com/joaofelipegalvao/rustodo/compare/v2.6.1...v2.7.0
+[2.6.1]: https://github.com/joaofelipegalvao/rustodo/compare/v2.6.0...v2.6.1
+[2.6.0]: https://github.com/joaofelipegalvao/rustodo/compare/v2.5.0...v2.6.0
+[2.5.0]: https://github.com/joaofelipegalvao/rustodo/compare/v2.4.1...v2.5.0
+[2.4.1]: https://github.com/joaofelipegalvao/rustodo/compare/v2.4.0...v2.4.1
+[2.4.0]: https://github.com/joaofelipegalvao/rustodo/compare/v2.3.4...v2.4.0
+[2.3.4]: https://github.com/joaofelipegalvao/rustodo/compare/v2.3.3...v2.3.4
+[2.3.3]: https://github.com/joaofelipegalvao/rustodo/compare/v2.3.2...v2.3.3
+[2.3.2]: https://github.com/joaofelipegalvao/rustodo/compare/v2.3.1...v2.3.2
+[2.3.1]: https://github.com/joaofelipegalvao/rustodo/compare/v2.3.0...v2.3.1
+[2.3.0]: https://github.com/joaofelipegalvao/rustodo/compare/v2.2.2...v2.3.0
+[2.2.2]: https://github.com/joaofelipegalvao/rustodo/compare/v2.2.1...v2.2.2
+[2.2.1]: https://github.com/joaofelipegalvao/rustodo/compare/v2.2.0...v2.2.1
+[2.2.0]: https://github.com/joaofelipegalvao/rustodo/compare/v2.1.0...v2.2.0
+[2.1.0]: https://github.com/joaofelipegalvao/rustodo/compare/v2.0.0...v2.1.0
+[2.0.0]: https://github.com/joaofelipegalvao/rustodo/compare/v1.9.0...v2.0.0
+[1.9.0]: https://github.com/joaofelipegalvao/rustodo/compare/v1.8.0...v1.9.0
+[1.8.0]: https://github.com/joaofelipegalvao/rustodo/compare/v1.7.0...v1.8.0
+[1.7.0]: https://github.com/joaofelipegalvao/rustodo/compare/v1.6.0...v1.7.0
+[1.6.0]: https://github.com/joaofelipegalvao/rustodo/compare/v1.5.0...v1.6.0
+[1.5.0]: https://github.com/joaofelipegalvao/rustodo/compare/v1.4.0...v1.5.0
+[1.4.0]: https://github.com/joaofelipegalvao/rustodo/compare/v1.3.0...v1.4.0
+[1.3.0]: https://github.com/joaofelipegalvao/rustodo/compare/v1.2.0...v1.3.0
+[1.2.0]: https://github.com/joaofelipegalvao/rustodo/compare/v1.1.0...v1.2.0
+[1.1.0]: https://github.com/joaofelipegalvao/rustodo/compare/v1.0.0...v1.1.0
+[1.0.0]: https://github.com/joaofelipegalvao/rustodo/compare/v0.9.0...v1.0.0
+[0.9.0]: https://github.com/joaofelipegalvao/rustodo/compare/v0.8.0...v0.9.0
+[0.8.0]: https://github.com/joaofelipegalvao/rustodo/compare/v0.7.0...v0.8.0
+[0.7.0]: https://github.com/joaofelipegalvao/rustodo/compare/v0.6.0...v0.7.0
+[0.6.0]: https://github.com/joaofelipegalvao/rustodo/compare/v0.5.0...v0.6.0
+[0.5.0]: https://github.com/joaofelipegalvao/rustodo/compare/v0.4.2...v0.5.0
+[0.4.2]: https://github.com/joaofelipegalvao/rustodo/compare/v0.4.1...v0.4.2
+[0.4.1]: https://github.com/joaofelipegalvao/rustodo/compare/v0.4.0...v0.4.1
+[0.4.0]: https://github.com/joaofelipegalvao/rustodo/compare/v0.3.0...v0.4.0
+[0.3.0]: https://github.com/joaofelipegalvao/rustodo/compare/v0.2.0...v0.3.0
+[0.2.0]: https://github.com/joaofelipegalvao/rustodo/compare/v0.1.0...v0.2.0
+[0.1.0]: https://github.com/joaofelipegalvao/rustodo/releases/tag/v0.1.0
+
