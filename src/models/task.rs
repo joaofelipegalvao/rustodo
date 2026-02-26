@@ -67,10 +67,10 @@ pub struct Task {
     /// - Tracking "families" of recurring tasks
     /// - Future features like `todo history <id>`
     #[serde(default)]
-    pub parent_id: Option<usize>,
+    pub parent_id: Option<Uuid>,
     /// IDs (1- based) of tasks that must be completed before this one
     #[serde(default)]
-    pub depends_on: Vec<usize>,
+    pub depends_on: Vec<Uuid>,
     /// Date when the task was marked as completed.
     #[serde(default)]
     pub completed_at: Option<NaiveDate>,
@@ -207,20 +207,26 @@ impl Task {
     ///
     /// `all_tasks` is the full 0-indexed task list; IDs in `depends_on` are 1-based.
     pub fn is_blocked(&self, all_tasks: &[Task]) -> bool {
-        self.depends_on.iter().any(|&dep_id| {
-            let idx = dep_id.saturating_sub(1);
-            all_tasks.get(idx).map(|t| !t.completed).unwrap_or(false)
+        self.depends_on.iter().any(|dep_uuid| {
+            all_tasks
+                .iter()
+                .find(|t| t.uuid == *dep_uuid)
+                .map(|t| !t.completed)
+                .unwrap_or(false)
         })
     }
 
     /// Returns the IDs of blocking (still-pending) dependencies.
-    pub fn blocking_deps(&self, all_tasks: &[Task]) -> Vec<usize> {
+    pub fn blocking_deps(&self, all_tasks: &[Task]) -> Vec<Uuid> {
         self.depends_on
             .iter()
             .copied()
-            .filter(|&dep_id| {
-                let idx = dep_id.saturating_sub(1);
-                all_tasks.get(idx).map(|t| !t.completed).unwrap_or(false)
+            .filter(|dep_uuid| {
+                all_tasks
+                    .iter()
+                    .find(|t| t.uuid == *dep_uuid)
+                    .map(|t| !t.completed)
+                    .unwrap_or(false)
             })
             .collect()
     }
@@ -259,15 +265,16 @@ impl Task {
     ///     Some(Recurrence::Weekly),
     /// );
     ///
-    /// let next = task.create_next_recurrence(1).unwrap();
+    /// let parent_uuid = task.uuid;
+    /// let next = task.create_next_recurrence(parent_uuid).unwrap();
     /// assert_eq!(
     ///     next.due_date,
     ///     Some(NaiveDate::from_ymd_opt(2025, 2, 17).unwrap())
     /// );
-    /// assert_eq!(next.parent_id, Some(1));
-    /// assert_ne!(next.uuid, task.uuid); // New UUID for new occurrence
+    /// assert!(next.parent_id.is_some());
+    /// assert_ne!(next.uuid, task.uuid);
     /// ```
-    pub fn create_next_recurrence(&self, parent_id: usize) -> Option<Task> {
+    pub fn create_next_recurrence(&self, parent_uuid: Uuid) -> Option<Task> {
         let recurrence = self.recurrence?;
         let current_due = self.due_date?;
         let next_due = recurrence.next_date(current_due);
@@ -281,7 +288,7 @@ impl Task {
             Some(recurrence),
         );
 
-        next_task.parent_id = Some(parent_id);
+        next_task.parent_id = Some(parent_uuid);
         // Dependencies are NOT propagated to recurrences — each occurrence stands alone.
         Some(next_task)
     }
@@ -335,26 +342,38 @@ pub fn count_by_project(tasks: &[Task], project: &str) -> (usize, usize) {
 /// `tasks` is the full 0-indexed list; IDs are 1-based.
 pub(crate) fn detect_cycle(
     tasks: &[Task],
-    task_id: usize,
-    new_dep_id: usize,
+    task_uuid: Uuid,
+    new_dep_uuid: Uuid,
 ) -> Result<(), String> {
     // Would adding "task_id depends on new_dep_id" create a cycle?
     // A cycle exists if task_id is reachable FROM new_dep_id via depends_on edges.
     // i.e. check if task_id appears in the transitive deps of new_dep_id.
     let mut visited = std::collections::HashSet::new();
-    let mut stack = vec![new_dep_id];
+    let mut stack = vec![new_dep_uuid];
 
-    while let Some(current) = stack.pop() {
-        if current == task_id {
+    while let Some(current_uuid) = stack.pop() {
+        if current_uuid == task_uuid {
+            // Resolver UUIDs → números para o display
+            let task_num = tasks
+                .iter()
+                .position(|t| t.uuid == task_uuid)
+                .map(|i| i + 1)
+                .unwrap_or(0);
+            let dep_num = tasks
+                .iter()
+                .position(|t| t.uuid == new_dep_uuid)
+                .map(|i| i + 1)
+                .unwrap_or(0);
+
             return Err(format!(
                 "Adding this dependency would create a cycle: \
                 task #{} → task #{} → ... → task #{}",
-                task_id, new_dep_id, task_id
+                task_num, dep_num, task_num
             ));
         }
 
-        if visited.insert(current)
-            && let Some(t) = tasks.get(current.saturating_sub(1))
+        if visited.insert(current_uuid)
+            && let Some(t) = tasks.iter().find(|t| t.uuid == current_uuid)
         {
             for &d in &t.depends_on {
                 stack.push(d);
@@ -382,27 +401,29 @@ mod tests {
     #[test]
     fn test_is_blocked_pending_dep() {
         let dep = make_task("Dep");
+        let dep_uuid = dep.uuid;
         let mut task = make_task("Task");
-        task.depends_on = vec![1];
+        task.depends_on = vec![dep_uuid];
         assert!(task.is_blocked(&[dep]));
     }
 
     #[test]
     fn test_is_blocked_completed_dep() {
         let mut dep = make_task("Dep");
+        let dep_uuid = dep.uuid;
         dep.completed = true;
         let mut task = make_task("Task");
-        task.depends_on = vec![1];
+        task.depends_on = vec![dep_uuid];
         assert!(!task.is_blocked(&[dep]));
     }
 
     #[test]
     fn test_detect_cycle_direct() {
-        let mut task = vec![make_task("A"), make_task("B")];
+        let mut tasks = vec![make_task("A"), make_task("B")];
         // A depends on B
-        task[0].depends_on = vec![2];
+        tasks[0].depends_on = vec![tasks[1].uuid];
         // Adding B depends on A should fail
-        let result = detect_cycle(&task, 2, 1);
+        let result = detect_cycle(&tasks, tasks[1].uuid, tasks[0].uuid);
         assert!(result.is_err());
     }
 
@@ -410,7 +431,7 @@ mod tests {
     fn test_detect_no_cycle() {
         let tasks = vec![make_task("A"), make_task("B"), make_task("C")];
         // A->B, adding C->A should be fine
-        let result = detect_cycle(&tasks, 3, 1);
+        let result = detect_cycle(&tasks, tasks[2].uuid, tasks[0].uuid);
         assert!(result.is_ok());
     }
 
@@ -418,10 +439,10 @@ mod tests {
     fn test_detect_transitive_cycle() {
         let mut tasks = vec![make_task("A"), make_task("B"), make_task("C")];
         // A depends on B, B depends on C
-        tasks[0].depends_on = vec![2];
-        tasks[1].depends_on = vec![3];
+        tasks[0].depends_on = vec![tasks[1].uuid];
+        tasks[1].depends_on = vec![tasks[2].uuid];
         // Adding C depends on A should fail (C->A->B->C)
-        let result = detect_cycle(&tasks, 3, 1);
+        let result = detect_cycle(&tasks, tasks[2].uuid, tasks[0].uuid);
         assert!(result.is_err());
     }
 
@@ -429,11 +450,13 @@ mod tests {
     fn test_blocking_deps_returns_pending_only() {
         let mut dep1 = make_task("Dep1");
         dep1.completed = true;
+        let dep1_uuid = dep1.uuid;
         let dep2 = make_task("Dep2");
+        let dep2_uuid = dep2.uuid;
         let mut task = make_task("Task");
-        task.depends_on = vec![1, 2];
+        task.depends_on = vec![dep1_uuid, dep2_uuid];
         let blocking = task.blocking_deps(&[dep1, dep2]);
-        assert_eq!(blocking, vec![2]);
+        assert_eq!(blocking, vec![dep2_uuid]);
     }
 
     fn make_recurring(recurrence: Option<Recurrence>, due: Option<NaiveDate>) -> Task {
@@ -451,19 +474,21 @@ mod tests {
     fn test_daily_recurrence() {
         let date = NaiveDate::from_ymd_opt(2026, 2, 10).unwrap();
         let task = make_recurring(Some(Recurrence::Daily), Some(date));
-        let next = task.create_next_recurrence(1).unwrap();
+        let parent_uuid = task.uuid;
+        let next = task.create_next_recurrence(parent_uuid).unwrap();
         assert_eq!(
             next.due_date,
             Some(NaiveDate::from_ymd_opt(2026, 2, 11).unwrap())
         );
-        assert_eq!(next.parent_id, Some(1));
+        assert_eq!(next.parent_id, Some(parent_uuid));
     }
 
     #[test]
     fn test_weekly_recurrence() {
         let date = NaiveDate::from_ymd_opt(2026, 2, 10).unwrap();
         let task = make_recurring(Some(Recurrence::Weekly), Some(date));
-        let next = task.create_next_recurrence(1).unwrap();
+        let parent_uuid = task.uuid;
+        let next = task.create_next_recurrence(parent_uuid).unwrap();
         assert_eq!(
             next.due_date,
             Some(NaiveDate::from_ymd_opt(2026, 2, 17).unwrap())
@@ -474,7 +499,8 @@ mod tests {
     fn test_monthly_recurrence() {
         let date = NaiveDate::from_ymd_opt(2026, 2, 10).unwrap();
         let task = make_recurring(Some(Recurrence::Monthly), Some(date));
-        let next = task.create_next_recurrence(1).unwrap();
+        let parent_uuid = task.uuid;
+        let next = task.create_next_recurrence(parent_uuid).unwrap();
         assert_eq!(
             next.due_date,
             Some(NaiveDate::from_ymd_opt(2026, 3, 10).unwrap())
@@ -485,7 +511,8 @@ mod tests {
     fn test_monthly_boundary_case() {
         let date = NaiveDate::from_ymd_opt(2026, 1, 31).unwrap();
         let task = make_recurring(Some(Recurrence::Monthly), Some(date));
-        let next = task.create_next_recurrence(1).unwrap();
+        let parent_uuid = task.uuid;
+        let next = task.create_next_recurrence(parent_uuid).unwrap();
         assert_eq!(
             next.due_date,
             Some(NaiveDate::from_ymd_opt(2026, 2, 28).unwrap())
@@ -495,13 +522,15 @@ mod tests {
     #[test]
     fn test_no_recurrence_returns_none() {
         let task = make_recurring(None, Some(NaiveDate::from_ymd_opt(2026, 2, 10).unwrap()));
-        assert!(task.create_next_recurrence(1).is_none());
+        let parent_uuid = task.uuid;
+        assert!(task.create_next_recurrence(parent_uuid).is_none());
     }
 
     #[test]
     fn test_no_due_date_returns_none() {
         let task = make_recurring(Some(Recurrence::Daily), None);
-        assert!(task.create_next_recurrence(1).is_none());
+        let parent_uuid = task.uuid;
+        assert!(task.create_next_recurrence(parent_uuid).is_none());
     }
 
     #[test]
@@ -509,7 +538,8 @@ mod tests {
         let date = NaiveDate::from_ymd_opt(2026, 2, 10).unwrap();
         let mut task = make_recurring(Some(Recurrence::Daily), Some(date));
         task.project = Some("work".to_string());
-        let next = task.create_next_recurrence(1).unwrap();
+        let parent_uuid = task.uuid;
+        let next = task.create_next_recurrence(parent_uuid).unwrap();
         assert_eq!(next.project, Some("work".to_string()));
     }
 
@@ -517,8 +547,9 @@ mod tests {
     fn test_deps_not_propagated_to_recurrence() {
         let date = NaiveDate::from_ymd_opt(2026, 2, 10).unwrap();
         let mut task = make_recurring(Some(Recurrence::Daily), Some(date));
-        task.depends_on = vec![1, 2];
-        let next = task.create_next_recurrence(1).unwrap();
+        task.depends_on = vec![Uuid::new_v4(), Uuid::new_v4()];
+        let parent_uuid = task.uuid;
+        let next = task.create_next_recurrence(parent_uuid).unwrap();
         assert!(
             next.depends_on.is_empty(),
             "recurrences should not inherit dependencies"

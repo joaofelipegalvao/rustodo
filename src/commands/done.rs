@@ -26,17 +26,18 @@ pub fn execute(storage: &impl Storage, id: usize) -> Result<()> {
         .into());
     }
 
-    // block completion if dependencies are still pending
+    // Block completion if dependencies are still pending
     let blocking = tasks[index].blocking_deps(&tasks);
     if !blocking.is_empty() {
         let ids = blocking
             .iter()
-            .map(|&dep_id| {
+            .filter_map(|uuid| tasks.iter().position(|t| t.uuid == *uuid).map(|i| i + 1))
+            .map(|num_id| {
                 let text = tasks
-                    .get(dep_id.saturating_sub(1))
+                    .get(num_id - 1)
                     .map(|t| format!("\"{}\"", t.text))
                     .unwrap_or_default();
-                format!("#{} {}", dep_id, text)
+                format!("#{} {}", num_id, text)
             })
             .collect::<Vec<_>>()
             .join(", ");
@@ -45,16 +46,15 @@ pub fn execute(storage: &impl Storage, id: usize) -> Result<()> {
 
     tasks[index].mark_done();
 
-    if let Some(next_task) = tasks[index].create_next_recurrence(id) {
+    let task_uuid = tasks[index].uuid;
+
+    if let Some(next_task) = tasks[index].create_next_recurrence(task_uuid) {
         let next_due = next_task.due_date.unwrap();
 
-        // Check for existing task with same due date that:
-        // 1. Has the same parent_id (part of same recurring chain), OR
-        // 2. Has the same text (fallback for backward compatibility)
         let already_exists = tasks.iter().any(|t| {
             !t.completed
                 && t.due_date == Some(next_due)
-                && (t.parent_id == Some(id) || t.text == next_task.text)
+                && (t.parent_id == Some(task_uuid) || t.text == next_task.text)
         });
 
         if !already_exists {

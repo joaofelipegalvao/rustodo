@@ -7,6 +7,7 @@
 
 use anyhow::Result;
 use colored::Colorize;
+use uuid::Uuid;
 
 use crate::cli::EditArgs;
 use crate::date_parser;
@@ -25,28 +26,57 @@ pub fn execute(storage: &impl Storage, args: EditArgs) -> Result<()> {
     let mut tasks = storage.load()?;
     validate_task_id(args.id, tasks.len())?;
 
+    // Resolve numeric IDs → UUIDs before any mutation
+    let add_dep_uuids: Vec<Uuid> = args
+        .add_dep
+        .iter()
+        .map(|&id| validation::resolve_uuid(id, &tasks))
+        .collect::<Result<_, _>>()
+        .map_err(anyhow::Error::from)?;
+
+    let remove_dep_uuids: Vec<Uuid> = args
+        .remove_dep
+        .iter()
+        .map(|&id| validation::resolve_uuid(id, &tasks))
+        .collect::<Result<_, _>>()
+        .map_err(anyhow::Error::from)?;
+
+    // Pre-compute display string for clear_deps (needs immutable borrow before &mut)
+    let current_deps_display = tasks[args.id - 1]
+        .depends_on
+        .iter()
+        .filter_map(|uuid| {
+            tasks
+                .iter()
+                .position(|t| t.uuid == *uuid)
+                .map(|i| format!("#{}", i + 1))
+        })
+        .collect::<Vec<_>>()
+        .join(", ");
+
     let mut changes = Vec::new();
 
-    // === Validate dependencies before mutating ===
-    for &dep_id in &args.add_dep {
-        if dep_id == args.id {
+    // Validate dependencies before mutating
+    for (dep_id, &dep_uuid) in args.add_dep.iter().zip(add_dep_uuids.iter()) {
+        if *dep_id == args.id {
             return Err(TodoError::SelfDependency { task_id: args.id }.into());
         }
-        validate_task_id(dep_id, tasks.len())?;
-        detect_cycle(&tasks, args.id, dep_id).map_err(TodoError::DependencyCycle)?;
-        if tasks[args.id - 1].depends_on.contains(&dep_id) {
+        validate_task_id(*dep_id, tasks.len())?;
+        detect_cycle(&tasks, tasks[args.id - 1].uuid, dep_uuid)
+            .map_err(TodoError::DependencyCycle)?;
+        if tasks[args.id - 1].depends_on.contains(&dep_uuid) {
             return Err(TodoError::DuplicateDependency {
                 task_id: args.id,
-                dep_id,
+                dep_id: *dep_id,
             }
             .into());
         }
     }
-    for &dep_id in &args.remove_dep {
-        if !tasks[args.id - 1].depends_on.contains(&dep_id) {
+    for (dep_id, dep_uuid) in args.remove_dep.iter().zip(remove_dep_uuids.iter()) {
+        if !tasks[args.id - 1].depends_on.contains(dep_uuid) {
             return Err(TodoError::DependencyNotFound {
                 task_id: args.id,
-                dep_id,
+                dep_id: *dep_id,
             }
             .into());
         }
@@ -54,7 +84,6 @@ pub fn execute(storage: &impl Storage, args: EditArgs) -> Result<()> {
 
     let task = &mut tasks[args.id - 1];
 
-    // === Text ===
     if let Some(new_text) = args.text {
         if new_text.trim().is_empty() {
             return Err(anyhow::anyhow!("Task text cannot be empty"));
@@ -65,7 +94,6 @@ pub fn execute(storage: &impl Storage, args: EditArgs) -> Result<()> {
         }
     }
 
-    // === Priority ===
     if let Some(new_priority) = args.priority
         && task.priority != new_priority
     {
@@ -73,7 +101,6 @@ pub fn execute(storage: &impl Storage, args: EditArgs) -> Result<()> {
         changes.push(format!("priority → {}", new_priority.letter()));
     }
 
-    // === Project ===
     if args.clear_project {
         if task.project.is_some() {
             let old = task.project.take().unwrap();
@@ -87,7 +114,6 @@ pub fn execute(storage: &impl Storage, args: EditArgs) -> Result<()> {
         }
     }
 
-    // === Tags ===
     if args.clear_tags {
         if !task.tags.is_empty() {
             let old_tags = task.tags.clone();
@@ -98,7 +124,6 @@ pub fn execute(storage: &impl Storage, args: EditArgs) -> Result<()> {
             ));
         }
     } else {
-        // Remove specific tags
         if !args.remove_tag.is_empty() {
             let before_len = task.tags.len();
             let mut removed = Vec::new();
@@ -115,7 +140,6 @@ pub fn execute(storage: &impl Storage, args: EditArgs) -> Result<()> {
             if !removed.is_empty() {
                 changes.push(format!("removed tags → [{}]", removed.join(", ").red()));
             } else if before_len > 0 {
-                // User tried to remove tags that don't exist
                 return Err(anyhow::anyhow!(
                     "None of the specified tags [{}] exist in task #{}",
                     args.remove_tag.join(", "),
@@ -124,7 +148,6 @@ pub fn execute(storage: &impl Storage, args: EditArgs) -> Result<()> {
             }
         }
 
-        // Add new tags
         if !args.add_tag.is_empty() {
             validation::validate_tags(&args.add_tag)?;
             let mut added = Vec::new();
@@ -142,7 +165,6 @@ pub fn execute(storage: &impl Storage, args: EditArgs) -> Result<()> {
         }
     }
 
-    // === Due date ===
     if args.clear_due {
         if task.due_date.is_some() {
             task.due_date = None;
@@ -155,20 +177,17 @@ pub fn execute(storage: &impl Storage, args: EditArgs) -> Result<()> {
         changes.push(format!("due date → {}", new_due.to_string().cyan()));
     }
 
-    // === Dependencies ===
     if args.clear_deps {
         if !task.depends_on.is_empty() {
-            let old = task
-                .depends_on
-                .drain(..)
-                .map(|id| format!("#{}", id))
-                .collect::<Vec<_>>()
-                .join(", ");
-            changes.push(format!("dependencies cleared → was [{}]", old.dimmed()));
+            task.depends_on.clear();
+            changes.push(format!(
+                "dependencies cleared → was [{}]",
+                current_deps_display.dimmed()
+            ));
         }
     } else {
         if !args.remove_dep.is_empty() {
-            task.depends_on.retain(|d| !args.remove_dep.contains(d));
+            task.depends_on.retain(|d| !remove_dep_uuids.contains(d));
             let removed = args
                 .remove_dep
                 .iter()
@@ -178,8 +197,8 @@ pub fn execute(storage: &impl Storage, args: EditArgs) -> Result<()> {
             changes.push(format!("removed deps → [{}]", removed.red()));
         }
         if !args.add_dep.is_empty() {
-            for dep_id in &args.add_dep {
-                task.depends_on.push(*dep_id);
+            for dep_uuid in &add_dep_uuids {
+                task.depends_on.push(*dep_uuid);
             }
             let added = args
                 .add_dep
@@ -191,11 +210,10 @@ pub fn execute(storage: &impl Storage, args: EditArgs) -> Result<()> {
         }
     }
 
-    // Check if anything was actually changed
     if changes.is_empty() {
         println!(
             "{} No changes made (values are already set to the specified values).",
-            "".blue()
+            "".blue()
         );
         return Ok(());
     }
