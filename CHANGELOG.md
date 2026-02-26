@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.12.0](https://github.com/joaofelipegalvao/rustodo/compare/v2.11.0..v2.12.0) - 2026-02-26
+
+### Features
+
+- Migrate depends_on and parent_id from usize to UUID - ([6df77c5](https://github.com/joaofelipegalvao/rustodo/commit/6df77c5be74a6a40db80e4fa34acfb6106b6420a))
 ## [2.11.0](https://github.com/joaofelipegalvao/rustodo/compare/v2.9.0..v2.11.0) - 2026-02-26
 
 ### Features
@@ -363,6 +368,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Features
 
 - V1 - basic todo CLI with add/list commands - ([9580ae2](https://github.com/joaofelipegalvao/rustodo/commit/9580ae297837c9a6c5d4b18868d2f3abac1b1b9e))
+[2.12.0]: https://github.com/joaofelipegalvao/rustodo/compare/v2.11.0...v2.12.0
 [2.11.0]: https://github.com/joaofelipegalvao/rustodo/compare/v2.9.0...v2.11.0
 [2.9.0]: https://github.com/joaofelipegalvao/rustodo/compare/v2.8.11...v2.9.0
 [2.8.11]: https://github.com/joaofelipegalvao/rustodo/compare/v2.8.10...v2.8.11
