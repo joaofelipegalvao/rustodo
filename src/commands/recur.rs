@@ -29,6 +29,10 @@ pub fn execute(storage: &impl Storage, id: usize, pattern: Recurrence) -> Result
     let old_recurrence = task.recurrence;
     task.recurrence = Some(pattern);
 
+    if old_recurrence != Some(pattern) {
+        task.touch();
+    }
+
     storage.save(&tasks)?;
 
     match old_recurrence {

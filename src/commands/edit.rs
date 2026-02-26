@@ -218,6 +218,7 @@ pub fn execute(storage: &impl Storage, args: EditArgs) -> Result<()> {
         return Ok(());
     }
 
+    task.touch();
     storage.save(&tasks)?;
 
     println!("{} Task #{} updated:", "✓".green(), args.id);

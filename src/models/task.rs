@@ -1,4 +1,4 @@
-use chrono::{Local, NaiveDate};
+use chrono::{DateTime, Local, NaiveDate, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -74,6 +74,16 @@ pub struct Task {
     /// Date when the task was marked as completed.
     #[serde(default)]
     pub completed_at: Option<NaiveDate>,
+    /// Timestamp of the last modification.
+    ///
+    /// Used by sync to determine which version of a task is more recent
+    /// when merging changes from multiple devices. Updated automatically
+    /// on every mutation via [`Task::touch`].
+    ///
+    /// Old tasks without this field are migrated with `None` on first load,
+    /// which sync treats as "older than any real timestamp".
+    #[serde(default)]
+    pub updated_at: Option<DateTime<Utc>>,
 }
 
 impl Task {
@@ -136,19 +146,33 @@ impl Task {
             parent_id: None,
             depends_on: Vec::new(),
             completed_at: None,
+            updated_at: Some(Utc::now()),
         }
+    }
+
+    /// Updates `updated_at` to the current UTC timestamp.
+    ///
+    /// Must be called after any mutation to ensure sync can determine
+    /// which version of a task is more recent across devices.
+    ///
+    /// All command handlers (`edit`, `done`, `undone`, etc.) call this
+    /// after modifying a task.
+    pub fn touch(&mut self) {
+        self.updated_at = Some(Utc::now());
     }
 
     /// Marks this task as completed.
     pub fn mark_done(&mut self) {
         self.completed = true;
         self.completed_at = Some(Local::now().naive_local().date());
+        self.touch();
     }
 
     /// Marks this task as pending (not completed).
     pub fn mark_undone(&mut self) {
         self.completed = false;
         self.completed_at = None;
+        self.touch();
     }
 
     /// Checks if this is overdue.
@@ -231,11 +255,11 @@ impl Task {
             .collect()
     }
 
-    // Creates a new task for the next recurrence cycle.
+    /// Creates a new task for the next recurrence cycle.
     ///
     /// # Arguments
     ///
-    /// * `parent_id` - The ID of the current task (to link recurring tasks)
+    /// * `parent_uuid` - The UUID of the current task (to link recurring tasks)
     ///
     /// # Returns
     ///
@@ -246,7 +270,7 @@ impl Task {
     ///
     /// - Preserves: text, priority, tags, recurrence pattern
     /// - Resets: completed = false
-    /// - Updates: due_date (calculated from recurrence), created_at (now)
+    /// - Updates: due_date (calculated from recurrence), created_at (now), updated_at (now)
     /// - Generates: New UUID for the next occurrence
     /// - Sets: parent_id (to link the chain)
     ///
@@ -272,6 +296,7 @@ impl Task {
     ///     Some(NaiveDate::from_ymd_opt(2025, 2, 17).unwrap())
     /// );
     /// assert!(next.parent_id.is_some());
+    /// assert!(next.updated_at.is_some());
     /// assert_ne!(next.uuid, task.uuid);
     /// ```
     pub fn create_next_recurrence(&self, parent_uuid: Uuid) -> Option<Task> {
@@ -457,6 +482,40 @@ mod tests {
         task.depends_on = vec![dep1_uuid, dep2_uuid];
         let blocking = task.blocking_deps(&[dep1, dep2]);
         assert_eq!(blocking, vec![dep2_uuid]);
+    }
+
+    #[test]
+    fn test_updated_at_set_on_new() {
+        let task = make_task("A");
+        assert!(task.updated_at.is_some());
+    }
+
+    #[test]
+    fn test_touch_updates_timestamp() {
+        let mut task = make_task("A");
+        let before = task.updated_at;
+        std::thread::sleep(std::time::Duration::from_millis(5));
+        task.touch();
+        assert!(task.updated_at > before);
+    }
+
+    #[test]
+    fn test_mark_done_updates_timestamp() {
+        let mut task = make_task("A");
+        let before = task.updated_at;
+        std::thread::sleep(std::time::Duration::from_millis(5));
+        task.mark_done();
+        assert!(task.updated_at > before);
+    }
+
+    #[test]
+    fn test_mark_undone_updates_timestamp() {
+        let mut task = make_task("A");
+        task.mark_done();
+        let before = task.updated_at;
+        std::thread::sleep(std::time::Duration::from_millis(5));
+        task.mark_undone();
+        assert!(task.updated_at > before);
     }
 
     fn make_recurring(recurrence: Option<Recurrence>, due: Option<NaiveDate>) -> Task {
