@@ -37,5 +37,6 @@ pub mod recur;
 pub mod remove;
 pub mod search;
 pub mod stats;
+pub mod sync;
 pub mod tags;
 pub mod undone;

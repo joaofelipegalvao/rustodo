@@ -31,24 +31,8 @@ use crate::models::{DueFilter, Priority, Recurrence, RecurrenceFilter, SortBy, S
     todo list --project \"Backend\"\n\n    \
     # List pending tasks in a project, sorted by due date\n    \
     todo list --project \"Backend\" --status pending --sort due\n\n    \
-    # List all projects\n    \
-    todo projects\n\n    \
-    # Search within a project\n    \
-    todo search \"bug\" --project \"Backend\"\n\n    \
-    # Edit a task project\n    \
-    todo edit 3 --project \"Frontend\"\n\n    \
-    # Remove a task from its project\n    \
-    todo edit 3 --clear-project\n\n    \
-    # Add a recurring task in a project\n    \
-    todo add \"Weekly review\" --project \"Management\" --due \"next monday\" --recurrence weekly\n\n    \
-    # List overdue tasks sorted by due date\n    \
-    todo list --due overdue --sort due\n\n    \
-    # Search for tasks\n    \
-    todo search rust\n\n    \
-    # Mark task as completed (auto-creates next recurrence)\n    \
-    todo done 3\n\n    \
-    # Set recurrence pattern\n    \
-    todo recur 5 daily\n\n\
+    # Sync tasks with Git repository\n    \
+    todo sync\n\n\
 For more information, visit: https://github.com/joaofelipegalvao/rustodo
 ")]
 pub struct Cli {
@@ -232,6 +216,16 @@ pub enum Commands {
         #[arg(value_name = "ID")]
         id: usize,
     },
+
+    /// Sync tasks with Git repository (pull + merge + push).
+    #[command(long_about = "Sync tasks with Git repository\n\n\
+        Performs a full sync workflow:\n  \
+        1. Pull latest changes from remote\n  \
+        2. Merge changes using 3-way merge (UUID-based)\n  \
+        3. Resolve conflicts automatically (last-write-wins)\n  \
+        4. Push merged result to remote\n\n\
+        Requires Git storage backend to be configured.")]
+    Sync,
 }
 
 /// Arguments for the `add` subcommand.
