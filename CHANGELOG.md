@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.14.0](https://github.com/joaofelipegalvao/rustodo/compare/v2.13.0..v2.14.0) - 2026-02-27
+
+### Features
+
+- Add GitStorage backend with automatic Git commits - ([4f4a06f](https://github.com/joaofelipegalvao/rustodo/commit/4f4a06f15dbeb6d04e259f74ebfa1287c24ce131))
+
+### Bug Fixes
+
+- Use vendored-openssl for git2 to fix cross-compilation - ([ea982c9](https://github.com/joaofelipegalvao/rustodo/commit/ea982c9558bf2c42bad10f736b547cad198e9ee2))
 ## [2.13.0](https://github.com/joaofelipegalvao/rustodo/compare/v2.12.0..v2.13.0) - 2026-02-26
 
 ### Features
@@ -373,6 +382,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Features
 
 - V1 - basic todo CLI with add/list commands - ([9580ae2](https://github.com/joaofelipegalvao/rustodo/commit/9580ae297837c9a6c5d4b18868d2f3abac1b1b9e))
+[2.14.0]: https://github.com/joaofelipegalvao/rustodo/compare/v2.13.0...v2.14.0
 [2.13.0]: https://github.com/joaofelipegalvao/rustodo/compare/v2.12.0...v2.13.0
 [2.12.0]: https://github.com/joaofelipegalvao/rustodo/compare/v2.11.0...v2.12.0
 [2.11.0]: https://github.com/joaofelipegalvao/rustodo/compare/v2.9.0...v2.11.0
