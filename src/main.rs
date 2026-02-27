@@ -103,5 +103,7 @@ fn run(cli: Cli, storage: &impl Storage) -> Result<()> {
         Commands::Recur { id, pattern } => commands::recur::execute(storage, id, pattern),
 
         Commands::ClearRecur { id } => commands::clear_recur::execute(storage, id),
+
+        Commands::Sync => commands::sync::execute(storage),
     }
 }

@@ -1,11 +1,12 @@
 //! Storage abstraction layer for task persistence.
 //!
-//! This module defines the [`Storage`] trait and re-exports the two built-in
+//! This module defines the [`Storage`] trait and re-exports three built-in
 //! implementations:
 //!
 //! | Type | Description |
 //! |---|---|
 //! | [`JsonStorage`] | Persists tasks to a JSON file in the OS data directory |
+//! | [`GitStorage`] | Persists tasks to a Git repository with commit history |
 //! | [`InMemoryStorage`] | Stores tasks in memory — ideal for tests |
 //!
 //! ## Implementing a custom storage backend
@@ -73,9 +74,11 @@ pub trait Storage {
 }
 
 // Re-export implementations
+pub mod git;
 pub mod json;
 pub mod memory;
 
+pub use git::GitStorage;
 pub use json::JsonStorage;
 pub use memory::InMemoryStorage;
 
