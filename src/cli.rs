@@ -12,9 +12,6 @@ use clap::{Args, Parser, Subcommand};
 use crate::models::{DueFilter, Priority, Recurrence, RecurrenceFilter, SortBy, StatusFilter};
 
 /// Top-level CLI entry point.
-///
-/// Parse with [`Cli::parse`] in `main`, then match on [`Cli::command`] to
-/// dispatch to the appropriate handler.
 #[derive(Parser)]
 #[command(name = "rustodo")]
 #[command(author = "github.com/joaofelipegalvao")]
@@ -31,8 +28,9 @@ use crate::models::{DueFilter, Priority, Recurrence, RecurrenceFilter, SortBy, S
     todo list --project \"Backend\"\n\n    \
     # List pending tasks in a project, sorted by due date\n    \
     todo list --project \"Backend\" --status pending --sort due\n\n    \
-    # Sync tasks with Git repository\n    \
-    todo sync\n\n\
+    # Configure sync and push\n    \
+    todo sync init git@github.com:user/tasks.git\n    \
+    todo sync push\n\n\
 For more information, visit: https://github.com/joaofelipegalvao/rustodo
 ")]
 pub struct Cli {
@@ -41,7 +39,7 @@ pub struct Cli {
     pub command: Commands,
 }
 
-/// All  available subcommands.
+/// All available subcommands.
 #[derive(Subcommand)]
 pub enum Commands {
     /// Add a new task to your todo list
@@ -217,21 +215,60 @@ pub enum Commands {
         id: usize,
     },
 
-    /// Sync tasks with Git repository (pull + merge + push).
-    #[command(long_about = "Sync tasks with Git repository\n\n\
-        Performs a full sync workflow:\n  \
-        1. Pull latest changes from remote\n  \
-        2. Merge changes using 3-way merge (UUID-based)\n  \
-        3. Resolve conflicts automatically (last-write-wins)\n  \
-        4. Push merged result to remote\n\n\
-        Requires Git storage backend to be configured.")]
-    Sync,
+    /// Sync tasks with a Git repository.
+    #[command(subcommand)]
+    #[command(long_about = "Sync tasks with a Git repository.\n\n\
+        Subcommands:\n  \
+        todo sync init <remote>  — initialize repo and configure remote\n  \
+        todo sync push           — commit changes and push\n  \
+        todo sync pull           — pull and merge changes\n  \
+        todo sync status         — show sync state\n\n\
+        First time setup:\n  \
+        todo sync init git@github.com:user/tasks.git\n  \
+        todo sync push")]
+    Sync(SyncCommands),
+}
+
+/// Subcommands for `todo sync`.
+#[derive(Subcommand)]
+pub enum SyncCommands {
+    /// Initialize Git repo in the data directory and configure remote.
+    #[command(long_about = "Initialize sync with a Git remote.\n\n\
+        Creates a Git repository in the rustodo data directory,\n\
+        adds the remote, and makes an initial commit.\n\n\
+        Example:\n  \
+        todo sync init git@github.com:user/tasks.git")]
+    Init {
+        /// Git remote URL (SSH or HTTPS).
+        ///
+        /// Examples:
+        ///   git@github.com:user/tasks.git
+        ///   <https://github.com/user/tasks.git>
+        #[arg(value_name = "REMOTE")]
+        remote: String,
+    },
+
+    /// Commit todos.json and push to remote.
+    #[command(
+        long_about = "Commit any pending changes to todos.json and push to the remote.\n\n\
+        The commit message summarises the current task counts.\n\
+        No-ops if todos.json has not changed since the last commit.\n\n\
+        Requires: todo sync init <remote> to be run first."
+    )]
+    Push,
+
+    /// Pull from remote and merge changes.
+    #[command(long_about = "Pull latest changes from the remote.\n\n\
+        Uses git pull --rebase to keep history linear.\n\
+        Semantic UUID-based merge is planned for Phase 2.\n\n\
+        Requires: todo sync init <remote> to be run first.")]
+    Pull,
+
+    /// Show sync state (branch, last commit, dirty status).
+    Status,
 }
 
 /// Arguments for the `add` subcommand.
-///
-/// Extracted into its own struct so clap can derive the full argument set
-/// cleanly, and so callers can construct it programmatically in tests.
 #[derive(Args)]
 pub struct AddArgs {
     /// Task description text.
@@ -240,7 +277,7 @@ pub struct AddArgs {
     /// Priority level (default: medium).
     #[arg(long, value_enum, default_value_t = Priority::Medium)]
     pub priority: Priority,
-    /// Tags  to attach (comma-separated or repeat flag).
+    /// Tags to attach (comma-separated or repeat flag).
     #[arg(long, short = 't', value_name = "TAG", value_delimiter = ',')]
     pub tag: Vec<String>,
     /// Project to assign the task to.
@@ -258,10 +295,8 @@ pub struct AddArgs {
     #[arg(long, value_name = "ID")]
     pub depends_on: Vec<usize>,
 }
+
 /// Arguments for the `edit` subcommand.
-///
-/// Extracted into its own struct so clap can derive the full argument set
-/// cleanly, and so callers can construct it programmatically in tests.
 #[derive(Args)]
 pub struct EditArgs {
     /// 1-based task ID.
