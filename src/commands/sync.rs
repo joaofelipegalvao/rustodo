@@ -86,12 +86,8 @@ fn push(storage: &impl Storage) -> Result<()> {
         bail!("Git repository not initialized. Run: todo sync init <remote>");
     }
 
-    // Build a descriptive commit message from task counts
-    let tasks = storage.load()?;
-    let total = tasks.len();
-    let done = tasks.iter().filter(|t| t.completed).count();
-    let pending = total - done;
-    let message = format!("sync: {} tasks ({} pending, {} done)", total, pending, done);
+    let current_tasks = storage.load()?;
+    let message = build_commit_message(&current_tasks, &data_dir);
 
     let committed = git::commit(&data_dir, &message)?;
 
@@ -105,6 +101,81 @@ fn push(storage: &impl Storage) -> Result<()> {
     println!("{} Pushed to remote", "✓".green());
 
     Ok(())
+}
+
+/// Builds a commit message by diffing current tasks against the last commit.
+///
+/// Compares UUIDs to detect added, removed, and completed tasks.
+/// Falls back to a simple count message if there is no previous commit.
+fn build_commit_message(current: &[crate::models::Task], data_dir: &std::path::Path) -> String {
+    use std::collections::HashMap;
+    use uuid::Uuid;
+
+    let Some(prev_json) = git::last_committed_tasks_json(data_dir) else {
+        // No previous commit — first push
+        let done = current.iter().filter(|t| t.completed).count();
+        let pending = current.len() - done;
+        return format!(
+            "sync: {} tasks ({} pending, {} done)",
+            current.len(),
+            pending,
+            done
+        );
+    };
+
+    let Ok(prev_tasks) = serde_json::from_str::<Vec<crate::models::Task>>(&prev_json) else {
+        // Can't parse previous — fall back to counts
+        let done = current.iter().filter(|t| t.completed).count();
+        let pending = current.len() - done;
+        return format!(
+            "sync: {} tasks ({} pending, {} done)",
+            current.len(),
+            pending,
+            done
+        );
+    };
+
+    let prev_map: HashMap<Uuid, &crate::models::Task> =
+        prev_tasks.iter().map(|t| (t.uuid, t)).collect();
+    let curr_map: HashMap<Uuid, &crate::models::Task> =
+        current.iter().map(|t| (t.uuid, t)).collect();
+
+    let added = curr_map
+        .keys()
+        .filter(|id| !prev_map.contains_key(id))
+        .count();
+    let removed = prev_map
+        .keys()
+        .filter(|id| !curr_map.contains_key(id))
+        .count();
+    let completed = curr_map
+        .iter()
+        .filter(|(id, t)| t.completed && prev_map.get(id).map(|p| !p.completed).unwrap_or(false))
+        .count();
+    let uncompleted = curr_map
+        .iter()
+        .filter(|(id, t)| !t.completed && prev_map.get(id).map(|p| p.completed).unwrap_or(false))
+        .count();
+
+    let mut parts = vec![];
+    if added > 0 {
+        parts.push(format!("+{} added", added));
+    }
+    if removed > 0 {
+        parts.push(format!("-{} removed", removed));
+    }
+    if completed > 0 {
+        parts.push(format!("{} completed", completed));
+    }
+    if uncompleted > 0 {
+        parts.push(format!("{} reopened", uncompleted));
+    }
+
+    if parts.is_empty() {
+        "sync: metadata updated".to_string()
+    } else {
+        format!("sync: {}", parts.join(", "))
+    }
 }
 
 // ── pull ─────────────────────────────────────────────────────────────────────
@@ -195,5 +266,20 @@ mod tests {
     fn test_sync_config_require_error_message() {
         let result: Result<SyncConfig, _> = toml::from_str("");
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_build_commit_message_no_changes() {
+        use crate::models::{Priority, Task};
+        let tasks = vec![Task::new(
+            "A".to_string(),
+            Priority::Medium,
+            vec![],
+            None,
+            None,
+            None,
+        )];
+        let msg = build_commit_message(&tasks, std::path::Path::new("/nonexistent"));
+        assert!(msg.contains("1 tasks"));
     }
 }

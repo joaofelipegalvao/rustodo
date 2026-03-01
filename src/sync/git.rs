@@ -21,7 +21,7 @@
 //! todo sync status         →  git status + git log summary
 //! ```
 
-use anyhow::{Context, Ok, Result, bail};
+use anyhow::{Context, Result, bail};
 
 use std::path::Path;
 use std::process::Command;
@@ -86,6 +86,17 @@ pub fn add_remote(dir: &Path, url: &str) -> Result<()> {
 /// Creates `todos.json` with an empty task list if it does not exist yet.
 /// No-ops if there is nothing to commit.
 pub fn initial_commit(dir: &Path) -> Result<()> {
+    let has_commits = Command::new("git")
+        .args(["rev-parse", "HEAD"])
+        .current_dir(dir)
+        .output()
+        .map(|o| o.status.success())
+        .unwrap_or(false);
+
+    if has_commits {
+        return Ok(());
+    }
+
     let todos_path = dir.join("todos.json");
     if !todos_path.exists() {
         std::fs::write(&todos_path, "[]\n").context("Failed to create todos.json")?;
@@ -128,6 +139,28 @@ pub fn commit(dir: &Path, message: &str) -> Result<bool> {
     }
 }
 
+/// Reads todos.json from the last commit and returns its content.
+///
+/// Returns `None` if there are no commits yet.
+pub fn last_committed_tasks_json(dir: &Path) -> Option<String> {
+    git(dir, &["show", "HEAD:todos.json"]).ok()
+}
+
+/// Returns (ahead, behind) commit counts relative to origin.
+///
+/// Returns (0, 0) if the remote tracking branch doesn't exist yet.
+pub fn ahead_behind(dir: &Path) -> (usize, usize) {
+    let output = match git(dir, &["rev-list", "--left-right", "--count", "HEAD...@{u}"]) {
+        Ok(s) => s,
+        Err(_) => return (0, 0),
+    };
+
+    let mut parts = output.split_whitespace();
+    let ahead = parts.next().and_then(|s| s.parse().ok()).unwrap_or(0);
+    let behind = parts.next().and_then(|s| s.parse().ok()).unwrap_or(0);
+    (ahead, behind)
+}
+
 /// Pushes the current branch to `origin`.
 pub fn push(dir: &Path) -> Result<()> {
     // Try pushing; if upstream is not set, set it automatically
@@ -158,15 +191,19 @@ pub fn status(dir: &Path) -> Result<String> {
     let dirty = git(dir, &["status", "--porcelain"])?;
     let todos_changed = dirty.lines().any(|l| l.contains("todos.json"));
 
+    let (ahead, behind) = ahead_behind(dir);
+    let ahead_behind_str = format!("↑{} ↓{}", ahead, behind);
+
     let mut lines = vec![
-        format!("Branch:      {}", branch),
-        format!("Last commit: {}", last_commit),
+        format!("Branch:       {}", branch),
+        format!("Last commit:  {}", last_commit),
+        format!("Ahead/behind: {}", ahead_behind_str),
     ];
 
     if todos_changed {
-        lines.push("todos.json:  modified (not yet committed)".to_string());
+        lines.push("todos.json:   modified (not yet committed)".to_string());
     } else {
-        lines.push("todos.json:  clean".to_string());
+        lines.push("todos.json:   clean".to_string());
     }
 
     Ok(lines.join("\n"))
@@ -265,7 +302,7 @@ mod tests {
         git(dir, &["commit", "-m", "initial"]).unwrap();
 
         let s = status(dir).unwrap();
-        assert!(s.contains("todos.json:  clean"));
+        assert!(s.contains("todos.json:   clean"));
         assert!(s.contains("Last commit:"));
     }
 
@@ -282,6 +319,6 @@ mod tests {
         fs::write(dir.join("todos.json"), "[{}]").unwrap();
 
         let s = status(dir).unwrap();
-        assert!(s.contains("todos.json:  modified"));
+        assert!(s.contains("todos.json:   modified"));
     }
 }
