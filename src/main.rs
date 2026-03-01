@@ -1,9 +1,5 @@
 /*
 A modern, powerful task manager built with Rust.
-
-This CLI application provides a simple yet feature-rich interface for managing
-todo tasks with support for priorities, tags, due dates, recurring patterns,
-and advanced filtering.
 */
 
 use std::process;
@@ -12,19 +8,14 @@ use anyhow::Result;
 use clap::Parser;
 use colored::Colorize;
 
-use rustodo::cli::{Cli, Commands};
+use rustodo::cli::{Cli, Commands, SyncCommands};
 use rustodo::commands;
+use rustodo::commands::sync::SyncCommand;
 use rustodo::storage::{JsonStorage, Storage};
 
-/// Main entry point for the todo-list application.
-///
-/// Parses command-line arguments and executes the requested command.
-/// If an error occurs, it prints a formatted error message and exits
-/// with a non-zero status code.
 fn main() {
     let cli = Cli::parse();
 
-    // Create storage (JSON in production)
     let storage = match JsonStorage::new() {
         Ok(s) => s,
         Err(e) => {
@@ -36,7 +27,6 @@ fn main() {
     if let Err(e) = run(cli, &storage) {
         eprintln!("{} {}", "✗".red(), e);
 
-        // Print the full error chain for better debugging
         let mut source = e.source();
         while let Some(cause) = source {
             eprintln!("  {} {}", "↳".red(), cause);
@@ -47,22 +37,10 @@ fn main() {
     }
 }
 
-/// Main application logic dispatcher.
-///
-/// This function processes the parsed CLI arguments and executes the
-/// appropriate command. It handles all the core functionality of the
-/// todo application including adding, listing, completing, managing tasks,
-/// and setting up recurring patterns.
-///
-/// # Errors
-///
-/// Returns an error if:
-/// - File I/O operations fail
-/// - Task validation fails
-/// - No tasks match the specified filters
 fn run(cli: Cli, storage: &impl Storage) -> Result<()> {
     match cli.command {
         Commands::Add(args) => commands::add::execute(storage, args),
+
         Commands::List {
             status,
             priority,
@@ -104,6 +82,14 @@ fn run(cli: Cli, storage: &impl Storage) -> Result<()> {
 
         Commands::ClearRecur { id } => commands::clear_recur::execute(storage, id),
 
-        Commands::Sync => commands::sync::execute(storage),
+        Commands::Sync(sub) => {
+            let cmd = match sub {
+                SyncCommands::Init { remote } => SyncCommand::Init { remote },
+                SyncCommands::Push => SyncCommand::Push,
+                SyncCommands::Pull => SyncCommand::Pull,
+                SyncCommands::Status => SyncCommand::Status,
+            };
+            commands::sync::execute(storage, cmd)
+        }
     }
 }
