@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.15.0](https://github.com/joaofelipegalvao/rustodo/compare/v2.14.0..v2.15.0) - 2026-03-01
+
+### Features
+
+- Implement git sync via std::process::Command - ([0f736df](https://github.com/joaofelipegalvao/rustodo/commit/0f736df7828ba3a26415dd280c01f0f8fde85c5f))
+- Implement git sync via std::process::Command #5 - ([c01d2e5](https://github.com/joaofelipegalvao/rustodo/commit/c01d2e51285ecfbe62434eb56f7d3e17cf82abb1))
 ## [2.14.0](https://github.com/joaofelipegalvao/rustodo/compare/v2.13.0..v2.14.0) - 2026-02-27
 
 ### Features
@@ -382,6 +388,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Features
 
 - V1 - basic todo CLI with add/list commands - ([9580ae2](https://github.com/joaofelipegalvao/rustodo/commit/9580ae297837c9a6c5d4b18868d2f3abac1b1b9e))
+[2.15.0]: https://github.com/joaofelipegalvao/rustodo/compare/v2.14.0...v2.15.0
 [2.14.0]: https://github.com/joaofelipegalvao/rustodo/compare/v2.13.0...v2.14.0
 [2.13.0]: https://github.com/joaofelipegalvao/rustodo/compare/v2.12.0...v2.13.0
 [2.12.0]: https://github.com/joaofelipegalvao/rustodo/compare/v2.11.0...v2.12.0
