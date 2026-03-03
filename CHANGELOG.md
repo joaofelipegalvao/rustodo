@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.19.0](https://github.com/joaofelipegalvao/rustodo/compare/v2.18.0..v2.19.0) - 2026-03-03
+
+### Features
+
+- Implement purge command for tombstone cleanup - ([ef257b0](https://github.com/joaofelipegalvao/rustodo/commit/ef257b05b978b86303223f8cb0e2cf06b6dbc790))
 ## [2.18.0](https://github.com/joaofelipegalvao/rustodo/compare/v2.17.5..v2.18.0) - 2026-03-03
 
 ### Features
@@ -428,6 +433,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Features
 
 - V1 - basic todo CLI with add/list commands - ([9580ae2](https://github.com/joaofelipegalvao/rustodo/commit/9580ae297837c9a6c5d4b18868d2f3abac1b1b9e))
+[2.19.0]: https://github.com/joaofelipegalvao/rustodo/compare/v2.18.0...v2.19.0
 [2.18.0]: https://github.com/joaofelipegalvao/rustodo/compare/v2.17.5...v2.18.0
 [2.17.5]: https://github.com/joaofelipegalvao/rustodo/compare/v2.17.4...v2.17.5
 [2.17.4]: https://github.com/joaofelipegalvao/rustodo/compare/v2.17.3...v2.17.4
