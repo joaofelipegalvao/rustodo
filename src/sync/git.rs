@@ -167,9 +167,42 @@ pub fn ahead_behind(dir: &Path) -> (usize, usize) {
 }
 
 /// Pushes the current branch to `origin`.
+///
+/// If the push is rejected due to non-fast-forward (remote has commits
+/// the local repo does not), fetches and rebases automatically before retrying.
 pub fn push(dir: &Path) -> Result<()> {
-    git(dir, &["push", "--set-upstream", "origin", "HEAD"]).context("Failed to push to remote")?;
-    Ok(())
+    let result = Command::new("git")
+        .args(["push", "--set-upstream", "origin", "HEAD"])
+        .current_dir(dir)
+        .output()
+        .context("Failed to run git push")?;
+
+    if result.status.success() {
+        return Ok(());
+    }
+
+    let stderr = String::from_utf8_lossy(&result.stderr);
+
+    if stderr.contains("fetch first") || stderr.contains("non-fast-forward") {
+        fetch(dir)?;
+        git(
+            dir,
+            &[
+                "merge",
+                "FETCH_HEAD",
+                "--allow-unrelated-histories",
+                "--no-edit",
+            ],
+        )?;
+        git(dir, &["push", "--set-upstream", "origin", "HEAD"])
+            .context("Failed to push to remote after rebase")?;
+        return Ok(());
+    }
+
+    bail!(
+        "git push --set-upstream origin HEAD failed:\n{}",
+        stderr.trim()
+    )
 }
 
 /// Fetches from remote without merging.
@@ -232,10 +265,6 @@ pub fn pull(dir: &Path) -> Result<PullResult> {
 
 pub fn read_ours(dir: &Path) -> Result<String> {
     git(dir, &["show", ":2:todos.json"]).context("Failed to read local version of todos.json")
-}
-
-pub fn read_theirs(dir: &Path) -> Result<String> {
-    git(dir, &["show", ":3:todos.json"]).context("Failed to read remote version of todos.json")
 }
 
 pub fn finish_merge(dir: &Path) -> Result<()> {
