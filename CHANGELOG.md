@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.17.4](https://github.com/joaofelipegalvao/rustodo/compare/v2.17.3..v2.17.4) - 2026-03-03
+
+### Bug Fixes
+
+- *(sync)* Use --force-with-lease after merge on rejected push - ([314d7f2](https://github.com/joaofelipegalvao/rustodo/commit/314d7f294fe19b762658bfda36bfe94fb9d8f185))
 ## [2.17.3](https://github.com/joaofelipegalvao/rustodo/compare/v2.17.2..v2.17.3) - 2026-03-03
 
 ### Bug Fixes
@@ -413,6 +418,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Features
 
 - V1 - basic todo CLI with add/list commands - ([9580ae2](https://github.com/joaofelipegalvao/rustodo/commit/9580ae297837c9a6c5d4b18868d2f3abac1b1b9e))
+[2.17.4]: https://github.com/joaofelipegalvao/rustodo/compare/v2.17.3...v2.17.4
 [2.17.3]: https://github.com/joaofelipegalvao/rustodo/compare/v2.17.2...v2.17.3
 [2.17.2]: https://github.com/joaofelipegalvao/rustodo/compare/v2.17.1...v2.17.2
 [2.17.1]: https://github.com/joaofelipegalvao/rustodo/compare/v2.17.0...v2.17.1
