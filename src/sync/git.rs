@@ -17,7 +17,7 @@
 //! ```text
 //! todo sync init <remote>  →  git init + git remote add origin + initial commit
 //! todo sync push           →  git add todos.json + git commit -m "..." + git push
-//! todo sync pull           →  git fetch + semantic merge + git rebase FETCH_HEAD
+//! todo sync pull           →  git fetch + semantic merge + git merge FETCH_HEAD
 //! todo sync status         →  git status + git log summary
 //! ```
 
@@ -194,8 +194,17 @@ pub fn push(dir: &Path) -> Result<()> {
                 "--no-edit",
             ],
         )?;
-        git(dir, &["push", "--set-upstream", "origin", "HEAD"])
-            .context("Failed to push to remote after rebase")?;
+        git(
+            dir,
+            &[
+                "push",
+                "--set-upstream",
+                "--force-with-lease",
+                "origin",
+                "HEAD",
+            ],
+        )
+        .context("Failed to push to remote after rebase")?;
         return Ok(());
     }
 
@@ -247,8 +256,16 @@ pub fn pull(dir: &Path) -> Result<PullResult> {
         None => return Ok(PullResult::UpToDate),
     };
 
-    // 3. Rebase local branch on top of FETCH_HEAD
-    let result = git(dir, &["rebase", "FETCH_HEAD"]);
+    // 3. Merge FETCH_HEAD into local branch
+    let result = git(
+        dir,
+        &[
+            "merge",
+            "FETCH_HEAD",
+            "--allow-unrelated-histories",
+            "--no-edit",
+        ],
+    );
 
     match result {
         Ok(_) => Ok(PullResult::Merged(remote_json)),
@@ -257,7 +274,7 @@ pub fn pull(dir: &Path) -> Result<PullResult> {
             if status.contains("todos.json") {
                 Ok(PullResult::Conflict(remote_json))
             } else {
-                Err(anyhow::anyhow!("Merge failed for unknown reason"))
+                Err(anyhow::anyhow!("Pull failed for unknown reason"))
             }
         }
     }
