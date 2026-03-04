@@ -38,7 +38,12 @@ fn main() {
 }
 
 fn run(cli: Cli, storage: &impl Storage) -> Result<()> {
-    match cli.command {
+    // No subcommand → launch TUI
+    let Some(command) = cli.command else {
+        return rustodo::tui::run(storage);
+    };
+
+    match command {
         Commands::Add(args) => commands::add::execute(storage, args),
 
         Commands::List {

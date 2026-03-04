@@ -14,6 +14,7 @@
 //! | [`models`] | Core domain types: `Task`, `Priority`, `Recurrence` |
 //! | [`storage`] | Storage trait with JSON and in-memory implementations |
 //! | [`tag_normalizer`] | Fuzzy tag normalization with Levenshtein distance |
+//! | [`tui`] | Terminal User Interface (Ratatui) |
 //! | [`utils`] | Shared utilities (interactive confirmation prompt) |
 //! | [`validation`] | Input validation for task fields |
 
@@ -26,5 +27,6 @@ pub mod models;
 pub mod storage;
 pub mod sync;
 pub mod tag_normalizer;
+pub mod tui;
 pub mod utils;
 pub mod validation;

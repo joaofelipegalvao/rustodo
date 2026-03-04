@@ -1,10 +1,4 @@
 //! Handler for `todo add`.
-//!
-//! Validates input, normalizes tags against existing ones via
-//! [`tag_normalizer`](crate::tag_normalizer), creates a new [`Task`], appends
-//! it to storage, and prints a confirmation message.
-//!
-//! [`Task`]: crate::models::Task
 
 use anyhow::Result;
 use colored::Colorize;
@@ -17,6 +11,17 @@ use crate::tag_normalizer::{collect_existing_tags, normalize_tags};
 use crate::{date_parser, validation};
 
 pub fn execute(storage: &impl Storage, args: AddArgs) -> Result<()> {
+    execute_inner(storage, args, false)?;
+    Ok(())
+}
+
+/// TUI variant: same logic, no stdout.
+pub fn execute_silent(storage: &impl Storage, args: AddArgs) -> Result<()> {
+    execute_inner(storage, args, true)?;
+    Ok(())
+}
+
+fn execute_inner(storage: &impl Storage, args: AddArgs, silent: bool) -> Result<usize> {
     validation::validate_task_text(&args.text)?;
     validation::validate_tags(&args.tag)?;
     if let Some(ref p) = args.project {
@@ -66,17 +71,17 @@ pub fn execute(storage: &impl Storage, args: AddArgs) -> Result<()> {
     let id = tasks.len();
     storage.save(&tasks)?;
 
-    let ok = "✓".green();
-
-    for msg in &normalization_messages {
-        println!("  {} Tag normalized: {}", "~".yellow(), msg.yellow());
+    if !silent {
+        let ok = "✓".green();
+        for msg in &normalization_messages {
+            println!("  {} Tag normalized: {}", "~".yellow(), msg.yellow());
+        }
+        if let Some(pattern) = args.recurrence {
+            println!("{} Added task #{} with {} recurrence", ok, id, pattern);
+        } else {
+            println!("{} Added task #{}", ok, id);
+        }
     }
 
-    if let Some(pattern) = args.recurrence {
-        println!("{} Added task #{} with {} recurrence", ok, id, pattern);
-    } else {
-        println!("{} Added task #{}", ok, id);
-    }
-
-    Ok(())
+    Ok(id)
 }
