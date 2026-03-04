@@ -89,7 +89,7 @@ fn execute_inner(storage: &impl Storage, id: usize, silent: bool) -> Result<Stri
                     next_due.format("%Y-%m-%d")
                 );
             }
-            return Ok(msg);
+            Ok(msg)
         } else {
             storage.save(&tasks)?;
             if !silent {
@@ -99,13 +99,13 @@ fn execute_inner(storage: &impl Storage, id: usize, silent: bool) -> Result<Stri
                     "Next recurrence already exists, skipping creation.".dimmed()
                 );
             }
-            return Ok(format!("Task #{} marked as done.", id));
+            Ok(format!("Task #{} marked as done.", id))
         }
     } else {
         storage.save(&tasks)?;
         if !silent {
             println!("{}", "✓ Task marked as completed".green());
         }
-        return Ok(format!("Task #{} marked as done.", id));
+        Ok(format!("Task #{} marked as done.", id))
     }
 }

@@ -470,7 +470,7 @@ fn draw_edit_form(f: &mut Frame, app: &App, area: Rect, is_add: bool) {
         EditField::Tags,
         EditField::Deps,
     ];
-    let fields: &[EditField] = if is_add { &all_fields } else { &all_fields };
+    let fields: &[EditField] = &all_fields;
 
     let inner = Block::default().borders(Borders::ALL).title(title);
     let inner_area = inner.inner(area);
