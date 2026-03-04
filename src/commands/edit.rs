@@ -17,6 +17,16 @@ use crate::storage::Storage;
 use crate::validation::{self, validate_task_id, visible_indices};
 
 pub fn execute(storage: &impl Storage, args: EditArgs) -> Result<()> {
+    execute_inner(storage, args, false)?;
+    Ok(())
+}
+
+/// TUI variant: same logic, no stdout, returns a summary string.
+pub fn execute_silent(storage: &impl Storage, args: EditArgs) -> Result<String> {
+    execute_inner(storage, args, true)
+}
+
+fn execute_inner(storage: &impl Storage, args: EditArgs, silent: bool) -> Result<String> {
     let due = if let Some(ref due_str) = args.due {
         Some(date_parser::parse_date(due_str)?)
     } else {
@@ -28,7 +38,6 @@ pub fn execute(storage: &impl Storage, args: EditArgs) -> Result<()> {
     validate_task_id(args.id, vis.len())?;
     let real_index = vis[args.id - 1];
 
-    // Resolve numeric IDs → UUIDs before any mutation (deps use visible IDs too)
     let add_dep_uuids: Vec<Uuid> = args
         .add_dep
         .iter()
@@ -43,7 +52,6 @@ pub fn execute(storage: &impl Storage, args: EditArgs) -> Result<()> {
         .collect::<Result<_, _>>()
         .map_err(anyhow::Error::from)?;
 
-    // Pre-compute display string for clear_deps (needs immutable borrow before &mut)
     let current_deps_display = tasks[real_index]
         .depends_on
         .iter()
@@ -57,7 +65,6 @@ pub fn execute(storage: &impl Storage, args: EditArgs) -> Result<()> {
 
     let mut changes = Vec::new();
 
-    // Validate dependencies before mutating
     for (dep_id, &dep_uuid) in args.add_dep.iter().zip(add_dep_uuids.iter()) {
         if *dep_id == args.id {
             return Err(TodoError::SelfDependency { task_id: args.id }.into());
@@ -105,13 +112,13 @@ pub fn execute(storage: &impl Storage, args: EditArgs) -> Result<()> {
     if args.clear_project {
         if task.project.is_some() {
             let old = task.project.take().unwrap();
-            changes.push(format!("project cleared -> was {}", old.dimmed()));
+            changes.push(format!("project cleared → was {}", old.dimmed()));
         }
     } else if let Some(new_project) = args.project {
         validation::validate_project_name(&new_project)?;
         if task.project.as_deref() != Some(&new_project) {
             task.project = Some(new_project.clone());
-            changes.push(format!("project -> {}", new_project.cyan()));
+            changes.push(format!("project → {}", new_project.cyan()));
         }
     }
 
@@ -128,7 +135,6 @@ pub fn execute(storage: &impl Storage, args: EditArgs) -> Result<()> {
         if !args.remove_tag.is_empty() {
             let before_len = task.tags.len();
             let mut removed = Vec::new();
-
             task.tags.retain(|t| {
                 if args.remove_tag.contains(t) {
                     removed.push(t.clone());
@@ -137,7 +143,6 @@ pub fn execute(storage: &impl Storage, args: EditArgs) -> Result<()> {
                     true
                 }
             });
-
             if !removed.is_empty() {
                 changes.push(format!("removed tags → [{}]", removed.join(", ").red()));
             } else if before_len > 0 {
@@ -152,14 +157,12 @@ pub fn execute(storage: &impl Storage, args: EditArgs) -> Result<()> {
         if !args.add_tag.is_empty() {
             validation::validate_tags(&args.add_tag)?;
             let mut added = Vec::new();
-
             for new_tag in &args.add_tag {
                 if !task.tags.contains(new_tag) {
                     task.tags.push(new_tag.clone());
                     added.push(new_tag.clone());
                 }
             }
-
             if !added.is_empty() {
                 changes.push(format!("added tags → [{}]", added.join(", ").cyan()));
             }
@@ -212,20 +215,24 @@ pub fn execute(storage: &impl Storage, args: EditArgs) -> Result<()> {
     }
 
     if changes.is_empty() {
-        println!(
-            "{} No changes made (values are already set to the specified values).",
-            "".blue()
-        );
-        return Ok(());
+        if !silent {
+            println!(
+                "{} No changes made (values are already set to the specified values).",
+                "".blue()
+            );
+        }
+        return Ok("No changes made.".to_string());
     }
 
     task.touch();
     storage.save(&tasks)?;
 
-    println!("{} Task #{} updated:", "✓".green(), args.id);
-    for change in changes {
-        println!("  • {}", change);
+    if !silent {
+        println!("{} Task #{} updated:", "✓".green(), args.id);
+        for change in &changes {
+            println!("  • {}", change);
+        }
     }
 
-    Ok(())
+    Ok(format!("Task #{} updated.", args.id))
 }

@@ -4,8 +4,7 @@
 //! the top-level [`Cli`] struct, the [`Commands`] enum with one variant per
 //! subcommand, and the [`AddArgs`] helper struct for the `add` subcommand.
 //!
-//! Consumers of the library can use these types to embed `rustodo` commands
-//! in their own applications.
+//! When invoked with no subcommand, `todo` launches the TUI automatically.
 
 use clap::{Args, Parser, Subcommand};
 
@@ -18,6 +17,8 @@ use crate::models::{DueFilter, Priority, Recurrence, RecurrenceFilter, SortBy, S
 #[command(version)]
 #[command(about = "A modern, powerful task manager built with Rust", long_about = None)]
 #[command(after_help = "EXAMPLES:\n    \
+    # Launch interactive TUI (default)\n    \
+    todo\n\n    \
     # Add a task to a project with a natural language date\n    \
     todo add \"Fix login bug\" --project \"Backend\" --priority high --due \"next friday\"\n\n    \
     # Add a task due in 3 days\n    \
@@ -34,9 +35,9 @@ use crate::models::{DueFilter, Priority, Recurrence, RecurrenceFilter, SortBy, S
 For more information, visit: https://github.com/joaofelipegalvao/rustodo
 ")]
 pub struct Cli {
-    /// The subcommand to execute.
+    /// The subcommand to execute. If omitted, launches the TUI.
     #[command(subcommand)]
-    pub command: Commands,
+    pub command: Option<Commands>,
 }
 
 /// All available subcommands.
