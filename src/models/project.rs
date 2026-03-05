@@ -131,9 +131,9 @@ impl Project {
     ///
     /// # Example
     ///
-    /// ```no_run
+    /// ```
     /// # use rustodo::models::Project;
-    /// # use rustodo::storage::InMemoryStorage;
+    /// # use rustodo::storage::{InMemoryStorage, Storage};
     /// let storage = InMemoryStorage::default();
     /// let projects = storage.load_projects().unwrap();
     ///

@@ -138,7 +138,7 @@ impl Task {
     ///     "Weekly review".to_string(),
     ///     Priority::High,
     ///     vec!["work".to_string()],
-    ///     Some("Backend".to_string()),
+    ///     None,
     ///     Some(due),
     ///     Some(Recurrence::Weekly),
     /// );

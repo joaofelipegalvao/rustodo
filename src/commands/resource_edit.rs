@@ -44,11 +44,11 @@ pub fn execute(storage: &impl Storage, args: ResourceEditArgs) -> Result<()> {
             resource.url = None;
             changes.push("url → cleared".dimmed().to_string());
         }
-    } else if let Some(new_url) = args.url {
-        if resource.url.as_deref() != Some(new_url.as_str()) {
-            resource.url = Some(new_url.clone());
-            changes.push(format!("url → {}", new_url.cyan()));
-        }
+    } else if let Some(new_url) = args.url
+        && resource.url.as_deref() != Some(new_url.as_str())
+    {
+        resource.url = Some(new_url.clone());
+        changes.push(format!("url → {}", new_url.cyan()));
     }
 
     // ── description ───────────────────────────────────────────────────────────
@@ -57,11 +57,11 @@ pub fn execute(storage: &impl Storage, args: ResourceEditArgs) -> Result<()> {
             resource.description = None;
             changes.push("description → cleared".dimmed().to_string());
         }
-    } else if let Some(new_desc) = args.description {
-        if resource.description.as_deref() != Some(new_desc.as_str()) {
-            resource.description = Some(new_desc.clone());
-            changes.push(format!("description → {}", new_desc.bright_white()));
-        }
+    } else if let Some(new_desc) = args.description
+        && resource.description.as_deref() != Some(new_desc.as_str())
+    {
+        resource.description = Some(new_desc.clone());
+        changes.push(format!("description → {}", new_desc.bright_white()));
     }
 
     // ── tags ──────────────────────────────────────────────────────────────────

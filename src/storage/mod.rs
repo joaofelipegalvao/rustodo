@@ -61,6 +61,7 @@ pub trait Storage {
     }
 
     /// Load everything including resources.
+    #[allow(clippy::type_complexity)]
     fn load_all_with_resources(
         &self,
     ) -> Result<(Vec<Task>, Vec<Project>, Vec<Note>, Vec<Resource>)> {

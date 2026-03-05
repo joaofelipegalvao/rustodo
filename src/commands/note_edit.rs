@@ -45,11 +45,11 @@ pub fn execute(storage: &impl Storage, args: NoteEditArgs) -> Result<()> {
             note.title = None;
             changes.push("title → cleared".dimmed().to_string());
         }
-    } else if let Some(new_title) = args.title {
-        if note.title.as_deref() != Some(new_title.as_str()) {
-            note.title = Some(new_title.clone());
-            changes.push(format!("title → {}", new_title.bright_white()));
-        }
+    } else if let Some(new_title) = args.title
+        && note.title.as_deref() != Some(new_title.as_str())
+    {
+        note.title = Some(new_title.clone());
+        changes.push(format!("title → {}", new_title.bright_white()));
     }
 
     // ── language ──────────────────────────────────────────────────────────────
@@ -58,11 +58,11 @@ pub fn execute(storage: &impl Storage, args: NoteEditArgs) -> Result<()> {
             note.language = None;
             changes.push("language → cleared".dimmed().to_string());
         }
-    } else if let Some(new_lang) = args.language {
-        if note.language.as_deref() != Some(new_lang.as_str()) {
-            note.language = Some(new_lang.clone());
-            changes.push(format!("language → {}", new_lang.yellow()));
-        }
+    } else if let Some(new_lang) = args.language
+        && note.language.as_deref() != Some(new_lang.as_str())
+    {
+        note.language = Some(new_lang.clone());
+        changes.push(format!("language → {}", new_lang.yellow()));
     }
 
     // ── tags ──────────────────────────────────────────────────────────────────

@@ -190,10 +190,10 @@ fn calculate_column_widths(
         max_task = max_task.max(task.text.len());
 
         // Resolve UUID → name to compute column width
-        if let Some(pid) = task.project_id {
-            if let Some(p) = projects.iter().find(|p| p.uuid == pid) {
-                max_project = max_project.max(p.name.len());
-            }
+        if let Some(pid) = task.project_id
+            && let Some(p) = projects.iter().find(|p| p.uuid == pid)
+        {
+            max_project = max_project.max(p.name.len());
         }
 
         if !task.tags.is_empty() {

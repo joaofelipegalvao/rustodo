@@ -24,7 +24,7 @@
 //! - If a Project with that name (case-insensitive) already exists, the task
 //!   is linked to it via `project_id`.
 //! - Otherwise a new Project is created from the name and linked.
-//! The migrated file is immediately written back.
+//!   The migrated file is immediately written back.
 //!
 //! ## Platform paths
 //!

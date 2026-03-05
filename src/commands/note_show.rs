@@ -53,16 +53,16 @@ pub fn execute(storage: &impl Storage, id: usize) -> Result<()> {
         );
     }
 
-    if let Some(pid) = note.project_id {
-        if let Some(project) = projects.iter().find(|p| p.uuid == pid) {
-            println!("  {} {}", "Project:".dimmed(), project.name.cyan());
-        }
+    if let Some(pid) = note.project_id
+        && let Some(project) = projects.iter().find(|p| p.uuid == pid)
+    {
+        println!("  {} {}", "Project:".dimmed(), project.name.cyan());
     }
 
-    if let Some(tid) = note.task_id {
-        if let Some(task) = tasks.iter().find(|t| t.uuid == tid) {
-            println!("  {} {}", "Task:".dimmed(), task.text.cyan());
-        }
+    if let Some(tid) = note.task_id
+        && let Some(task) = tasks.iter().find(|t| t.uuid == tid)
+    {
+        println!("  {} {}", "Task:".dimmed(), task.text.cyan());
     }
 
     // ── Resources ─────────────────────────────────────────────────────────────

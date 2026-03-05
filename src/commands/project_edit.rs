@@ -49,11 +49,11 @@ pub fn execute(storage: &impl Storage, args: ProjectEditArgs) -> Result<()> {
         changes.push(format!("status → {}", "pending".yellow()));
     }
 
-    if let Some(new_diff) = args.difficulty {
-        if project.difficulty != new_diff {
-            project.difficulty = new_diff;
-            changes.push(format!("difficulty → {}", new_diff.label().yellow()));
-        }
+    if let Some(new_diff) = args.difficulty
+        && project.difficulty != new_diff
+    {
+        project.difficulty = new_diff;
+        changes.push(format!("difficulty → {}", new_diff.label().yellow()));
     }
 
     if args.clear_tech {
@@ -104,11 +104,11 @@ pub fn execute(storage: &impl Storage, args: ProjectEditArgs) -> Result<()> {
             project.due_date = None;
             changes.push("due date → cleared".dimmed().to_string());
         }
-    } else if let Some(new_due) = due {
-        if project.due_date != Some(new_due) {
-            project.due_date = Some(new_due);
-            changes.push(format!("due date → {}", new_due.to_string().cyan()));
-        }
+    } else if let Some(new_due) = due
+        && project.due_date != Some(new_due)
+    {
+        project.due_date = Some(new_due);
+        changes.push(format!("due date → {}", new_due.to_string().cyan()));
     }
 
     if changes.is_empty() {
