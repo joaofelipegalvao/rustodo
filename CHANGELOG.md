@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.21.0](https://github.com/joaofelipegalvao/rustodo/compare/v2.20.0..v2.21.0) - 2026-03-05
+
+### Features
+
+- Add Projects, Notes and Resources with full CRUD - ([2995dbe](https://github.com/joaofelipegalvao/rustodo/commit/2995dbe9cdb58a1c86ffa116fb4e5629a5875f3d))
+
+### Bug Fixes
+
+- Adapt TUI to project_id architecture (remove task.project) - ([289ae7a](https://github.com/joaofelipegalvao/rustodo/commit/289ae7a060b74fe9b1735984678231fc760f3745))
 ## [2.20.0](https://github.com/joaofelipegalvao/rustodo/compare/v2.19.0..v2.20.0) - 2026-03-04
 
 ### Features
@@ -443,6 +452,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Features
 
 - V1 - basic todo CLI with add/list commands - ([9580ae2](https://github.com/joaofelipegalvao/rustodo/commit/9580ae297837c9a6c5d4b18868d2f3abac1b1b9e))
+[2.21.0]: https://github.com/joaofelipegalvao/rustodo/compare/v2.20.0...v2.21.0
 [2.20.0]: https://github.com/joaofelipegalvao/rustodo/compare/v2.19.0...v2.20.0
 [2.19.0]: https://github.com/joaofelipegalvao/rustodo/compare/v2.18.0...v2.19.0
 [2.18.0]: https://github.com/joaofelipegalvao/rustodo/compare/v2.17.5...v2.18.0
