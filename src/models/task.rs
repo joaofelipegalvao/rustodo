@@ -298,6 +298,56 @@ impl Task {
             .collect()
     }
 
+    /// Calculates an urgency score combining priority, due date, dependencies,
+    /// blocking status, age, and tags — following the Taskwarrior model.
+    ///
+    /// Higher scores surface first in sorted lists.
+    /// Returns 0.0 for completed or deleted tasks.
+    pub fn urgency_score(&self, all_tasks: &[Task]) -> f32 {
+        if self.completed || self.is_deleted() {
+            return 0.0;
+        }
+
+        let mut score = 0.0_f32;
+
+        score += match self.priority {
+            Priority::High => 6.0,
+            Priority::Medium => 3.0,
+            Priority::Low => 1.0,
+        };
+
+        // Due date: time-decay urgency — score increases continuously as deadline approaches.
+        // Overdue tasks always get max due-score (+12).
+        if let Some(due) = self.due_date {
+            let today = chrono::Local::now().naive_local().date();
+            let days = (due - today).num_days();
+            if days < 0 {
+                score += 12.0; // overdue
+            } else {
+                score += (10.0 / (days as f32 + 1.0)).min(10.0);
+            }
+        }
+
+        let is_blocking = all_tasks
+            .iter()
+            .any(|t| !t.completed && !t.is_deleted() && t.depends_on.contains(&self.uuid));
+        if is_blocking {
+            score += 8.0
+        }
+
+        if self.is_blocked(all_tasks) {
+            score -= 5.0;
+        }
+
+        // Age: logarithmic growth — old tasks gain weight gradually without dominating.
+        let age_days = (chrono::Utc::now() - self.created_at).num_days();
+        score += (age_days.max(0) as f32).ln().clamp(0.0, 2.0);
+
+        score += (self.tags.len() as f32 * 0.5).min(1.0);
+
+        score.max(0.0)
+    }
+
     /// Creates a new task for the next recurrence cycle.
     ///
     /// # Arguments

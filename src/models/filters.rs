@@ -56,4 +56,6 @@ pub enum SortBy {
     Due,
     /// Sort by creation date, oldest first.
     Created,
+    /// Sort by calculated urgency score (highest first).
+    Urgency,
 }
