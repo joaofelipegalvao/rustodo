@@ -26,22 +26,11 @@ use crate::models::Task;
 
 use super::app::{App, EditField, FocusedPanel, LeftPanel, Mode, PriorityFilter, TreeItem};
 
-// ── palette ───────────────────────────────────────────────────────────────────
-
-const COLOR_HIGH: Color = Color::Red;
-const COLOR_MEDIUM: Color = Color::Yellow;
-const COLOR_LOW: Color = Color::Green;
-const COLOR_DONE: Color = Color::DarkGray;
-const COLOR_BLOCKED: Color = Color::Rgb(150, 150, 150);
-const COLOR_SELECTED_BG: Color = Color::Rgb(40, 40, 60);
-const COLOR_ACCENT: Color = Color::Cyan;
-const COLOR_SEARCH_BG: Color = Color::Rgb(30, 30, 50);
-const COLOR_FOCUSED_BG: Color = Color::Rgb(30, 40, 60);
-const COLOR_FOCUSED_BORDER: Color = Color::Cyan;
+use super::style::ResolvedTheme;
 
 // ── entry point ───────────────────────────────────────────────────────────────
 
-pub fn draw(f: &mut Frame, app: &mut App) {
+pub fn draw(f: &mut Frame, app: &mut App, theme: &ResolvedTheme) {
     let area = f.area();
 
     let rows = Layout::default()
@@ -54,25 +43,25 @@ pub fn draw(f: &mut Frame, app: &mut App) {
         .constraints([Constraint::Percentage(40), Constraint::Percentage(60)])
         .split(rows[0]);
 
-    draw_left_panel(f, app, cols[0]);
-    draw_right_panel(f, app, cols[1]);
+    draw_left_panel(f, app, cols[0], theme);
+    draw_right_panel(f, app, cols[1], theme);
 
-    draw_footer(f, app, rows[1]);
+    draw_footer(f, app, rows[1], theme);
 
     if app.mode == Mode::Search {
-        draw_input_overlay(f, app, rows[1]);
+        draw_input_overlay(f, app, rows[1], theme);
     }
     if app.mode == Mode::Help {
-        draw_help_popup(f, app, area);
+        draw_help_popup(f, app, area, theme);
     }
 }
 
 // ── left panel — single box, tab bar in title ─────────────────────────────────
 
-fn draw_left_panel(f: &mut Frame, app: &mut App, area: Rect) {
+fn draw_left_panel(f: &mut Frame, app: &mut App, area: Rect, theme: &ResolvedTheme) {
     let is_focused = app.focused_panel == FocusedPanel::Left;
     let border_style = if is_focused {
-        Style::default().fg(COLOR_ACCENT)
+        Style::default().fg(theme.accent)
     } else {
         Style::default().fg(Color::DarkGray)
     };
@@ -91,7 +80,7 @@ fn draw_left_panel(f: &mut Frame, app: &mut App, area: Rect) {
             title_spans.push(Span::styled(
                 tab.label(),
                 Style::default()
-                    .fg(COLOR_ACCENT)
+                    .fg(theme.accent)
                     .add_modifier(Modifier::BOLD),
             ));
         } else {
@@ -109,15 +98,15 @@ fn draw_left_panel(f: &mut Frame, app: &mut App, area: Rect) {
         .border_style(border_style);
 
     match app.left_panel {
-        LeftPanel::Tasks => draw_tasks_tab(f, app, block, area),
-        LeftPanel::Projects => draw_projects_tree(f, app, block, area),
-        LeftPanel::Tags => draw_tags_list(f, app, block, area),
+        LeftPanel::Tasks => draw_tasks_tab(f, app, block, area, theme),
+        LeftPanel::Projects => draw_projects_tree(f, app, block, area, theme),
+        LeftPanel::Tags => draw_tags_list(f, app, block, area, theme),
     }
 }
 
 // ── Tasks tab ─────────────────────────────────────────────────────────────────
 
-fn draw_tasks_tab(f: &mut Frame, app: &mut App, block: Block, area: Rect) {
+fn draw_tasks_tab(f: &mut Frame, app: &mut App, block: Block, area: Rect, theme: &ResolvedTheme) {
     let current = if app.filtered_indices.is_empty() {
         0
     } else {
@@ -139,7 +128,7 @@ fn draw_tasks_tab(f: &mut Frame, app: &mut App, block: Block, area: Rect) {
     let lines: Vec<Line> = app
         .filtered_indices
         .iter()
-        .map(|&i| task_line(&app.tasks[i], &app.tasks))
+        .map(|&i| task_line(&app.tasks[i], &app.tasks, theme))
         .collect();
 
     let mut state = ListState::default();
@@ -151,14 +140,14 @@ fn draw_tasks_tab(f: &mut Frame, app: &mut App, block: Block, area: Rect) {
 
     let list = List::new(lines).block(block).highlight_style(
         Style::default()
-            .bg(COLOR_SELECTED_BG)
+            .bg(theme.selected_bg)
             .add_modifier(Modifier::BOLD),
     );
 
     f.render_stateful_widget(list, area, &mut state);
 }
 
-fn task_line<'a>(task: &'a Task, all_tasks: &'a [Task]) -> Line<'a> {
+fn task_line<'a>(task: &'a Task, all_tasks: &'a [Task], theme: &ResolvedTheme) -> Line<'a> {
     let blocked = !task.completed && task.is_blocked(all_tasks);
 
     let (status_text, status_color) = if task.completed {
@@ -170,9 +159,9 @@ fn task_line<'a>(task: &'a Task, all_tasks: &'a [Task]) -> Line<'a> {
     };
 
     let text_style = if task.completed {
-        Style::default().fg(COLOR_DONE)
+        Style::default().fg(theme.done)
     } else if blocked {
-        Style::default().fg(COLOR_BLOCKED)
+        Style::default().fg(theme.blocked)
     } else {
         Style::default().fg(Color::White)
     };
@@ -187,7 +176,7 @@ fn task_line<'a>(task: &'a Task, all_tasks: &'a [Task]) -> Line<'a> {
 
 // ── Projects tree tab ─────────────────────────────────────────────────────────
 
-fn draw_projects_tree(f: &mut Frame, app: &App, block: Block, area: Rect) {
+fn draw_projects_tree(f: &mut Frame, app: &App, block: Block, area: Rect, theme: &ResolvedTheme) {
     if app.project_tree.is_empty() {
         f.render_widget(
             Paragraph::new("No projects")
@@ -218,7 +207,7 @@ fn draw_projects_tree(f: &mut Frame, app: &App, block: Block, area: Rect) {
                         if *task_count == 1 { "" } else { "s" }
                     );
                     let (name_color, arrow_color) = if is_selected {
-                        (Color::White, COLOR_ACCENT)
+                        (Color::White, theme.accent)
                     } else {
                         (Color::Magenta, Color::DarkGray)
                     };
@@ -236,9 +225,9 @@ fn draw_projects_tree(f: &mut Frame, app: &App, block: Block, area: Rect) {
                     let task = &app.tasks[*task_idx];
                     let blocked = !task.completed && task.is_blocked(&app.tasks);
                     let text_style = if task.completed {
-                        Style::default().fg(COLOR_DONE)
+                        Style::default().fg(theme.done)
                     } else if blocked {
-                        Style::default().fg(COLOR_BLOCKED)
+                        Style::default().fg(theme.blocked)
                     } else {
                         Style::default().fg(Color::White)
                     };
@@ -269,7 +258,7 @@ fn draw_projects_tree(f: &mut Frame, app: &App, block: Block, area: Rect) {
 
     let list = List::new(lines).block(block).highlight_style(
         Style::default()
-            .bg(COLOR_SELECTED_BG)
+            .bg(theme.selected_bg)
             .add_modifier(Modifier::BOLD),
     );
 
@@ -278,7 +267,7 @@ fn draw_projects_tree(f: &mut Frame, app: &App, block: Block, area: Rect) {
 
 // ── Tags list tab ─────────────────────────────────────────────────────────────
 
-fn draw_tags_list(f: &mut Frame, app: &App, block: Block, area: Rect) {
+fn draw_tags_list(f: &mut Frame, app: &App, block: Block, area: Rect, theme: &ResolvedTheme) {
     let items = app.tags_list();
 
     if items.is_empty() {
@@ -300,7 +289,7 @@ fn draw_tags_list(f: &mut Frame, app: &App, block: Block, area: Rect) {
                 Span::styled(
                     name.clone(),
                     Style::default()
-                        .fg(COLOR_ACCENT)
+                        .fg(theme.accent)
                         .add_modifier(Modifier::BOLD),
                 ),
                 Span::styled(
@@ -319,7 +308,7 @@ fn draw_tags_list(f: &mut Frame, app: &App, block: Block, area: Rect) {
 
     let list = List::new(lines).block(block).highlight_style(
         Style::default()
-            .bg(COLOR_SELECTED_BG)
+            .bg(theme.selected_bg)
             .add_modifier(Modifier::BOLD),
     );
 
@@ -328,35 +317,41 @@ fn draw_tags_list(f: &mut Frame, app: &App, block: Block, area: Rect) {
 
 // ── right panel — contextual ──────────────────────────────────────────────────
 
-fn draw_right_panel(f: &mut Frame, app: &mut App, area: Rect) {
+fn draw_right_panel(f: &mut Frame, app: &mut App, area: Rect, theme: &ResolvedTheme) {
     match app.mode {
         Mode::EditForm => {
-            draw_edit_form(f, app, area, false);
+            draw_edit_form(f, app, area, false, theme);
             return;
         }
         Mode::AddForm => {
-            draw_edit_form(f, app, area, true);
+            draw_edit_form(f, app, area, true, theme);
             return;
         }
         _ => {}
     }
 
     let border_style = if app.focused_panel == FocusedPanel::Right {
-        Style::default().fg(COLOR_ACCENT)
+        Style::default().fg(theme.accent)
     } else {
         Style::default().fg(Color::DarkGray)
     };
 
     match app.left_panel {
-        LeftPanel::Tasks => draw_task_details(f, app, area, border_style),
-        LeftPanel::Projects => draw_tree_details(f, app, area, border_style),
-        LeftPanel::Tags => draw_context_panel(f, app, area, border_style, true),
+        LeftPanel::Tasks => draw_task_details(f, app, area, border_style, theme),
+        LeftPanel::Projects => draw_tree_details(f, app, area, border_style, theme),
+        LeftPanel::Tags => draw_context_panel(f, app, area, border_style, true, theme),
     }
 }
 
 // ── [0] task details — rich single view ──────────────────────────────────────
 
-fn draw_task_details(f: &mut Frame, app: &App, area: Rect, border_style: Style) {
+fn draw_task_details(
+    f: &mut Frame,
+    app: &App,
+    area: Rect,
+    border_style: Style,
+    theme: &ResolvedTheme,
+) {
     let title = match app.selected_task() {
         None => right_title("No task selected"),
         Some(task) => {
@@ -369,7 +364,7 @@ fn draw_task_details(f: &mut Frame, app: &App, area: Rect, border_style: Style) 
                 Span::styled(
                     format!("{}", id),
                     Style::default()
-                        .fg(COLOR_ACCENT)
+                        .fg(theme.accent)
                         .add_modifier(Modifier::BOLD),
                 ),
                 Span::styled(": ", Style::default().fg(Color::DarkGray)),
@@ -388,7 +383,7 @@ fn draw_task_details(f: &mut Frame, app: &App, area: Rect, border_style: Style) 
             "No tasks",
             Style::default().fg(Color::DarkGray),
         ))],
-        Some(task) => build_task_details(task, &app.tasks, app.project_name_for(task)),
+        Some(task) => build_task_details(task, &app.tasks, app.project_name_for(task), theme),
     };
 
     let inner_height = area.height.saturating_sub(2) as usize;
@@ -430,6 +425,7 @@ fn build_task_details(
     task: &Task,
     all_tasks: &[Task],
     project_name: Option<&str>,
+    theme: &ResolvedTheme,
 ) -> Vec<Line<'static>> {
     let mut lines: Vec<Line> = Vec::new();
 
@@ -442,18 +438,18 @@ fn build_task_details(
     let priority_span = match task.priority {
         crate::models::Priority::High => Span::styled(
             format!("{:<14}", "High"),
-            Style::default().fg(COLOR_HIGH).add_modifier(Modifier::BOLD),
+            Style::default().fg(theme.high).add_modifier(Modifier::BOLD),
         ),
         crate::models::Priority::Medium => Span::styled(
             format!("{:<14}", "Medium"),
-            Style::default().fg(COLOR_MEDIUM),
+            Style::default().fg(theme.medium),
         ),
         crate::models::Priority::Low => {
-            Span::styled(format!("{:<14}", "Low"), Style::default().fg(COLOR_LOW))
+            Span::styled(format!("{:<14}", "Low"), Style::default().fg(theme.low))
         }
     };
     let status_span = if task.completed {
-        Span::styled("Done", Style::default().fg(COLOR_DONE))
+        Span::styled("Done", Style::default().fg(theme.done))
     } else if task.is_blocked(all_tasks) {
         Span::styled(
             "Blocked",
@@ -527,7 +523,7 @@ fn build_task_details(
         lbl(if !tags_str.is_empty() { "Tags" } else { "" }),
         Span::styled(
             format!("{:<14}", truncate(&tags_str, 13)),
-            Style::default().fg(COLOR_ACCENT),
+            Style::default().fg(theme.accent),
         ),
         lbl("Created"),
         Span::styled(
@@ -552,7 +548,7 @@ fn build_task_details(
             lbl("Completed"),
             Span::styled(
                 done_at.format("%Y-%m-%d").to_string(),
-                Style::default().fg(COLOR_DONE),
+                Style::default().fg(theme.done),
             ),
         ]));
     }
@@ -582,11 +578,11 @@ fn build_task_details(
                         },
                         Style::default().fg(if done { Color::Green } else { Color::Red }),
                     ),
-                    Span::styled(format!("#{}", pos + 1), Style::default().fg(COLOR_ACCENT)),
+                    Span::styled(format!("#{}", pos + 1), Style::default().fg(theme.accent)),
                     Span::raw("  "),
                     Span::styled(
                         truncate(&dep.text, 25),
-                        Style::default().fg(if done { COLOR_DONE } else { Color::White }),
+                        Style::default().fg(if done { theme.done } else { Color::White }),
                     ),
                     if !done {
                         Span::styled("  (blocking you)", Style::default().fg(Color::Red))
@@ -626,11 +622,11 @@ fn build_task_details(
                     },
                     Style::default().fg(if done { Color::Green } else { Color::Yellow }),
                 ),
-                Span::styled(format!("#{}", pos + 1), Style::default().fg(COLOR_ACCENT)),
+                Span::styled(format!("#{}", pos + 1), Style::default().fg(theme.accent)),
                 Span::raw("  "),
                 Span::styled(
                     truncate(&dep.text, 25),
-                    Style::default().fg(if done { COLOR_DONE } else { Color::White }),
+                    Style::default().fg(if done { theme.done } else { Color::White }),
                 ),
                 if !done {
                     Span::styled("  (waiting on you)", Style::default().fg(Color::Yellow))
@@ -646,7 +642,13 @@ fn build_task_details(
 
 // ── [0] tree details — always shows project summary ──────────────────────────
 
-fn draw_tree_details(f: &mut Frame, app: &App, area: Rect, border_style: Style) {
+fn draw_tree_details(
+    f: &mut Frame,
+    app: &App,
+    area: Rect,
+    border_style: Style,
+    theme: &ResolvedTheme,
+) {
     // Find the project name for whatever is currently selected
     // (walk backwards from tree_selected to find the parent project header)
     let project_name: Option<Option<&str>> = {
@@ -737,18 +739,18 @@ fn draw_tree_details(f: &mut Frame, app: &App, area: Rect, border_style: Style) 
                 .iter()
                 .any(|dep| app.tasks.iter().any(|t2| t2.uuid == *dep && !t2.completed));
         let text_style = if task.completed {
-            Style::default().fg(COLOR_DONE)
+            Style::default().fg(theme.done)
         } else if is_blocked {
-            Style::default().fg(COLOR_BLOCKED)
+            Style::default().fg(theme.blocked)
         } else {
             Style::default().fg(Color::White)
         };
         let pri = match task.priority {
-            crate::models::Priority::High => Span::styled("H  ", Style::default().fg(COLOR_HIGH)),
+            crate::models::Priority::High => Span::styled("H  ", Style::default().fg(theme.high)),
             crate::models::Priority::Medium => {
-                Span::styled("M  ", Style::default().fg(COLOR_MEDIUM))
+                Span::styled("M  ", Style::default().fg(theme.medium))
             }
-            crate::models::Priority::Low => Span::styled("L  ", Style::default().fg(COLOR_LOW)),
+            crate::models::Priority::Low => Span::styled("L  ", Style::default().fg(theme.low)),
         };
         lines.push(Line::from(vec![
             pri,
@@ -769,7 +771,14 @@ fn draw_tree_details(f: &mut Frame, app: &App, area: Rect, border_style: Style) 
     );
 }
 
-fn draw_context_panel(f: &mut Frame, app: &App, area: Rect, border_style: Style, is_tags: bool) {
+fn draw_context_panel(
+    f: &mut Frame,
+    app: &App,
+    area: Rect,
+    border_style: Style,
+    is_tags: bool,
+    theme: &ResolvedTheme,
+) {
     let (label, tasks): (String, Vec<&Task>) = if is_tags {
         let tags = app.tags_list();
         match tags.get(app.left_selected) {
@@ -882,9 +891,9 @@ fn draw_context_panel(f: &mut Frame, app: &App, area: Rect, border_style: Style,
                     crate::models::Priority::Low => "L",
                 },
                 Style::default().fg(match task.priority {
-                    crate::models::Priority::High => COLOR_HIGH,
-                    crate::models::Priority::Medium => COLOR_MEDIUM,
-                    crate::models::Priority::Low => COLOR_LOW,
+                    crate::models::Priority::High => theme.high,
+                    crate::models::Priority::Medium => theme.medium,
+                    crate::models::Priority::Low => theme.low,
                 }),
             ),
             Span::raw("  "),
@@ -894,7 +903,7 @@ fn draw_context_panel(f: &mut Frame, app: &App, area: Rect, border_style: Style,
                     .fg(if is_tags {
                         Color::Magenta
                     } else {
-                        COLOR_ACCENT
+                        theme.accent
                     })
                     .add_modifier(Modifier::BOLD),
             ),
@@ -935,7 +944,7 @@ fn right_title(label: &str) -> Line<'static> {
 
 // ── edit / add form ───────────────────────────────────────────────────────────
 
-fn draw_edit_form(f: &mut Frame, app: &App, area: Rect, is_add: bool) {
+fn draw_edit_form(f: &mut Frame, app: &App, area: Rect, is_add: bool, theme: &ResolvedTheme) {
     let form = match &app.edit_form {
         Some(f) => f,
         None => return,
@@ -976,13 +985,13 @@ fn draw_edit_form(f: &mut Frame, app: &App, area: Rect, is_add: bool) {
 
         let label_style = if focused {
             Style::default()
-                .fg(COLOR_FOCUSED_BORDER)
+                .fg(theme.focused_border)
                 .add_modifier(Modifier::BOLD)
         } else {
             Style::default().fg(Color::DarkGray)
         };
         let input_bg = if focused {
-            COLOR_FOCUSED_BG
+            theme.focused_bg
         } else {
             Color::Reset
         };
@@ -992,7 +1001,7 @@ fn draw_edit_form(f: &mut Frame, app: &App, area: Rect, is_add: bool) {
             let (h_s, m_s, l_s) = match form.priority {
                 crate::models::Priority::High => (
                     Style::default()
-                        .fg(COLOR_HIGH)
+                        .fg(theme.high)
                         .add_modifier(Modifier::BOLD | Modifier::REVERSED),
                     Style::default().fg(Color::DarkGray),
                     Style::default().fg(Color::DarkGray),
@@ -1000,7 +1009,7 @@ fn draw_edit_form(f: &mut Frame, app: &App, area: Rect, is_add: bool) {
                 crate::models::Priority::Medium => (
                     Style::default().fg(Color::DarkGray),
                     Style::default()
-                        .fg(COLOR_MEDIUM)
+                        .fg(theme.medium)
                         .add_modifier(Modifier::BOLD | Modifier::REVERSED),
                     Style::default().fg(Color::DarkGray),
                 ),
@@ -1008,12 +1017,12 @@ fn draw_edit_form(f: &mut Frame, app: &App, area: Rect, is_add: bool) {
                     Style::default().fg(Color::DarkGray),
                     Style::default().fg(Color::DarkGray),
                     Style::default()
-                        .fg(COLOR_LOW)
+                        .fg(theme.low)
                         .add_modifier(Modifier::BOLD | Modifier::REVERSED),
                 ),
             };
             let arrow = if focused {
-                Style::default().fg(COLOR_ACCENT)
+                Style::default().fg(theme.accent)
             } else {
                 Style::default().fg(Color::DarkGray)
             };
@@ -1030,7 +1039,7 @@ fn draw_edit_form(f: &mut Frame, app: &App, area: Rect, is_add: bool) {
             let options = ["None", "Daily", "Weekly", "Monthly"];
             let current = form.recurrence_label();
             let arrow = if focused {
-                Style::default().fg(COLOR_ACCENT)
+                Style::default().fg(theme.accent)
             } else {
                 Style::default().fg(Color::DarkGray)
             };
@@ -1038,7 +1047,7 @@ fn draw_edit_form(f: &mut Frame, app: &App, area: Rect, is_add: bool) {
             for opt in &options {
                 let s = if *opt == current {
                     Style::default()
-                        .fg(COLOR_ACCENT)
+                        .fg(theme.accent)
                         .add_modifier(Modifier::BOLD | Modifier::REVERSED)
                 } else {
                     Style::default().fg(Color::DarkGray)
@@ -1065,7 +1074,7 @@ fn draw_edit_form(f: &mut Frame, app: &App, area: Rect, is_add: bool) {
         };
 
         let border_style = if focused {
-            Style::default().fg(COLOR_FOCUSED_BORDER)
+            Style::default().fg(theme.focused_border)
         } else {
             Style::default().fg(Color::Rgb(50, 50, 50))
         };
@@ -1082,27 +1091,27 @@ fn draw_edit_form(f: &mut Frame, app: &App, area: Rect, is_add: bool) {
 
 // ── search overlay ────────────────────────────────────────────────────────────
 
-fn draw_input_overlay(f: &mut Frame, app: &App, area: Rect) {
+fn draw_input_overlay(f: &mut Frame, app: &App, area: Rect, theme: &ResolvedTheme) {
     f.render_widget(Clear, area);
     let content = Line::from(vec![
         Span::styled(
             "Search: ",
             Style::default()
-                .fg(COLOR_ACCENT)
+                .fg(theme.accent)
                 .add_modifier(Modifier::BOLD),
         ),
         Span::styled(app.input.clone(), Style::default().fg(Color::White)),
-        Span::styled("█", Style::default().fg(COLOR_ACCENT)),
+        Span::styled("█", Style::default().fg(theme.accent)),
     ]);
     f.render_widget(
-        Paragraph::new(content).style(Style::default().bg(COLOR_SEARCH_BG)),
+        Paragraph::new(content).style(Style::default().bg(theme.search_bg)),
         area,
     );
 }
 
 // ── footer ────────────────────────────────────────────────────────────────────
 
-fn draw_footer(f: &mut Frame, app: &App, area: Rect) {
+fn draw_footer(f: &mut Frame, app: &App, area: Rect, theme: &ResolvedTheme) {
     if app.mode == Mode::Search {
         return;
     }
@@ -1124,15 +1133,15 @@ fn draw_footer(f: &mut Frame, app: &App, area: Rect) {
                         .add_modifier(Modifier::BOLD),
                 ),
                 Span::raw(" confirm  "),
-                Span::styled("[n]", Style::default().fg(COLOR_ACCENT)),
+                Span::styled("[n]", Style::default().fg(theme.accent)),
                 Span::raw(" cancel"),
             ]),
             Mode::EditForm | Mode::AddForm => Line::from(vec![
-                Span::styled("[Tab]", Style::default().fg(COLOR_ACCENT)),
+                Span::styled("[Tab]", Style::default().fg(theme.accent)),
                 Span::raw(" next  "),
-                Span::styled("[S-Tab]", Style::default().fg(COLOR_ACCENT)),
+                Span::styled("[S-Tab]", Style::default().fg(theme.accent)),
                 Span::raw(" prev  "),
-                Span::styled("[←/→]", Style::default().fg(COLOR_ACCENT)),
+                Span::styled("[←/→]", Style::default().fg(theme.accent)),
                 Span::raw(" cycle  "),
                 Span::styled("[Enter]", Style::default().fg(Color::Green)),
                 Span::raw(" save  "),
@@ -1140,25 +1149,25 @@ fn draw_footer(f: &mut Frame, app: &App, area: Rect) {
                 Span::raw(" cancel"),
             ]),
             _ => Line::from(vec![
-                Span::styled("j/k", Style::default().fg(COLOR_ACCENT)),
+                Span::styled("j/k", Style::default().fg(theme.accent)),
                 Span::raw(" nav  "),
-                Span::styled("Tab", Style::default().fg(COLOR_ACCENT)),
+                Span::styled("Tab", Style::default().fg(theme.accent)),
                 Span::raw(" focus  "),
-                Span::styled("[ ]", Style::default().fg(COLOR_ACCENT)),
+                Span::styled("[ ]", Style::default().fg(theme.accent)),
                 Span::raw(" tab  "),
                 Span::styled("a", Style::default().fg(Color::Green)),
                 Span::raw(" add  "),
                 Span::styled("e", Style::default().fg(Color::Yellow)),
                 Span::raw(" edit  "),
-                Span::styled("d", Style::default().fg(COLOR_ACCENT)),
+                Span::styled("d", Style::default().fg(theme.accent)),
                 Span::raw(" done  "),
                 Span::styled("x", Style::default().fg(Color::Red)),
                 Span::raw(" del  "),
-                Span::styled("/", Style::default().fg(COLOR_ACCENT)),
+                Span::styled("/", Style::default().fg(theme.accent)),
                 Span::raw(" search  "),
-                Span::styled("q", Style::default().fg(COLOR_ACCENT)),
+                Span::styled("q", Style::default().fg(theme.accent)),
                 Span::raw(" quit  "),
-                Span::styled("?", Style::default().fg(COLOR_ACCENT)),
+                Span::styled("?", Style::default().fg(theme.accent)),
                 Span::raw(" help"),
             ]),
         }
@@ -1282,7 +1291,7 @@ fn help_entries() -> Vec<HelpEntry> {
     ]
 }
 
-fn draw_help_popup(f: &mut Frame, app: &App, area: Rect) {
+fn draw_help_popup(f: &mut Frame, app: &App, area: Rect, theme: &ResolvedTheme) {
     let entries = help_entries();
     let selectable: Vec<usize> = entries
         .iter()
@@ -1337,7 +1346,7 @@ fn draw_help_popup(f: &mut Frame, app: &App, area: Rect) {
                 Row::new(vec![
                     Cell::from(format!("  {}", e.key)).style(
                         Style::default()
-                            .fg(COLOR_ACCENT)
+                            .fg(theme.accent)
                             .add_modifier(if is_selected {
                                 Modifier::BOLD
                             } else {
@@ -1353,7 +1362,7 @@ fn draw_help_popup(f: &mut Frame, app: &App, area: Rect) {
                     )),
                 ])
                 .style(if is_selected {
-                    Style::default().bg(COLOR_SELECTED_BG)
+                    Style::default().bg(theme.selected_bg)
                 } else {
                     Style::default()
                 })
@@ -1370,7 +1379,7 @@ fn draw_help_popup(f: &mut Frame, app: &App, area: Rect) {
                 Line::from(Span::styled(counter, Style::default().fg(Color::DarkGray)))
                     .right_aligned(),
             )
-            .border_style(Style::default().fg(COLOR_ACCENT)),
+            .border_style(Style::default().fg(theme.accent)),
     );
     f.render_widget(table, chunks[0]);
 

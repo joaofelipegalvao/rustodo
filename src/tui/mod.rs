@@ -1,40 +1,19 @@
 //! Terminal User Interface for rustodo.
-//!
-//! Launched when `todo` is invoked with no subcommand.
-//! Built with [Ratatui](https://ratatui.rs) + Crossterm.
-//!
-//! # Layout
-//!
-//! ```text
-//! ┌─ rustodo ──────────────────────────────────────────────────────┐
-//! │ # │ P │  S  │ Task                  │ Project  │ Tags  │ Due   │
-//! │───┼───┼─────┼───────────────────────┼──────────┼───────┼───────│
-//! │ 1 │ H │ [ ] │ Fix login bug         │ Backend  │ work  │ 2d    │
-//! │ 2 │ M │ [x] │ Write tests           │          │       │       │
-//! └────────────────────────────────────────────────────────────────┘
-//! ┌─ Details ──────────────────────────────────────────────────────┐
-//! │ Fix login bug                                                   │
-//! │ Priority : High                                                 │
-//! │ Project  : Backend                                              │
-//! │ Tags     : work                                                 │
-//! │ Due      : 2026-03-05                                           │
-//! │ UUID     : ef257b05-...                                         │
-//! └────────────────────────────────────────────────────────────────┘
-//! [j/k] navigate  [d] done/undone  [x] remove  [q] quit
-//! ```
 
 pub mod app;
 pub mod events;
+pub mod style;
 pub mod ui;
 
 use anyhow::Result;
-use crossterm::{
+use ratatui::crossterm::{
     execute,
     terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
 };
 use ratatui::{Terminal, backend::CrosstermBackend};
 use std::io;
 
+use crate::config::Config;
 use crate::storage::Storage;
 
 /// Entry point for the TUI. Sets up the terminal, runs the event loop,
@@ -62,10 +41,13 @@ fn run_app(
     terminal: &mut Terminal<CrosstermBackend<io::Stdout>>,
     storage: &impl Storage,
 ) -> Result<()> {
+    let cfg = Config::load().unwrap_or_default();
+    let theme = cfg.theme.resolve();
+
     let mut app = app::App::new(storage)?;
 
     loop {
-        terminal.draw(|f| ui::draw(f, &mut app))?;
+        terminal.draw(|f| ui::draw(f, &mut app, &theme))?;
 
         if events::handle(&mut app, storage)? {
             break;
