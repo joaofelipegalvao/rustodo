@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.23.0](https://github.com/joaofelipegalvao/rustodo/compare/v2.22.0..v2.23.0) - 2026-03-11
+
+### Features
+
+- Add urgency score for task sorting - ([e24e4b0](https://github.com/joaofelipegalvao/rustodo/commit/e24e4b0acb80371a4352d3b3a773d82664b76672))
+- Add calendar, next, and holidays commands - ([554738c](https://github.com/joaofelipegalvao/rustodo/commit/554738c3b123ff3218c0a79844251b674b728e9a))
+- Add calendar and next command rendering - ([175dc75](https://github.com/joaofelipegalvao/rustodo/commit/175dc75fdff18aba2e2030e221b9ced9086b31cd))
+- Add holidays service from holidata.net - ([4a35527](https://github.com/joaofelipegalvao/rustodo/commit/4a355275e918cb4eb43c9ebaa5b9c1d9895da0d2))
+- Add config module for app settings - ([c7320fc](https://github.com/joaofelipegalvao/rustodo/commit/c7320fc9951fa294360e6c59ec881e264e3a10c2))
+- Enhance stats command with history tracking - ([7752e0d](https://github.com/joaofelipegalvao/rustodo/commit/7752e0db03d8315187e66a35bbf030440628ce2d))
+
+### Refactoring
+
+- Reorganize command modules into directories - ([92d75a9](https://github.com/joaofelipegalvao/rustodo/commit/92d75a98af8d834870e5d55b6f04550cc34f18eb))
+- Remove old flat command modules - ([72ec09c](https://github.com/joaofelipegalvao/rustodo/commit/72ec09cf9c4f08d5cd5134ffa666fa0082694c4b))
+- Remove legacy project_show module - ([7d73ae3](https://github.com/joaofelipegalvao/rustodo/commit/7d73ae3fa7ac0245a817d098ebf10a34d9afcbbe))
+- Move date_parser and validation to utils module - ([ec6f32a](https://github.com/joaofelipegalvao/rustodo/commit/ec6f32a4485201df1b8d0b7a51c75a2e8306b2a4))
+- Enhance TUI with new styling and components - ([8efa56e](https://github.com/joaofelipegalvao/rustodo/commit/8efa56e6b7e6d9aec9ce270e129a56e3878d18c2))
+- Update render modules and services - ([db6881b](https://github.com/joaofelipegalvao/rustodo/commit/db6881befcc338713cb1ac379e012e28aaa22ec2))
 ## [2.22.0](https://github.com/joaofelipegalvao/rustodo/compare/v2.21.0..v2.22.0) - 2026-03-08
 
 ### Features
@@ -457,6 +476,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Features
 
 - V1 - basic todo CLI with add/list commands - ([9580ae2](https://github.com/joaofelipegalvao/rustodo/commit/9580ae297837c9a6c5d4b18868d2f3abac1b1b9e))
+[2.23.0]: https://github.com/joaofelipegalvao/rustodo/compare/v2.22.0...v2.23.0
 [2.22.0]: https://github.com/joaofelipegalvao/rustodo/compare/v2.21.0...v2.22.0
 [2.21.0]: https://github.com/joaofelipegalvao/rustodo/compare/v2.20.0...v2.21.0
 [2.20.0]: https://github.com/joaofelipegalvao/rustodo/compare/v2.19.0...v2.20.0
