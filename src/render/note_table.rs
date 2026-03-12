@@ -1,11 +1,7 @@
 //! Terminal rendering for note lists.
-//!
-//! Column order (Taskwarrior-style): ID  Project  Lang  Tags  Note
-//! Fixed context columns on the left, content (Note) on the right.
-
 use colored::Colorize;
 
-use crate::models::{Note, Project};
+use crate::models::{Note, NoteFormat, Project};
 use crate::render::formatting::{project_colored, project_name, truncate};
 
 pub struct NoteTableLayout {
@@ -17,7 +13,21 @@ pub struct NoteTableLayout {
     pub show_lang: bool,
     pub show_tags: bool,
     pub show_resources: bool,
+    pub show_format: bool,
     pub total_w: usize,
+}
+
+/// Returns a single-line preview of the note body.
+/// Uses the title if available, otherwise the first non-empty line of the body.
+fn note_preview(note: &Note) -> String {
+    if let Some(ref title) = note.title {
+        return title.clone();
+    }
+    note.body
+        .lines()
+        .find(|l| !l.trim().is_empty())
+        .map(|l| l.trim_start_matches('#').trim().to_string())
+        .unwrap_or_default()
 }
 
 impl NoteTableLayout {
@@ -28,15 +38,7 @@ impl NoteTableLayout {
     ) -> Self {
         let body_w = notes
             .iter()
-            .map(|n| {
-                n.title
-                    .as_deref()
-                    .unwrap_or_else(|| {
-                        let b = n.body.as_str();
-                        if b.len() > 60 { &b[..60] } else { b }
-                    })
-                    .len()
-            })
+            .map(|n| note_preview(n).len())
             .max()
             .unwrap_or(10)
             .clamp(10, 48);
@@ -80,6 +82,7 @@ impl NoteTableLayout {
                 .iter()
                 .any(|rid| resources.iter().any(|r| !r.is_deleted() && r.uuid == *rid))
         });
+        let show_format = notes.iter().any(|n| n.format.is_markdown());
 
         let mut total_w = 4 + 2 + body_w;
         if show_project {
@@ -94,6 +97,9 @@ impl NoteTableLayout {
         if show_resources {
             total_w += 2 + 3;
         }
+        if show_format {
+            total_w += 2 + 8; // "markdown" = 8 chars
+        }
 
         Self {
             body_w,
@@ -104,6 +110,7 @@ impl NoteTableLayout {
             show_lang,
             show_tags,
             show_resources,
+            show_format,
             total_w,
         }
     }
@@ -122,6 +129,9 @@ impl NoteTableLayout {
         if self.show_resources {
             print!("{:^3}  ", "Res".dimmed());
         }
+        if self.show_format {
+            print!("{:<8}  ", "Format".dimmed());
+        }
         print!("{:<body_w$}", "Note".dimmed(), body_w = self.body_w);
         println!();
         println!("{}", "─".repeat(self.total_w).dimmed());
@@ -134,11 +144,7 @@ impl NoteTableLayout {
         projects: &[Project],
         resources: &[crate::models::Resource],
     ) {
-        let preview = note.title.as_deref().unwrap_or_else(|| {
-            let b = note.body.as_str();
-            if b.len() > 60 { &b[..60] } else { b }
-        });
-        let preview_str = truncate(preview, self.body_w);
+        let preview = truncate(&note_preview(note), self.body_w);
 
         let name = project_name(note.project_id, projects);
         let proj_str = truncate(name, self.proj_w);
@@ -179,7 +185,14 @@ impl NoteTableLayout {
             };
             print!("{}  ", res_str);
         }
-        print!("{:<body_w$}", preview_str, body_w = self.body_w);
+        if self.show_format {
+            let fmt_str = match note.format {
+                NoteFormat::Markdown => "markdown".cyan().to_string(),
+                NoteFormat::Plain => "—".dimmed().to_string(),
+            };
+            print!("{:<8}  ", fmt_str);
+        }
+        print!("{:<body_w$}", preview, body_w = self.body_w);
         println!();
     }
 

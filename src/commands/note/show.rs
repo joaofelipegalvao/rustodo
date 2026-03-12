@@ -1,10 +1,9 @@
-// src/commands/note_show.rs
-
 //! Handler for `todo note show <ID>`.
 
 use anyhow::Result;
 use colored::Colorize;
 
+use crate::models::NoteFormat;
 use crate::storage::Storage;
 
 pub fn execute(storage: &impl Storage, id: usize) -> Result<()> {
@@ -16,7 +15,6 @@ pub fn execute(storage: &impl Storage, id: usize) -> Result<()> {
         .get(id.saturating_sub(1))
         .ok_or_else(|| anyhow::anyhow!("Note #{} not found", id))?;
 
-    // Build global resource ID lookup
     let visible_resources: Vec<_> = resources.iter().filter(|r| !r.is_deleted()).collect();
 
     // ── Header ────────────────────────────────────────────────────────────────
@@ -31,8 +29,24 @@ pub fn execute(storage: &impl Storage, id: usize) -> Result<()> {
 
     // ── Body ──────────────────────────────────────────────────────────────────
     println!();
-    for line in note.body.lines() {
-        println!("  {}", line);
+    if note.format == NoteFormat::Markdown {
+        let first_line = note
+            .body
+            .lines()
+            .find(|l| !l.trim().is_empty())
+            .map(|l| l.trim_start_matches('#').trim())
+            .unwrap_or("");
+        println!("  {}", first_line.bold());
+        println!();
+        println!(
+            "  {} {}",
+            "tip:".dimmed(),
+            format!("run `todo note preview {}` to render markdown", id).dimmed()
+        );
+    } else {
+        for line in note.body.lines() {
+            println!("  {}", line);
+        }
     }
     println!();
 
@@ -68,11 +82,10 @@ pub fn execute(storage: &impl Storage, id: usize) -> Result<()> {
         println!("  {} {}", "Task:".dimmed(), task.text.cyan());
     }
 
-    // ── Resources (with global IDs) ───────────────────────────────────────────
+    // ── Resources ─────────────────────────────────────────────────────────────
     if !note.resource_ids.is_empty() {
         println!("  {}", "Resources:".dimmed());
         for rid in &note.resource_ids {
-            // Find global display ID = position in visible_resources
             let found = visible_resources
                 .iter()
                 .enumerate()

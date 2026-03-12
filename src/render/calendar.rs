@@ -27,6 +27,7 @@ pub fn display_calendar(
     target_year: i32,
     density: &HashMap<NaiveDate, DayInfo>,
 ) {
+    println!();
     let months = [
         prev_month(target_year, target_month),
         (target_year, target_month),
@@ -184,8 +185,6 @@ fn print_side_by_side(grids: &[Vec<String>]) {
                 line.push_str(&" ".repeat(pad_left));
                 line.push_str(cell);
                 line.push_str(&" ".repeat(pad_right));
-            } else if row == 1 {
-                line.push_str(&" ".repeat(MONTH_WIDTH));
             } else {
                 if !cell.is_empty() {
                     line.push_str(cell);
