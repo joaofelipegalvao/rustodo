@@ -1,6 +1,6 @@
 //! Handler for `todo note add`.
 
-use anyhow::Result;
+use anyhow::{Result, anyhow};
 use colored::Colorize;
 
 use crate::cli::NoteAddArgs;
@@ -13,14 +13,46 @@ pub fn execute(storage: &impl Storage, args: NoteAddArgs) -> Result<()> {
     let (tasks, projects, mut notes) = storage.load_all()?;
     let resources = storage.load_resources()?;
 
-    // Resolve project name → UUID (creates the project if it doesn't exist yet)
+    // ── Resolve body from input source ────────────────────────────────────────
+    let (body, is_markdown) = match (args.body, args.editor, args.file) {
+        (Some(text), false, None) => (text, false),
+
+        (None, true, None) => {
+            let content = edit::edit_with_builder("", edit::Builder::new().suffix(".md"))?;
+            let trimmed = content.trim().to_string();
+            if trimmed.is_empty() {
+                return Err(anyhow!("Aborted: note body is empty."));
+            }
+            (trimmed, true)
+        }
+
+        (None, false, Some(path)) => {
+            let content = std::fs::read_to_string(&path)
+                .map_err(|e| anyhow!("Failed to read file {}: {}", path.display(), e))?;
+            (content, true)
+        }
+
+        (None, false, None) => {
+            return Err(anyhow!(
+                "Provide a note body: <BODY>, --editor, or --file <PATH>"
+            ));
+        }
+
+        _ => {
+            return Err(anyhow!(
+                "Only one input source allowed: <BODY>, --editor, or --file <PATH>"
+            ));
+        }
+    };
+
+    // ── Resolve project name → UUID ───────────────────────────────────────────
     let project_id = if let Some(ref name) = args.project {
         Some(Project::resolve_or_create(storage, &projects, name)?)
     } else {
         None
     };
 
-    // Resolve task display-id → UUID
+    // ── Resolve task display-id → UUID ────────────────────────────────────────
     let task_id = if let Some(task_num) = args.task {
         let task = tasks
             .get(task_num.saturating_sub(1))
@@ -33,7 +65,11 @@ pub fn execute(storage: &impl Storage, args: NoteAddArgs) -> Result<()> {
     let existing_tags = collect_all_tag_names(&tasks, &notes, &resources);
     let (normalized_tags, normalization_messages) = normalize_tags(args.tag, &existing_tags);
 
-    let mut note = Note::new(args.body);
+    let mut note = if is_markdown {
+        Note::new_markdown(body)
+    } else {
+        Note::new(body)
+    };
     note.title = args.title;
     note.tags = normalized_tags;
     note.language = args.language;

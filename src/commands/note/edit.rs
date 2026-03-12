@@ -7,7 +7,7 @@ use anyhow::Result;
 use colored::Colorize;
 
 use crate::cli::NoteEditArgs;
-use crate::models::Project;
+use crate::models::{NoteFormat, Project};
 use crate::storage::Storage;
 
 pub fn execute(storage: &impl Storage, args: NoteEditArgs) -> Result<()> {
@@ -29,7 +29,19 @@ pub fn execute(storage: &impl Storage, args: NoteEditArgs) -> Result<()> {
     let mut changes = Vec::new();
 
     // ── body ──────────────────────────────────────────────────────────────────
-    if let Some(new_body) = args.body {
+    if args.editor {
+        let current = note.body.clone();
+        let new_body = edit::edit_with_builder(&current, edit::Builder::new().suffix(".md"))?;
+        let new_body = new_body.trim().to_string();
+        if new_body.is_empty() {
+            return Err(anyhow::anyhow!("Aborted: note body is empty."));
+        }
+        if note.body != new_body {
+            note.body = new_body.clone();
+            note.format = NoteFormat::Markdown;
+            changes.push("body → updated via editor".bright_white().to_string());
+        }
+    } else if let Some(new_body) = args.body {
         if new_body.trim().is_empty() {
             return Err(anyhow::anyhow!("Note body cannot be empty"));
         }
