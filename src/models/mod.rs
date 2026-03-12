@@ -22,7 +22,7 @@ mod resource;
 mod task;
 
 pub use filters::{DueFilter, RecurrenceFilter, SortBy, StatusFilter};
-pub use note::Note;
+pub use note::{Note, NoteFormat};
 pub use priority::Priority;
 pub use project::{Difficulty, Project};
 pub use recurrence::Recurrence;

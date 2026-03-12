@@ -9,6 +9,26 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
+// ── NoteFormat ────────────────────────────────────────────────────────────────
+
+/// The format of the note body.
+///
+/// - `Plain`    — free-form text (default)
+/// - `Markdown` — markdown content, renderable with `todo note preview`
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[serde(rename_all = "lowercase")]
+pub enum NoteFormat {
+    #[default]
+    Plain,
+    Markdown,
+}
+
+impl NoteFormat {
+    pub fn is_markdown(self) -> bool {
+        self == NoteFormat::Markdown
+    }
+}
+
 // ── Note ──────────────────────────────────────────────────────────────────────
 
 /// A free-form documentation note.
@@ -29,8 +49,15 @@ pub struct Note {
     #[serde(default)]
     pub title: Option<String>,
 
-    /// The main content — free-form text / documentation.
+    /// The main content — free-form text or markdown.
     pub body: String,
+
+    /// The format of the body content.
+    ///
+    /// Existing notes without this field deserialise as `Plain` automatically
+    /// via `#[serde(default)]` — no migration required.
+    #[serde(default)]
+    pub format: NoteFormat,
 
     /// Tags for filtering and categorisation.
     #[serde(default)]
@@ -68,12 +95,13 @@ pub struct Note {
 }
 
 impl Note {
-    /// Create a new note with just a body. All optional fields default to `None` / empty.
+    /// Create a new plain-text note with just a body.
     pub fn new(body: String) -> Self {
         Self {
             uuid: Uuid::new_v4(),
             title: None,
             body,
+            format: NoteFormat::Plain,
             tags: Vec::new(),
             language: None,
             project_id: None,
@@ -82,6 +110,14 @@ impl Note {
             created_at: Utc::now(),
             updated_at: Some(Utc::now()),
             deleted_at: None,
+        }
+    }
+
+    /// Create a new markdown note with just a body.
+    pub fn new_markdown(body: String) -> Self {
+        Self {
+            format: NoteFormat::Markdown,
+            ..Self::new(body)
         }
     }
 
@@ -98,6 +134,10 @@ impl Note {
 
     pub fn is_deleted(&self) -> bool {
         self.deleted_at.is_some()
+    }
+
+    pub fn is_markdown(&self) -> bool {
+        self.format.is_markdown()
     }
 
     /// Returns `true` if the note is linked to the given project UUID.
