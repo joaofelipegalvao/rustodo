@@ -460,7 +460,7 @@ impl Storage for SqliteStorage {
         let conn = self.open()?;
         let mut stmt = conn.prepare("SELECT * FROM projects ORDER BY created_at")?;
         let projects = stmt
-            .query_map([], |row| row_to_project(row))?
+            .query_map([], row_to_project)?
             .collect::<rusqlite::Result<Vec<_>>>()
             .context("Failed to load projects")?;
         Ok(projects)
@@ -549,7 +549,7 @@ impl Storage for SqliteStorage {
         let conn = self.open()?;
         let mut stmt = conn.prepare("SELECT * FROM resources ORDER BY created_at")?;
         let resources = stmt
-            .query_map([], |row| row_to_resource(row))?
+            .query_map([], row_to_resource)?
             .collect::<rusqlite::Result<Vec<_>>>()
             .context("Failed to load resources")?;
         Ok(resources)
@@ -718,14 +718,8 @@ mod tests {
     fn test_task_dependencies() {
         let (storage, _tmp) = make_storage();
         let t1 = Task::new("Task 1".into(), Priority::Medium, vec![], None, None, None);
-        let t2 = Task::new(
-            "Task 2".into(),
-            Priority::Medium,
-            vec![t1.uuid],
-            None,
-            None,
-            None,
-        );
+        let mut t2 = Task::new("Task 2".into(), Priority::Medium, vec![], None, None, None);
+        t2.depends_on = vec![t1.uuid];
         storage.save(&[t1.clone(), t2.clone()]).unwrap();
         let loaded = storage.load().unwrap();
         let loaded_t2 = loaded.iter().find(|t| t.uuid == t2.uuid).unwrap();

@@ -57,7 +57,7 @@ fn rotate_backups(backup_dir: &Path, max_backups: usize) -> Result<()> {
     let mut backups: Vec<PathBuf> = std::fs::read_dir(backup_dir)?
         .filter_map(|e| e.ok())
         .map(|e| e.path())
-        .filter(|p| p.extension().map_or(false, |e| e == "db"))
+        .filter(|p| p.extension().is_some_and(|e| e == "db"))
         .collect();
 
     backups.sort();
@@ -77,7 +77,7 @@ fn last_backup_time(backup_dir: &Path) -> Option<std::time::SystemTime> {
     std::fs::read_dir(backup_dir)
         .ok()?
         .filter_map(|e| e.ok())
-        .filter(|e| e.path().extension().map_or(false, |ext| ext == "db"))
+        .filter(|e| e.path().extension().is_some_and(|ext| ext == "db"))
         .filter_map(|e| e.metadata().ok()?.modified().ok())
         .max()
 }
