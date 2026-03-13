@@ -13,12 +13,20 @@ use rustodo::cli::{
 };
 use rustodo::commands;
 use rustodo::commands::sync::SyncCommand;
-use rustodo::storage::{JsonStorage, Storage};
+use rustodo::storage::{SqliteStorage, Storage, backup, get_db_path};
 
 fn main() {
     let cli = Cli::parse();
 
-    let storage = match JsonStorage::new() {
+    let db_path = match get_db_path() {
+        Ok(p) => p,
+        Err(e) => {
+            eprintln!("{} Failed to resolve database path: {}", "✗".red(), e);
+            process::exit(1);
+        }
+    };
+
+    let storage = match SqliteStorage::new() {
         Ok(s) => s,
         Err(e) => {
             eprintln!("{} Failed to initialize storage: {}", "✗".red(), e);
@@ -37,6 +45,9 @@ fn main() {
 
         process::exit(1);
     }
+
+    // Backup after successful write operations (best-effort)
+    let _ = backup::backup_if_needed(&db_path, 10, 60);
 }
 
 fn run(cli: Cli, storage: &impl Storage) -> Result<()> {

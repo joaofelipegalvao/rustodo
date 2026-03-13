@@ -1,21 +1,21 @@
 //! Handler for `todo info`.
 //!
-//! Prints the path to the active data file, whether it exists, and its size
-//! on disk. Useful for locating the file for backups or debugging.
+//! Prints the path to the active database file, whether it exists, and its
+//! size on disk. Useful for locating the file for backups or debugging.
 
 use std::fs;
 
 use anyhow::Result;
 use colored::Colorize;
 
-use crate::storage::get_data_file_path;
+use crate::storage::get_db_path;
 
 pub fn execute() -> Result<()> {
-    let path = get_data_file_path()?;
+    let path = get_db_path()?;
     let exists = path.exists();
 
-    println!("\n{} Todo-List Information\n", "".blue().bold());
-    println!("{} {}", "Data file:".dimmed(), path.display());
+    println!("\n{} Todo-List Information\n", "".blue().bold());
+    println!("{} {}", "Database:".dimmed(), path.display());
 
     if exists {
         println!("{} {}", "Status:".dimmed(), "exists ✓".green());

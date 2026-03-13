@@ -64,12 +64,11 @@ pub fn execute(storage: &impl Storage, days: u32, dry_run: bool, yes: bool) -> R
         .title
         .clone()
         .unwrap_or_else(|| {
-            let b = n.body.as_str();
-            if b.len() > 60 {
-                b[..60].to_string()
-            } else {
-                b.to_string()
-            }
+            n.body
+                .lines()
+                .find(|l| !l.trim().is_empty())
+                .map(|l| l.trim_start_matches('#').trim().to_string())
+                .unwrap_or_default()
         }));
     let resource_tombs = collect_tombstones!(&resources, cutoff, |r: &crate::models::Resource| r
         .title

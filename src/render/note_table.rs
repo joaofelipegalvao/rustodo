@@ -1,4 +1,5 @@
 //! Terminal rendering for note lists.
+
 use colored::Colorize;
 
 use crate::models::{Note, NoteFormat, Project};
@@ -154,7 +155,13 @@ impl NoteTableLayout {
             .language
             .as_deref()
             .map(|l| truncate(l, self.lang_w))
-            .unwrap_or_default();
+            .unwrap_or_else(|| "—".to_string());
+
+        let lang_colored = if note.language.is_some() {
+            lang_str.yellow()
+        } else {
+            lang_str.dimmed()
+        };
 
         let tags_str = if note.tags.is_empty() {
             String::new()
@@ -167,7 +174,7 @@ impl NoteTableLayout {
             print!("{:<proj_w$}  ", proj_colored, proj_w = self.proj_w);
         }
         if self.show_lang {
-            print!("{:<lang_w$}  ", lang_str.yellow(), lang_w = self.lang_w);
+            print!("{:<lang_w$}  ", lang_colored, lang_w = self.lang_w);
         }
         if self.show_tags {
             print!("{:<tags_w$}  ", tags_str.cyan(), tags_w = self.tags_w);
@@ -186,11 +193,10 @@ impl NoteTableLayout {
             print!("{}  ", res_str);
         }
         if self.show_format {
-            let fmt_str = match note.format {
-                NoteFormat::Markdown => "markdown".cyan().to_string(),
-                NoteFormat::Plain => "—".dimmed().to_string(),
-            };
-            print!("{:<8}  ", fmt_str);
+            match note.format {
+                NoteFormat::Markdown => print!("{:<8}  ", "markdown".cyan()),
+                NoteFormat::Plain => print!("{:<8}  ", "—".dimmed()),
+            }
         }
         print!("{:<body_w$}", preview, body_w = self.body_w);
         println!();

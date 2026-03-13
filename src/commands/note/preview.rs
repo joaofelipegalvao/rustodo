@@ -1,13 +1,8 @@
 //! Handler for `todo note preview <ID>`.
-//!
-//! Opens the note body in `glow` for rich markdown rendering with pagination.
-//! If `glow` is not installed, prints a clear installation message.
-
 use anyhow::Result;
 use colored::Colorize;
 use std::io::Write;
 use std::process::{Command, Stdio};
-use tempfile::NamedTempFile;
 
 use crate::storage::Storage;
 
@@ -30,26 +25,26 @@ pub fn execute(storage: &impl Storage, id: usize) -> Result<()> {
     // ── Check glow is available ───────────────────────────────────────────────
     if Command::new("glow").arg("--version").output().is_err() {
         eprintln!("{} {} is not installed.", "✗".red(), "glow".yellow());
-        eprintln!("  Install it with: {}", "brew install glow".cyan());
         eprintln!(
-            "  Or visit: {}",
-            "https://github.com/charmbracelet/glow".dimmed()
+            "  Install it from: {}",
+            "https://github.com/charmbracelet/glow".cyan()
         );
         return Ok(());
     }
 
-    // ── Write note body to a temp file ────────────────────────────────────────
-    let mut tmp = NamedTempFile::with_suffix(".md")?;
-    write!(tmp, "{}", note.body)?;
-    tmp.flush()?;
-
-    // ── Open with glow ────────────────────────────────────────────────────────
-    Command::new("glow")
-        .arg(tmp.path())
-        .stdin(Stdio::inherit())
+    // ── Pipe note body into glow via stdin ────────────────────────────────────
+    let mut child = Command::new("glow")
+        .arg("-")
+        .stdin(Stdio::piped())
         .stdout(Stdio::inherit())
         .stderr(Stdio::inherit())
-        .status()?;
+        .spawn()?;
+
+    if let Some(stdin) = child.stdin.as_mut() {
+        stdin.write_all(note.body.as_bytes())?;
+    }
+
+    child.wait()?;
 
     Ok(())
 }
