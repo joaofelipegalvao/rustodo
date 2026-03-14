@@ -3,8 +3,7 @@
 //! Export serializes all data to a JSON file (same envelope format as the
 //! legacy todos.json). Import reads that file and upserts everything into
 //! the SQLite database.
-
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use colored::Colorize;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;

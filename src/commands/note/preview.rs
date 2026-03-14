@@ -23,9 +23,13 @@ pub fn execute(storage: &impl Storage, id: usize) -> Result<()> {
 
     // ── Check glow is available ───────────────────────────────────────────────
     if Command::new("glow").arg("--version").output().is_err() {
-        eprintln!("{} {} is not installed.", "✗".red(), "glow".yellow());
         eprintln!(
-            "  Install it from: {}",
+            "{} {} is not installed — showing raw markdown.",
+            "".yellow(),
+            "glow".yellow()
+        );
+        eprintln!(
+            "  Install it from: {}\n",
             "https://github.com/charmbracelet/glow".cyan()
         );
         return Ok(());
