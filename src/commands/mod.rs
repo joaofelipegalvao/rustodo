@@ -42,16 +42,20 @@
 //! | [`stats`]          | `todo stats`                    |
 //! | [`stats_history`]  | `todo stats history`            |
 //! | [`tags`]           | `todo tags`                     |
+//! | [`backup`]         | `todo backup`                   |
+//! | [`portability`]    | `todo portability`              |
 
 pub mod note;
 pub mod project;
 pub mod resource;
 pub mod task;
 
+pub mod backup;
 pub mod calendar;
 pub mod context;
 pub mod holidays_cmd;
 pub mod next;
+pub mod portability;
 pub mod purge;
 pub mod search;
 pub mod stats;

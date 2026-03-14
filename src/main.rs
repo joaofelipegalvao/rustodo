@@ -145,6 +145,18 @@ fn run(cli: Cli, storage: &impl Storage) -> Result<()> {
             commands::purge::execute(storage, days, dry_run, yes)
         }
 
+        Commands::Export { file } => commands::portability::execute_export(storage, file),
+
+        Commands::Import { file, replace, yes } => {
+            commands::portability::execute_import(storage, file, replace, yes)
+        }
+
+        Commands::Backup => commands::backup::execute_backup(),
+
+        Commands::Restore { file, yes } => commands::backup::execute_restore(file, yes),
+
+        Commands::BackupList => commands::backup::execute_list(),
+
         Commands::Holidays(sub) => match sub {
             HolidaysCommands::Refresh => commands::holidays_cmd::execute_refresh(),
         },

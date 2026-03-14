@@ -25,7 +25,7 @@ COMMANDS:
     project, note, resource
 
   System:
-    info, purge, holidays
+    info, purge, holidays, backup, restore, backup-list, export, import
 
 Run 'todo <COMMAND> --help' for more information on a command.
 ")]
@@ -183,6 +183,45 @@ pub enum Commands {
     Resource(ResourceCommands),
 
     // ── System ────────────────────────────────────────────────────────────────
+    /// Export all data to a JSON file
+    #[command(hide = true)]
+    Export {
+        /// Output file path. Defaults to rustodo-export-YYYY-MM-DD.json
+        #[arg(value_name = "FILE")]
+        file: Option<std::path::PathBuf>,
+    },
+
+    /// Import data from a JSON export file
+    #[command(hide = true)]
+    Import {
+        /// Path to the JSON export file
+        #[arg(value_name = "FILE")]
+        file: std::path::PathBuf,
+        /// Replace all existing data instead of merging
+        #[arg(long)]
+        replace: bool,
+        #[arg(long, short = 'y')]
+        yes: bool,
+    },
+
+    /// Create a manual database backup
+    #[command(hide = true)]
+    Backup,
+
+    /// Restore database from a backup file
+    #[command(hide = true)]
+    Restore {
+        /// Path to the backup file. If omitted, lists available backups to choose from.
+        #[arg(value_name = "FILE")]
+        file: Option<std::path::PathBuf>,
+        #[arg(long, short = 'y')]
+        yes: bool,
+    },
+
+    /// List available backups
+    #[command(name = "backup-list", hide = true)]
+    BackupList,
+
     /// Show information about data file location
     #[command(hide = true)]
     Info,
