@@ -114,7 +114,6 @@ pub enum Commands {
     /// Show the most urgent pending tasks ready to work on
     #[command(visible_alias = "n", hide = true)]
     Next {
-        /// How many tasks to show (default: 5).
         #[arg(long, short = 'n', default_value_t = 5)]
         limit: usize,
     },
@@ -122,17 +121,15 @@ pub enum Commands {
     /// Show a monthly calendar with due dates for tasks and projects
     #[command(visible_alias = "cal", hide = true)]
     Calendar {
-        /// Month (1-12). Defaults to current month.
         #[arg(value_name = "MONTH")]
         month: Option<u32>,
-        /// Year (e.g. 2026). Defaults to current year.
         #[arg(value_name = "YEAR")]
         year: Option<i32>,
     },
 
     /// Show productivity statistics and activity chart
-    #[command(hide = true)]
-    Stats,
+    #[command(subcommand, hide = true)]
+    Stats(StatsCommands),
 
     /// Search for tasks by text content
     #[command(visible_alias = "find", hide = true)]
@@ -164,7 +161,6 @@ pub enum Commands {
     /// List all tags with counts, or show hub view for a specific tag
     #[command(hide = true)]
     Tags {
-        /// Optional tag name to show hub view (all tasks, notes, resources with this tag).
         #[arg(value_name = "TAG")]
         tag: Option<String>,
     },
@@ -186,7 +182,6 @@ pub enum Commands {
     /// Export all data to a JSON file
     #[command(hide = true)]
     Export {
-        /// Output file path. Defaults to rustodo-export-YYYY-MM-DD.json
         #[arg(value_name = "FILE")]
         file: Option<std::path::PathBuf>,
     },
@@ -194,10 +189,8 @@ pub enum Commands {
     /// Import data from a JSON export file
     #[command(hide = true)]
     Import {
-        /// Path to the JSON export file
         #[arg(value_name = "FILE")]
         file: std::path::PathBuf,
-        /// Replace all existing data instead of merging
         #[arg(long)]
         replace: bool,
         #[arg(long, short = 'y')]
@@ -211,7 +204,6 @@ pub enum Commands {
     /// Restore database from a backup file
     #[command(hide = true)]
     Restore {
-        /// Path to the backup file. If omitted, lists available backups to choose from.
         #[arg(value_name = "FILE")]
         file: Option<std::path::PathBuf>,
         #[arg(long, short = 'y')]
@@ -240,6 +232,37 @@ pub enum Commands {
     /// Manage holiday data from holidata.net
     #[command(subcommand, hide = true)]
     Holidays(HolidaysCommands),
+}
+
+// ── Stats subcommands ─────────────────────────────────────────────────────────
+
+#[derive(Subcommand)]
+pub enum StatsCommands {
+    /// Show productivity statistics (default)
+    #[command(hide = true)]
+    Show,
+
+    /// Show monthly history chart of tasks created, completed, and deleted
+    #[command(hide = true)]
+    History {
+        /// How many months to show (default: 6)
+        #[arg(long, short = 'n', default_value_t = 6)]
+        months: usize,
+    },
+
+    /// Clear event history. Use --all to remove everything or --days N to remove older entries.
+    #[command(name = "history-clear", hide = true)]
+    HistoryClear {
+        /// Remove all events (mutually exclusive with --days)
+        #[arg(long, conflicts_with = "days")]
+        all: bool,
+        /// Remove events older than N days (mutually exclusive with --all)
+        #[arg(long, conflicts_with = "all")]
+        days: Option<u32>,
+        /// Skip confirmation prompt
+        #[arg(long, short = 'y')]
+        yes: bool,
+    },
 }
 
 // ── Project subcommands ───────────────────────────────────────────────────────
@@ -305,10 +328,8 @@ pub struct ProjectEditArgs {
     pub name: Option<String>,
     #[arg(long, value_enum)]
     pub difficulty: Option<Difficulty>,
-    /// Mark project as completed.
     #[arg(long, conflicts_with = "undone")]
     pub done: bool,
-    /// Mark project as pending.
     #[arg(long, conflicts_with = "done")]
     pub undone: bool,
     #[arg(long, value_delimiter = ',', conflicts_with = "clear_tech")]
@@ -361,13 +382,10 @@ pub enum NoteCommands {
 
 #[derive(Args)]
 pub struct NoteAddArgs {
-    /// Note body (short text). Mutually exclusive with --editor and --file.
     #[arg(value_name = "BODY", conflicts_with_all = ["editor", "file"])]
     pub body: Option<String>,
-    /// Open $EDITOR to write the note body. Mutually exclusive with <BODY> and --file.
     #[arg(long, conflicts_with_all = ["file"])]
     pub editor: bool,
-    /// Read note body from a markdown file. Mutually exclusive with <BODY> and --editor.
     #[arg(long, value_name = "PATH", conflicts_with_all = ["editor"])]
     pub file: Option<std::path::PathBuf>,
     #[arg(long)]
@@ -400,10 +418,8 @@ pub struct NoteListArgs {
 pub struct NoteEditArgs {
     #[arg(value_name = "ID")]
     pub id: usize,
-    /// Edit body inline. Mutually exclusive with --editor.
     #[arg(long, conflicts_with = "editor")]
     pub body: Option<String>,
-    /// Open $EDITOR to edit the note body. Mutually exclusive with --body.
     #[arg(long, conflicts_with = "body")]
     pub editor: bool,
     #[arg(long, conflicts_with = "clear_title")]
@@ -428,13 +444,10 @@ pub struct NoteEditArgs {
     pub task: Option<usize>,
     #[arg(long, conflicts_with = "task")]
     pub clear_task: bool,
-    /// Link one or more resources to this note by display ID.
     #[arg(long, value_name = "ID", conflicts_with = "clear_resources")]
     pub add_resource: Vec<usize>,
-    /// Unlink one or more resources from this note by display ID.
     #[arg(long, value_name = "ID", conflicts_with = "clear_resources")]
     pub remove_resource: Vec<usize>,
-    /// Remove all resource links from this note.
     #[arg(long, conflicts_with_all = ["add_resource", "remove_resource"])]
     pub clear_resources: bool,
 }

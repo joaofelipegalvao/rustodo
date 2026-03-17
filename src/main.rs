@@ -9,7 +9,7 @@ use clap::Parser;
 use colored::Colorize;
 
 use rustodo::cli::{
-    Cli, Commands, HolidaysCommands, NoteCommands, ProjectCommands, ResourceCommands,
+    Cli, Commands, HolidaysCommands, NoteCommands, ProjectCommands, ResourceCommands, StatsCommands,
 };
 use rustodo::commands;
 use rustodo::storage::{SqliteStorage, Storage, backup, get_db_path};
@@ -89,7 +89,16 @@ fn run(cli: Cli, storage: &impl Storage) -> Result<()> {
             status,
         } => commands::search::execute(storage, query, tag, project, status),
 
-        Commands::Stats => commands::stats::execute(storage),
+        // `todo stats` with no subcommand → show overview
+        // `todo stats show`    → overview
+        // `todo stats history` → monthly activity chart
+        Commands::Stats(sub) => match sub {
+            StatsCommands::Show => commands::stats::execute(storage),
+            StatsCommands::History { months } => commands::stats_history::execute(storage, months),
+            StatsCommands::HistoryClear { all, days, yes } => {
+                commands::stats_history::execute_clear(storage, all, days, yes)
+            }
+        },
 
         Commands::Calendar { month, year } => commands::calendar::execute(storage, month, year),
 

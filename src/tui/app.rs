@@ -1,5 +1,7 @@
 //! Application state for the TUI.
 
+use std::collections::BTreeSet;
+
 use crate::models::{Priority, Project, Recurrence, StatusFilter, Task};
 use crate::storage::Storage;
 use anyhow::Result;
@@ -189,7 +191,6 @@ impl EditFormState {
             .collect::<Vec<_>>()
             .join(", ");
 
-        // Resolve project_id → project name for the form field
         let project_name = task
             .project_id
             .and_then(|pid| projects.iter().find(|p| p.uuid == pid && !p.is_deleted()))
@@ -379,9 +380,7 @@ pub struct App {
     pub left_panel: LeftPanel,
     pub left_selected: usize,
     pub focused_panel: FocusedPanel,
-    /// Flat navigable list for the project tree.
     pub project_tree: Vec<TreeItem>,
-    /// Selected row index within project_tree.
     pub tree_selected: usize,
 }
 
@@ -430,7 +429,6 @@ impl App {
         Ok(())
     }
 
-    /// Resolve project_id → project name for display purposes.
     pub fn project_name_for<'a>(&'a self, task: &Task) -> Option<&'a str> {
         let pid = task.project_id?;
         self.projects
@@ -475,7 +473,6 @@ impl App {
                     return true;
                 }
                 if let Some(ref pf) = project_filter {
-                    // Resolve project name via project_id for search filtering
                     let proj_name = t
                         .project_id
                         .and_then(|pid| {
@@ -512,7 +509,10 @@ impl App {
     // ── project tree ──────────────────────────────────────────────────────────
 
     /// Build (or rebuild) the flat navigable project tree.
-    /// Preserves expanded/collapsed state across rebuilds.
+    ///
+    /// Uses a `BTreeSet<Option<String>>` to collect and deduplicate project
+    /// names in a single pass, eliminating the previous `HashSet` + manual
+    /// `.sort()` step.
     pub fn build_project_tree(&mut self) {
         // Preserve existing expanded states
         let prev_expanded: std::collections::HashMap<String, bool> = self
@@ -526,23 +526,20 @@ impl App {
             })
             .collect();
 
-        // Collect project names from loaded projects (non-deleted), sorted
-        let mut project_names: Vec<Option<String>> = self
+        // BTreeSet gives us deduplication + sorted order in one step.
+        let project_names: BTreeSet<Option<String>> = self
             .projects
             .iter()
             .filter(|p| !p.is_deleted())
             .map(|p| Some(p.name.clone()))
-            .collect::<std::collections::HashSet<_>>()
-            .into_iter()
             .collect();
-        project_names.sort();
 
         let mut tree: Vec<TreeItem> = Vec::new();
+
         for proj_name in &project_names {
             let key = proj_name.clone().unwrap_or_default();
             let expanded = prev_expanded.get(&key).copied().unwrap_or(true);
 
-            // Count tasks that belong to this project
             let task_count = self
                 .tasks
                 .iter()
@@ -588,13 +585,11 @@ impl App {
             .min(self.project_tree.len().saturating_sub(1));
     }
 
-    /// Toggle expand/collapse on the currently selected project header.
     pub fn tree_toggle_expand(&mut self) {
         if let Some(TreeItem::Project { expanded, .. }) =
             self.project_tree.get_mut(self.tree_selected)
         {
             *expanded = !*expanded;
-            // Rebuild in place to add/remove child rows
             self.build_project_tree();
         }
     }
@@ -611,7 +606,6 @@ impl App {
         self.details_scroll = 0;
     }
 
-    /// The task currently selected in the tree (if a Task row is selected).
     pub fn tree_selected_task(&self) -> Option<&Task> {
         match self.project_tree.get(self.tree_selected)? {
             TreeItem::Task { task_idx } => self.tasks.get(*task_idx),
@@ -619,7 +613,6 @@ impl App {
         }
     }
 
-    /// Visible 1-based ID of the tree-selected task.
     pub fn tree_selected_task_visible_id(&self) -> Option<usize> {
         let task_idx = match self.project_tree.get(self.tree_selected)? {
             TreeItem::Task { task_idx } => *task_idx,
@@ -716,28 +709,23 @@ impl App {
     // ── lists ─────────────────────────────────────────────────────────────────
 
     pub fn projects_list(&self) -> Vec<String> {
-        let mut names: Vec<String> = self
-            .projects
+        // BTreeSet gives sorted + deduplicated names in one step
+        self.projects
             .iter()
             .filter(|p| !p.is_deleted())
             .map(|p| p.name.clone())
-            .collect::<std::collections::HashSet<_>>()
+            .collect::<BTreeSet<_>>()
             .into_iter()
-            .collect();
-        names.sort();
-        names
+            .collect()
     }
 
     pub fn tags_list(&self) -> Vec<String> {
-        let mut tags: Vec<String> = self
-            .tasks
+        self.tasks
             .iter()
             .flat_map(|t| t.tags.clone())
-            .collect::<std::collections::HashSet<_>>()
+            .collect::<BTreeSet<_>>()
             .into_iter()
-            .collect();
-        tags.sort();
-        tags
+            .collect()
     }
 
     pub fn tasks_for_selected_project(&self) -> Vec<&Task> {

@@ -10,11 +10,12 @@
 //! let names = holidays.for_date(NaiveDate::from_ymd_opt(2026, 1, 1).unwrap());
 //! # Ok::<(), anyhow::Error>(())
 //! ```
+
 use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use chrono::NaiveDate;
 use serde::{Deserialize, Serialize};
 
@@ -81,10 +82,32 @@ impl Default for HolidayCache {
 
 // ── Fetch ─────────────────────────────────────────────────────────────────────
 
+/// HTTP timeout for holiday data requests.
+///
+/// A stalled connection to holidata.net should never hang the CLI indefinitely.
+/// 10 seconds is generous enough for slow connections while still being
+/// responsive to network failures.
+const HTTP_TIMEOUT_SECS: u64 = 10;
+
 fn fetch(locale: &str, year: i32) -> Result<String> {
     let url = format!("https://holidata.net/{}/{}.json", locale, year);
-    let mut response = ureq::get(&url).call()?;
-    Ok(response.body_mut().read_to_string()?)
+
+    // ureq 3.x API: Agent::config_builder().timeout_global(...).build().into()
+    // ureq 2.x used ureq::builder().timeout(...).build() — incompatible.
+    let agent: ureq::Agent = ureq::Agent::config_builder()
+        .timeout_global(Some(std::time::Duration::from_secs(HTTP_TIMEOUT_SECS)))
+        .build()
+        .into();
+
+    let mut response = agent
+        .get(&url)
+        .call()
+        .with_context(|| format!("Failed to fetch holiday data from {}", url))?;
+
+    response
+        .body_mut()
+        .read_to_string()
+        .context("Failed to read holiday response body")
 }
 
 // ── Parse ─────────────────────────────────────────────────────────────────────
@@ -98,7 +121,6 @@ fn parse_ndjson(raw: &str) -> HashMap<NaiveDate, String> {
             continue;
         }
         if let Ok(entry) = serde_json::from_str::<HolidayEntry>(line) {
-            // Only national holidays (no region)
             if !entry.region.is_empty() {
                 continue;
             }

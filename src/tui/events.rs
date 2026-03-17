@@ -56,7 +56,6 @@ pub fn handle(app: &mut App, storage: &impl Storage) -> Result<bool> {
 
     match app.mode {
         Mode::Normal => {
-            // Tab always toggles panel focus
             if key.code == KeyCode::Tab {
                 app.focused_panel = app.focused_panel.toggle();
                 app.details_scroll = 0;
@@ -86,7 +85,6 @@ fn handle_left(
     _mods: KeyModifiers,
 ) -> Result<bool> {
     match key {
-        // j/k — navigate current left tab
         KeyCode::Char('j') => {
             match app.left_panel {
                 LeftPanel::Tasks => app.move_down(),
@@ -104,11 +102,9 @@ fn handle_left(
             app.status_msg = None;
         }
 
-        // Arrow keys scroll right panel from left (lazygit behaviour)
         KeyCode::Down => app.scroll_details_down(),
         KeyCode::Up => app.scroll_details_up(),
 
-        // Jump to first / last
         KeyCode::Char('g') => {
             app.selected = 0;
             app.left_selected = 0;
@@ -127,27 +123,21 @@ fn handle_left(
             app.status_msg = None;
         }
 
-        // Enter / Space — expand/collapse project header in tree
         KeyCode::Enter | KeyCode::Char(' ') if app.left_panel == LeftPanel::Projects => {
             app.tree_toggle_expand();
             app.status_msg = None;
         }
 
-        // Help
         KeyCode::Char('?') => {
             app.help_selected = 0;
             app.mode = Mode::Help;
             app.status_msg = None;
         }
 
-        // Actions — Tasks tab only
         KeyCode::Char('d') if app.left_panel == LeftPanel::Tasks => toggle_done(app, storage)?,
         KeyCode::Char('e') if app.left_panel == LeftPanel::Tasks => app.open_edit_form(),
-
-        // Add — always available
         KeyCode::Char('a') => app.open_add_form(),
 
-        // Search
         KeyCode::Char('/') => {
             app.input = String::new();
             app.mode = Mode::Search;
@@ -155,7 +145,6 @@ fn handle_left(
             app.refilter();
         }
 
-        // Filters
         KeyCode::Char('f') => {
             app.cycle_status_filter();
             app.status_msg = Some(format!("Filter: {}", app.list_filter.label()));
@@ -165,7 +154,6 @@ fn handle_left(
             app.status_msg = Some(format!("Priority: {}", app.priority_filter.label()));
         }
 
-        // [ / ] — cycle LEFT panel tabs
         KeyCode::Char(']') => {
             app.left_panel = app.left_panel.next();
             app.left_selected = 0;
@@ -179,7 +167,6 @@ fn handle_left(
             app.status_msg = None;
         }
 
-        // Delete
         KeyCode::Char('X') => {
             let count = app.filtered_indices.len();
             if count > 0 {
@@ -208,11 +195,9 @@ fn handle_left(
 
 fn handle_right(app: &mut App, key: KeyCode) -> Result<bool> {
     match key {
-        // Scroll the right panel content
         KeyCode::Char('j') | KeyCode::Down => app.scroll_details_down(),
         KeyCode::Char('k') | KeyCode::Up => app.scroll_details_up(),
 
-        // Help accessible from both panels
         KeyCode::Char('?') => {
             app.help_selected = 0;
             app.mode = Mode::Help;
@@ -248,12 +233,22 @@ fn handle_clear_all(app: &mut App, storage: &impl Storage, key: KeyCode) -> Resu
     match key {
         KeyCode::Char('y') | KeyCode::Enter => {
             let count = app.filtered_indices.len();
-            for vis_id in (1..=count).rev() {
-                let _ = crate::commands::task::remove::execute_silent(storage, vis_id);
+
+            // Delegates to the existing `task::clear` command, which soft-deletes
+            // all visible tasks in a single atomic storage operation and properly
+            // unlinks associated notes — instead of N individual removes that
+            // silently ignore errors.
+            match crate::commands::task::clear::execute(storage, true) {
+                Ok(_) => {
+                    app.reload(storage)?;
+                    app.mode = Mode::Normal;
+                    app.status_msg = Some(format!("Cleared {} task(s).", count));
+                }
+                Err(e) => {
+                    app.mode = Mode::Normal;
+                    app.status_msg = Some(format!("Error: {}", e));
+                }
             }
-            app.reload(storage)?;
-            app.mode = Mode::Normal;
-            app.status_msg = Some(format!("Cleared {} task(s).", count));
         }
         KeyCode::Char('n') | KeyCode::Esc => {
             app.mode = Mode::Normal;
@@ -643,7 +638,6 @@ fn commit_edit_form(app: &mut App, storage: &impl Storage) -> Result<()> {
 
     match crate::commands::task::edit::execute_silent(storage, args) {
         Ok(msg) => {
-            // Handle recurrence separately
             if let Some(real) = app.selected_real_index() {
                 let mut tasks = storage.load()?;
                 let task = &mut tasks[real];
