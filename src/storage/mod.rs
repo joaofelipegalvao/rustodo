@@ -9,6 +9,62 @@ use crate::models::{Note, Project, Resource, Task};
 use anyhow::Result;
 use uuid::Uuid;
 
+// ── EntityType / EventType ────────────────────────────────────────────────────
+
+/// The kind of entity an event refers to.
+pub enum EntityType {
+    Task,
+    Project,
+    Note,
+    Resource,
+}
+
+impl EntityType {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            EntityType::Task => "task",
+            EntityType::Project => "project",
+            EntityType::Note => "note",
+            EntityType::Resource => "resource",
+        }
+    }
+}
+
+/// The kind of action that occurred on an entity.
+pub enum EventType {
+    Created,
+    Completed,
+    Uncompleted,
+    Edited,
+    Deleted,
+    Purged,
+}
+
+impl EventType {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            EventType::Created => "created",
+            EventType::Completed => "completed",
+            EventType::Uncompleted => "uncompleted",
+            EventType::Edited => "edited",
+            EventType::Deleted => "deleted",
+            EventType::Purged => "purged",
+        }
+    }
+}
+
+// ── EventStat ─────────────────────────────────────────────────────────────────
+
+/// Aggregated event count for a single month.
+#[derive(Debug, Default)]
+pub struct EventStat {
+    pub year: i32,
+    pub month: u32,
+    pub created: usize,
+    pub completed: usize,
+    pub deleted: usize,
+}
+
 /// Trait defining storage operations for tasks, projects, notes, and resources.
 pub trait Storage {
     // ── tasks ─────────────────────────────────────────────────────────────────
@@ -54,6 +110,33 @@ pub trait Storage {
 
     /// Permanently delete resources by UUID.
     fn delete_resources(&self, uuids: &[Uuid]) -> Result<()>;
+
+    // ── events ────────────────────────────────────────────────────────────────
+
+    /// Record a domain event (created, completed, deleted, etc.).
+    ///
+    /// Should be called within the same logical operation as the data write
+    /// so that the event log stays consistent with the entity state.
+    fn record_event(
+        &self,
+        entity_type: EntityType,
+        entity_uuid: Uuid,
+        event_type: EventType,
+    ) -> Result<()>;
+
+    /// Delete events from the log.
+    ///
+    /// -  — deletes all events.
+    /// -  — deletes only events older than n days.
+    ///
+    /// Returns the number of rows deleted.
+    fn clear_events(&self, older_than_days: Option<u32>) -> Result<usize>;
+
+    /// Load aggregated monthly event stats for the last `months` months.
+    ///
+    /// Used by `stats_history` to build the activity chart. Returns one
+    /// `EventStat` per month, oldest first, covering only `task` events.
+    fn load_event_stats(&self, months: usize) -> Result<Vec<EventStat>>;
 
     // ── combined ──────────────────────────────────────────────────────────────
 
