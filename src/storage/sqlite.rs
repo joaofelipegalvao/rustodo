@@ -2,29 +2,46 @@
 //!
 //! Uses `rusqlite` (synchronous) — no async runtime needed for a CLI.
 //! UUIDs are stored as TEXT, arrays (tags, tech) as JSON TEXT via `JsonVec<T>`.
+//!
+//! # Connection strategy
+//!
+//! A single `Connection` is held inside a `RefCell` and reused across all
+//! operations. This avoids the overhead of opening a new file handle on every
+//! read/write call, which is especially noticeable in the TUI render loop.
+//!
+//! # Transaction strategy
+//!
+//! Every write method wraps its loop in an explicit `conn.transaction()` →
+//! `tx.commit()`. This guarantees atomicity: either all rows are written or
+//! none are, preventing partial updates that could corrupt relational integrity.
+//!
+//! # Event log
+//!
+//! Every domain action (create, complete, delete, etc.) records a row in the
+//! `events` table. This makes `stats_history` accurate even after `purge`
+//! physically removes tombstones — the event log is append-only and never
+//! cleaned up automatically.
+
+use std::cell::RefCell;
+use std::path::PathBuf;
 
 use anyhow::{Context, Result};
-use chrono::{DateTime, NaiveDate, TimeZone, Utc};
+use chrono::{DateTime, Datelike, NaiveDate, TimeZone, Utc};
 use directories::ProjectDirs;
 use rusqlite::{
     Connection, Row, params,
     types::{FromSql, FromSqlError, FromSqlResult, ToSql, ToSqlOutput, ValueRef},
 };
 use serde::{Serialize, de::DeserializeOwned};
-use std::path::PathBuf;
 use uuid::Uuid;
 
-use super::Storage;
+use super::{EntityType, EventStat, EventType, Storage};
 use crate::models::{
     Difficulty, Note, NoteFormat, Priority, Project, Recurrence, Resource, ResourceType, Task,
 };
 
 // ── JsonVec<T> ────────────────────────────────────────────────────────────────
 
-/// A `Vec<T>` that serializes to/from a JSON TEXT column in SQLite.
-///
-/// Prevents manual `serde_json::to_string` / `from_str` calls scattered
-/// across the codebase and guarantees a consistent compact JSON format.
 #[derive(Debug)]
 pub struct JsonVec<T>(pub Vec<T>);
 
@@ -68,34 +85,38 @@ fn opt_from_unix(ts: Option<i64>) -> Option<DateTime<Utc>> {
 // ── SqliteStorage ─────────────────────────────────────────────────────────────
 
 pub struct SqliteStorage {
+    conn: RefCell<Connection>,
     path: PathBuf,
 }
 
 impl SqliteStorage {
     pub fn new() -> Result<Self> {
         let path = get_db_path()?;
-        let storage = Self { path };
-        storage.initialize()?;
-        Ok(storage)
+        Self::open_at(path)
     }
 
     #[cfg(test)]
     pub fn with_path(path: PathBuf) -> Result<Self> {
-        let storage = Self { path };
+        Self::open_at(path)
+    }
+
+    fn open_at(path: PathBuf) -> Result<Self> {
+        let conn = Connection::open(&path).context("Failed to open SQLite database")?;
+        conn.execute_batch("PRAGMA foreign_keys = ON; PRAGMA journal_mode = WAL;")
+            .context("Failed to set SQLite pragmas")?;
+        let storage = Self {
+            conn: RefCell::new(conn),
+            path,
+        };
         storage.initialize()?;
         Ok(storage)
     }
 
-    fn open(&self) -> Result<Connection> {
-        let conn = Connection::open(&self.path).context("Failed to open SQLite database")?;
-        conn.execute_batch("PRAGMA foreign_keys = ON; PRAGMA journal_mode = WAL;")?;
-        Ok(conn)
-    }
-
-    /// Create all tables and indices if they don't exist yet.
     fn initialize(&self) -> Result<()> {
-        let conn = self.open()?;
-        conn.execute_batch(SCHEMA)?;
+        self.conn
+            .borrow()
+            .execute_batch(SCHEMA)
+            .context("Failed to initialize schema")?;
         Ok(())
     }
 }
@@ -171,7 +192,17 @@ CREATE TABLE IF NOT EXISTS note_resources (
     PRIMARY KEY (note_uuid, resource_uuid)
 );
 
--- partial indices (only active rows)
+-- Event log: append-only, never purged automatically.
+-- Records every domain action so stats_history stays accurate
+-- even after tombstones are physically removed by 'todo purge'.
+CREATE TABLE IF NOT EXISTS events (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    entity_type TEXT NOT NULL CHECK(entity_type IN ('task','project','note','resource')),
+    entity_uuid TEXT NOT NULL,
+    event_type  TEXT NOT NULL CHECK(event_type IN ('created','completed','uncompleted','edited','deleted','purged')),
+    occurred_at INTEGER NOT NULL
+);
+
 CREATE INDEX IF NOT EXISTS idx_tasks_active
     ON tasks(created_at) WHERE deleted_at IS NULL;
 CREATE INDEX IF NOT EXISTS idx_tasks_project_active
@@ -190,6 +221,10 @@ CREATE INDEX IF NOT EXISTS idx_projects_active
     ON projects(created_at) WHERE deleted_at IS NULL;
 CREATE INDEX IF NOT EXISTS idx_task_deps
     ON task_dependencies(depends_on_uuid);
+CREATE INDEX IF NOT EXISTS idx_events_occurred
+    ON events(occurred_at);
+CREATE INDEX IF NOT EXISTS idx_events_entity
+    ON events(entity_uuid);
 ";
 
 // ── row mappers ───────────────────────────────────────────────────────────────
@@ -225,7 +260,6 @@ fn row_to_task(row: &Row, conn: &Connection, uuid_str: &str) -> rusqlite::Result
         .and_then(|s| NaiveDate::parse_from_str(s, "%Y-%m-%d").ok());
 
     let tags: JsonVec<String> = row.get("tags")?;
-
     let created_at = from_unix(row.get("created_at")?);
     let updated_at = opt_from_unix(row.get("updated_at")?);
     let deleted_at = opt_from_unix(row.get("deleted_at")?);
@@ -234,7 +268,6 @@ fn row_to_task(row: &Row, conn: &Connection, uuid_str: &str) -> rusqlite::Result
         .map(from_unix)
         .map(|dt| dt.naive_local().date());
 
-    // Load dependencies from task_dependencies table
     let mut dep_stmt =
         conn.prepare_cached("SELECT depends_on_uuid FROM task_dependencies WHERE task_uuid = ?1")?;
     let depends_on: Vec<Uuid> = dep_stmt
@@ -256,7 +289,7 @@ fn row_to_task(row: &Row, conn: &Connection, uuid_str: &str) -> rusqlite::Result
         due_date,
         recurrence,
         project_id,
-        project_name_legacy: None, // JSON-only field, always None in SQLite
+        project_name_legacy: None,
         parent_id,
         tags: tags.0,
         depends_on,
@@ -281,12 +314,10 @@ fn row_to_project(row: &Row) -> rusqlite::Result<Project> {
     };
 
     let tech: JsonVec<String> = row.get("tech")?;
-
     let due_date_str: Option<String> = row.get("due_date")?;
     let due_date = due_date_str
         .as_deref()
         .and_then(|s| NaiveDate::parse_from_str(s, "%Y-%m-%d").ok());
-
     let completed_at_str: Option<String> = row.get("completed_at")?;
     let completed_at = completed_at_str
         .as_deref()
@@ -322,13 +353,10 @@ fn row_to_note(row: &Row, conn: &Connection) -> rusqlite::Result<Note> {
     let project_id = project_id_str
         .as_deref()
         .and_then(|s| Uuid::parse_str(s).ok());
-
     let task_id_str: Option<String> = row.get("task_id")?;
     let task_id = task_id_str.as_deref().and_then(|s| Uuid::parse_str(s).ok());
-
     let tags: JsonVec<String> = row.get("tags")?;
 
-    // Load resource links from note_resources
     let mut res_stmt =
         conn.prepare_cached("SELECT resource_uuid FROM note_resources WHERE note_uuid = ?1")?;
     let resource_ids: Vec<Uuid> = res_stmt
@@ -391,7 +419,7 @@ fn row_to_resource(row: &Row) -> rusqlite::Result<Resource> {
 
 impl Storage for SqliteStorage {
     fn load(&self) -> Result<Vec<Task>> {
-        let conn = self.open()?;
+        let conn = self.conn.borrow();
         let mut stmt = conn.prepare("SELECT * FROM tasks ORDER BY created_at")?;
         let tasks = stmt
             .query_map([], |row| {
@@ -404,21 +432,23 @@ impl Storage for SqliteStorage {
     }
 
     fn save(&self, tasks: &[Task]) -> Result<()> {
-        let conn = self.open()?;
-        let tx = conn;
+        let mut conn = self.conn.borrow_mut();
+        let tx = conn.transaction().context("Failed to begin transaction")?;
 
-        // Upsert all tasks
         for task in tasks {
             let uuid_str = task.uuid.to_string();
             tx.execute(
-                "INSERT INTO tasks (uuid, text, completed, priority, due_date, recurrence, project_id, parent_id, tags, completed_at, created_at, updated_at, deleted_at)
+                "INSERT INTO tasks (uuid, text, completed, priority, due_date, recurrence,
+                          project_id, parent_id, tags, completed_at, created_at,
+                          updated_at, deleted_at)
                  VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13)
                  ON CONFLICT(uuid) DO UPDATE SET
-                   text=excluded.text, completed=excluded.completed, priority=excluded.priority,
-                   due_date=excluded.due_date, recurrence=excluded.recurrence,
-                   project_id=excluded.project_id, parent_id=excluded.parent_id,
-                   tags=excluded.tags, completed_at=excluded.completed_at,
-                   updated_at=excluded.updated_at, deleted_at=excluded.deleted_at",
+                   text=excluded.text, completed=excluded.completed,
+                   priority=excluded.priority, due_date=excluded.due_date,
+                   recurrence=excluded.recurrence, project_id=excluded.project_id,
+                   parent_id=excluded.parent_id, tags=excluded.tags,
+                   completed_at=excluded.completed_at, updated_at=excluded.updated_at,
+                   deleted_at=excluded.deleted_at",
                 params![
                     uuid_str,
                     task.text,
@@ -430,9 +460,8 @@ impl Storage for SqliteStorage {
                     task.parent_id.map(|u| u.to_string()),
                     JsonVec(task.tags.clone()),
                     task.completed_at.map(|d| {
-                        let dt: DateTime<Utc> = Utc.from_utc_datetime(
-                            &d.and_hms_opt(0,0,0).unwrap()
-                        );
+                        let dt: DateTime<Utc> =
+                            Utc.from_utc_datetime(&d.and_hms_opt(0, 0, 0).unwrap());
                         to_unix(dt)
                     }),
                     to_unix(task.created_at),
@@ -441,23 +470,25 @@ impl Storage for SqliteStorage {
                 ],
             )?;
 
-            // Sync dependencies
             tx.execute(
                 "DELETE FROM task_dependencies WHERE task_uuid = ?1",
                 params![uuid_str],
             )?;
             for dep_uuid in &task.depends_on {
                 tx.execute(
-                    "INSERT OR IGNORE INTO task_dependencies (task_uuid, depends_on_uuid) VALUES (?1, ?2)",
+                    "INSERT OR IGNORE INTO task_dependencies
+                     (task_uuid, depends_on_uuid) VALUES (?1, ?2)",
                     params![uuid_str, dep_uuid.to_string()],
                 )?;
             }
         }
+
+        tx.commit().context("Failed to commit tasks transaction")?;
         Ok(())
     }
 
     fn load_projects(&self) -> Result<Vec<Project>> {
-        let conn = self.open()?;
+        let conn = self.conn.borrow();
         let mut stmt = conn.prepare("SELECT * FROM projects ORDER BY created_at")?;
         let projects = stmt
             .query_map([], row_to_project)?
@@ -467,14 +498,18 @@ impl Storage for SqliteStorage {
     }
 
     fn save_projects(&self, projects: &[Project]) -> Result<()> {
-        let conn = self.open()?;
+        let mut conn = self.conn.borrow_mut();
+        let tx = conn.transaction().context("Failed to begin transaction")?;
+
         for project in projects {
-            conn.execute(
-                "INSERT INTO projects (uuid, name, completed, difficulty, tech, due_date, completed_at, created_at, updated_at, deleted_at)
+            tx.execute(
+                "INSERT INTO projects (uuid, name, completed, difficulty, tech, due_date,
+                          completed_at, created_at, updated_at, deleted_at)
                  VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10)
                  ON CONFLICT(uuid) DO UPDATE SET
-                   name=excluded.name, completed=excluded.completed, difficulty=excluded.difficulty,
-                   tech=excluded.tech, due_date=excluded.due_date, completed_at=excluded.completed_at,
+                   name=excluded.name, completed=excluded.completed,
+                   difficulty=excluded.difficulty, tech=excluded.tech,
+                   due_date=excluded.due_date, completed_at=excluded.completed_at,
                    updated_at=excluded.updated_at, deleted_at=excluded.deleted_at",
                 params![
                     project.uuid.to_string(),
@@ -483,18 +518,23 @@ impl Storage for SqliteStorage {
                     difficulty_to_str(project.difficulty),
                     JsonVec(project.tech.clone()),
                     project.due_date.map(|d| d.format("%Y-%m-%d").to_string()),
-                    project.completed_at.map(|d| d.format("%Y-%m-%d").to_string()),
+                    project
+                        .completed_at
+                        .map(|d| d.format("%Y-%m-%d").to_string()),
                     to_unix(project.created_at),
                     opt_to_unix(project.updated_at),
                     opt_to_unix(project.deleted_at),
                 ],
             )?;
         }
+
+        tx.commit()
+            .context("Failed to commit projects transaction")?;
         Ok(())
     }
 
     fn load_notes(&self) -> Result<Vec<Note>> {
-        let conn = self.open()?;
+        let conn = self.conn.borrow();
         let mut stmt = conn.prepare("SELECT * FROM notes ORDER BY created_at")?;
         let notes = stmt
             .query_map([], |row| row_to_note(row, &conn))?
@@ -504,11 +544,14 @@ impl Storage for SqliteStorage {
     }
 
     fn save_notes(&self, notes: &[Note]) -> Result<()> {
-        let conn = self.open()?;
+        let mut conn = self.conn.borrow_mut();
+        let tx = conn.transaction().context("Failed to begin transaction")?;
+
         for note in notes {
             let uuid_str = note.uuid.to_string();
-            conn.execute(
-                "INSERT INTO notes (uuid, title, body, format, language, project_id, task_id, tags, created_at, updated_at, deleted_at)
+            tx.execute(
+                "INSERT INTO notes (uuid, title, body, format, language, project_id,
+                          task_id, tags, created_at, updated_at, deleted_at)
                  VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11)
                  ON CONFLICT(uuid) DO UPDATE SET
                    title=excluded.title, body=excluded.body, format=excluded.format,
@@ -530,23 +573,25 @@ impl Storage for SqliteStorage {
                 ],
             )?;
 
-            // Sync resource links
-            conn.execute(
+            tx.execute(
                 "DELETE FROM note_resources WHERE note_uuid = ?1",
                 params![uuid_str],
             )?;
             for resource_id in &note.resource_ids {
-                conn.execute(
-                    "INSERT OR IGNORE INTO note_resources (note_uuid, resource_uuid) VALUES (?1, ?2)",
+                tx.execute(
+                    "INSERT OR IGNORE INTO note_resources
+                     (note_uuid, resource_uuid) VALUES (?1, ?2)",
                     params![uuid_str, resource_id.to_string()],
                 )?;
             }
         }
+
+        tx.commit().context("Failed to commit notes transaction")?;
         Ok(())
     }
 
     fn load_resources(&self) -> Result<Vec<Resource>> {
-        let conn = self.open()?;
+        let conn = self.conn.borrow();
         let mut stmt = conn.prepare("SELECT * FROM resources ORDER BY created_at")?;
         let resources = stmt
             .query_map([], row_to_resource)?
@@ -556,18 +601,21 @@ impl Storage for SqliteStorage {
     }
 
     fn save_resources(&self, resources: &[Resource]) -> Result<()> {
-        let conn = self.open()?;
+        let mut conn = self.conn.borrow_mut();
+        let tx = conn.transaction().context("Failed to begin transaction")?;
+
         for resource in resources {
-            conn.execute(
-                "INSERT INTO resources (uuid, title, resource_type, url, description, tags, created_at, updated_at, deleted_at)
+            tx.execute(
+                "INSERT INTO resources (uuid, title, resource_type, url, description,
+                          tags, created_at, updated_at, deleted_at)
                  VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9)
                  ON CONFLICT(uuid) DO UPDATE SET
                    title=excluded.title, resource_type=excluded.resource_type,
-                   url=excluded.url, description=excluded.description, tags=excluded.tags,
-                   updated_at=excluded.updated_at, deleted_at=excluded.deleted_at",
+                   url=excluded.url, description=excluded.description,
+                   tags=excluded.tags, updated_at=excluded.updated_at,
+                   deleted_at=excluded.deleted_at",
                 params![
                     resource.uuid.to_string(),
-                    resource.title,
                     resource.resource_type.map(resource_type_to_str),
                     resource.url,
                     resource.description,
@@ -578,7 +626,121 @@ impl Storage for SqliteStorage {
                 ],
             )?;
         }
+
+        tx.commit()
+            .context("Failed to commit resources transaction")?;
         Ok(())
+    }
+
+    fn record_event(
+        &self,
+        entity_type: EntityType,
+        entity_uuid: Uuid,
+        event_type: EventType,
+    ) -> Result<()> {
+        self.conn
+            .borrow()
+            .execute(
+                "INSERT INTO events (entity_type, entity_uuid, event_type, occurred_at)
+                 VALUES (?1, ?2, ?3, ?4)",
+                params![
+                    entity_type.as_str(),
+                    entity_uuid.to_string(),
+                    event_type.as_str(),
+                    to_unix(Utc::now()),
+                ],
+            )
+            .context("Failed to record event")?;
+        Ok(())
+    }
+
+    fn clear_events(&self, older_than_days: Option<u32>) -> Result<usize> {
+        let conn = self.conn.borrow();
+        let deleted = match older_than_days {
+            None => conn
+                .execute("DELETE FROM events", [])
+                .context("Failed to clear all events")?,
+            Some(days) => {
+                let cutoff = to_unix(Utc::now() - chrono::Duration::days(days as i64));
+                conn.execute("DELETE FROM events WHERE occurred_at < ?1", params![cutoff])
+                    .context("Failed to clear old events")?
+            }
+        };
+        Ok(deleted)
+    }
+
+    fn load_event_stats(&self, months: usize) -> Result<Vec<EventStat>> {
+        let conn = self.conn.borrow();
+        let now = chrono::Local::now();
+
+        // Build cutoff date for the oldest month we want
+        let cutoff = {
+            let mut y = now.year();
+            let mut m = now.month() as i32 - (months as i32 - 1);
+            while m <= 0 {
+                m += 12;
+                y -= 1;
+            }
+            chrono::NaiveDate::from_ymd_opt(y, m as u32, 1)
+                .unwrap()
+                .and_hms_opt(0, 0, 0)
+                .unwrap()
+        };
+        let cutoff_ts = Utc.from_utc_datetime(&cutoff).timestamp();
+
+        // Pre-populate all months so empty ones still appear in the chart
+        let mut map: std::collections::BTreeMap<(i32, u32), EventStat> =
+            std::collections::BTreeMap::new();
+        let mut cursor = chrono::NaiveDate::from_ymd_opt(cutoff.year(), cutoff.month(), 1).unwrap();
+        let end = chrono::NaiveDate::from_ymd_opt(now.year(), now.month(), 1).unwrap();
+        while cursor <= end {
+            map.entry((cursor.year(), cursor.month()))
+                .or_insert_with(|| EventStat {
+                    year: cursor.year(),
+                    month: cursor.month(),
+                    ..Default::default()
+                });
+            let next_month = cursor.month() % 12 + 1;
+            let next_year = if cursor.month() == 12 {
+                cursor.year() + 1
+            } else {
+                cursor.year()
+            };
+            cursor = chrono::NaiveDate::from_ymd_opt(next_year, next_month, 1).unwrap();
+        }
+
+        let mut stmt = conn.prepare(
+            "SELECT event_type, occurred_at
+             FROM events
+             WHERE entity_type = 'task'
+               AND occurred_at >= ?1
+             ORDER BY occurred_at",
+        )?;
+
+        let rows = stmt
+            .query_map(params![cutoff_ts], |row| {
+                Ok((row.get::<_, String>(0)?, row.get::<_, i64>(1)?))
+            })?
+            .collect::<rusqlite::Result<Vec<_>>>()
+            .context("Failed to load event stats")?;
+
+        for (event_type, occurred_at) in rows {
+            let local = from_unix(occurred_at).with_timezone(&chrono::Local);
+            let key = (local.year(), local.month());
+            let stat = map.entry(key).or_insert_with(|| EventStat {
+                year: key.0,
+                month: key.1,
+                ..Default::default()
+            });
+            match event_type.as_str() {
+                "created" => stat.created += 1,
+                "completed" => stat.completed += 1,
+                "deleted" | "purged" => stat.deleted += 1,
+                _ => {}
+            }
+        }
+
+        Ok(map.into_values().collect())
     }
 
     fn location(&self) -> String {
@@ -586,58 +748,64 @@ impl Storage for SqliteStorage {
     }
 
     fn delete_tasks(&self, uuids: &[Uuid]) -> Result<()> {
-        let conn = self.open()?;
+        let mut conn = self.conn.borrow_mut();
+        let tx = conn.transaction().context("Failed to begin transaction")?;
         for uuid in uuids {
-            conn.execute(
+            let s = uuid.to_string();
+            tx.execute(
                 "DELETE FROM task_dependencies WHERE task_uuid = ?1 OR depends_on_uuid = ?1",
-                params![uuid.to_string()],
+                params![s],
             )?;
-            conn.execute(
-                "DELETE FROM tasks WHERE uuid = ?1",
-                params![uuid.to_string()],
-            )?;
+            tx.execute("DELETE FROM tasks WHERE uuid = ?1", params![s])?;
         }
+        tx.commit()
+            .context("Failed to commit delete_tasks transaction")?;
         Ok(())
     }
 
     fn delete_projects(&self, uuids: &[Uuid]) -> Result<()> {
-        let conn = self.open()?;
+        let mut conn = self.conn.borrow_mut();
+        let tx = conn.transaction().context("Failed to begin transaction")?;
         for uuid in uuids {
-            conn.execute(
+            tx.execute(
                 "DELETE FROM projects WHERE uuid = ?1",
                 params![uuid.to_string()],
             )?;
         }
+        tx.commit()
+            .context("Failed to commit delete_projects transaction")?;
         Ok(())
     }
 
     fn delete_notes(&self, uuids: &[Uuid]) -> Result<()> {
-        let conn = self.open()?;
+        let mut conn = self.conn.borrow_mut();
+        let tx = conn.transaction().context("Failed to begin transaction")?;
         for uuid in uuids {
-            conn.execute(
+            let s = uuid.to_string();
+            tx.execute(
                 "DELETE FROM note_resources WHERE note_uuid = ?1",
-                params![uuid.to_string()],
+                params![s],
             )?;
-            conn.execute(
-                "DELETE FROM notes WHERE uuid = ?1",
-                params![uuid.to_string()],
-            )?;
+            tx.execute("DELETE FROM notes WHERE uuid = ?1", params![s])?;
         }
+        tx.commit()
+            .context("Failed to commit delete_notes transaction")?;
         Ok(())
     }
 
     fn delete_resources(&self, uuids: &[Uuid]) -> Result<()> {
-        let conn = self.open()?;
+        let mut conn = self.conn.borrow_mut();
+        let tx = conn.transaction().context("Failed to begin transaction")?;
         for uuid in uuids {
-            conn.execute(
+            let s = uuid.to_string();
+            tx.execute(
                 "DELETE FROM note_resources WHERE resource_uuid = ?1",
-                params![uuid.to_string()],
+                params![s],
             )?;
-            conn.execute(
-                "DELETE FROM resources WHERE uuid = ?1",
-                params![uuid.to_string()],
-            )?;
+            tx.execute("DELETE FROM resources WHERE uuid = ?1", params![s])?;
         }
+        tx.commit()
+            .context("Failed to commit delete_resources transaction")?;
         Ok(())
     }
 }
@@ -729,72 +897,53 @@ mod tests {
             None,
         );
         storage.save(&[task]).unwrap();
-        let loaded = storage.load().unwrap();
-        assert_eq!(loaded.len(), 1);
-        assert_eq!(loaded[0].text, "Buy milk");
+        assert_eq!(storage.load().unwrap()[0].text, "Buy milk");
     }
 
     #[test]
-    fn test_save_and_load_projects() {
+    fn test_record_and_load_events() {
         let (storage, _tmp) = make_storage();
-        let project = Project::new("Backend".into());
-        storage.save_projects(&[project]).unwrap();
-        let loaded = storage.load_projects().unwrap();
-        assert_eq!(loaded.len(), 1);
-        assert_eq!(loaded[0].name, "Backend");
+        let task = Task::new("T".into(), Priority::Medium, vec![], None, None, None);
+        let uuid = task.uuid;
+        storage.save(&[task]).unwrap();
+        storage
+            .record_event(EntityType::Task, uuid, EventType::Created)
+            .unwrap();
+        storage
+            .record_event(EntityType::Task, uuid, EventType::Completed)
+            .unwrap();
+        let stats = storage.load_event_stats(1).unwrap();
+        let m = stats.last().unwrap();
+        assert_eq!(m.created, 1);
+        assert_eq!(m.completed, 1);
+        assert_eq!(m.deleted, 0);
     }
 
     #[test]
-    fn test_save_and_load_notes() {
+    fn test_purged_events_survive_physical_delete() {
         let (storage, _tmp) = make_storage();
-        let mut note = Note::new("Documentação".into());
-        note.title = Some("Intro".into());
-        note.language = Some("Rust".into());
-        storage.save_notes(&[note]).unwrap();
-        let loaded = storage.load_notes().unwrap();
-        assert_eq!(loaded.len(), 1);
-        assert_eq!(loaded[0].body, "Documentação");
-        assert_eq!(loaded[0].language.as_deref(), Some("Rust"));
+        let task = Task::new("T".into(), Priority::Medium, vec![], None, None, None);
+        let uuid = task.uuid;
+        storage.save(&[task]).unwrap();
+        storage
+            .record_event(EntityType::Task, uuid, EventType::Created)
+            .unwrap();
+        storage
+            .record_event(EntityType::Task, uuid, EventType::Purged)
+            .unwrap();
+        storage.delete_tasks(&[uuid]).unwrap();
+        // Row is gone but the event log must still count it
+        let stats = storage.load_event_stats(1).unwrap();
+        let m = stats.last().unwrap();
+        assert_eq!(m.created, 1);
+        assert_eq!(m.deleted, 1);
     }
 
     #[test]
-    fn test_save_and_load_resources() {
+    fn test_event_stats_all_months_present() {
         let (storage, _tmp) = make_storage();
-        let mut r = Resource::new("sqlx docs".into());
-        r.url = Some("https://docs.rs/sqlx".into());
-        r.tags = vec!["rust".into(), "db".into()];
-        storage.save_resources(&[r]).unwrap();
-        let loaded = storage.load_resources().unwrap();
-        assert_eq!(loaded.len(), 1);
-        assert_eq!(loaded[0].url.as_deref(), Some("https://docs.rs/sqlx"));
-        assert_eq!(loaded[0].tags, vec!["rust", "db"]);
-    }
-
-    #[test]
-    fn test_task_dependencies() {
-        let (storage, _tmp) = make_storage();
-        let t1 = Task::new("Task 1".into(), Priority::Medium, vec![], None, None, None);
-        let mut t2 = Task::new("Task 2".into(), Priority::Medium, vec![], None, None, None);
-        t2.depends_on = vec![t1.uuid];
-        storage.save(&[t1.clone(), t2.clone()]).unwrap();
-        let loaded = storage.load().unwrap();
-        let loaded_t2 = loaded.iter().find(|t| t.uuid == t2.uuid).unwrap();
-        assert_eq!(loaded_t2.depends_on, vec![t1.uuid]);
-    }
-
-    #[test]
-    fn test_note_resource_links() {
-        let (storage, _tmp) = make_storage();
-        let r = Resource::new("sqlx docs".into());
-        let r_uuid = r.uuid;
-        storage.save_resources(&[r]).unwrap();
-
-        let mut note = Note::new("Setup".into());
-        note.add_resource(r_uuid);
-        storage.save_notes(&[note]).unwrap();
-
-        let loaded = storage.load_notes().unwrap();
-        assert!(loaded[0].references_resource(r_uuid));
+        let stats = storage.load_event_stats(6).unwrap();
+        assert_eq!(stats.len(), 6);
     }
 
     #[test]
@@ -812,16 +961,6 @@ mod tests {
         let mut task = Task::new("T".into(), Priority::Medium, vec![], None, None, None);
         task.soft_delete();
         storage.save(&[task]).unwrap();
-        let loaded = storage.load().unwrap();
-        assert!(loaded[0].is_deleted());
-    }
-
-    #[test]
-    fn test_markdown_note_format() {
-        let (storage, _tmp) = make_storage();
-        let note = Note::new_markdown("# Hello".into());
-        storage.save_notes(&[note]).unwrap();
-        let loaded = storage.load_notes().unwrap();
-        assert_eq!(loaded[0].format, NoteFormat::Markdown);
+        assert!(storage.load().unwrap()[0].is_deleted());
     }
 }

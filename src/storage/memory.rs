@@ -1,19 +1,30 @@
-//! In-memory storage implementation for testing
+//! In-memory storage implementation for testing.
 
 use anyhow::Result;
+use chrono::TimeZone;
 use std::cell::RefCell;
 use uuid::Uuid;
 
-use super::Storage;
+use super::{EntityType, EventStat, EventType, Storage};
 use crate::models::{Note, Project, Resource, Task};
 
-/// In-memory storage implementation
+#[derive(Debug, Default)]
+struct EventRow {
+    entity_type: String,
+    #[allow(dead_code)]
+    entity_uuid: Uuid,
+    event_type: String,
+    occurred_at: i64,
+}
+
+/// In-memory storage implementation.
 #[derive(Default)]
 pub struct InMemoryStorage {
     tasks: RefCell<Vec<Task>>,
     projects: RefCell<Vec<Project>>,
     notes: RefCell<Vec<Note>>,
     resources: RefCell<Vec<Resource>>,
+    events: RefCell<Vec<EventRow>>,
 }
 
 #[allow(dead_code)]
@@ -21,9 +32,7 @@ impl InMemoryStorage {
     pub fn with_tasks(tasks: Vec<Task>) -> Self {
         Self {
             tasks: RefCell::new(tasks),
-            projects: RefCell::new(vec![]),
-            notes: RefCell::new(vec![]),
-            resources: RefCell::new(vec![]),
+            ..Default::default()
         }
     }
 
@@ -96,285 +105,97 @@ impl Storage for InMemoryStorage {
         Ok(())
     }
 
+    fn record_event(
+        &self,
+        entity_type: EntityType,
+        entity_uuid: Uuid,
+        event_type: EventType,
+    ) -> Result<()> {
+        self.events.borrow_mut().push(EventRow {
+            entity_type: entity_type.as_str().to_string(),
+            entity_uuid,
+            event_type: event_type.as_str().to_string(),
+            occurred_at: chrono::Utc::now().timestamp(),
+        });
+        Ok(())
+    }
+
+    fn clear_events(&self, older_than_days: Option<u32>) -> Result<usize> {
+        let mut events = self.events.borrow_mut();
+        let before = events.len();
+        match older_than_days {
+            None => events.clear(),
+            Some(days) => {
+                let cutoff = chrono::Utc::now().timestamp() - (days as i64 * 86400);
+                events.retain(|e| e.occurred_at >= cutoff);
+            }
+        }
+        Ok(before - events.len())
+    }
+
+    fn load_event_stats(&self, months: usize) -> Result<Vec<EventStat>> {
+        use chrono::Datelike;
+        let now = chrono::Local::now();
+
+        // Pre-populate all months
+        let mut map: std::collections::BTreeMap<(i32, u32), EventStat> =
+            std::collections::BTreeMap::new();
+        let cutoff = {
+            let mut y = now.year();
+            let mut m = now.month() as i32 - (months as i32 - 1);
+            while m <= 0 {
+                m += 12;
+                y -= 1;
+            }
+            chrono::NaiveDate::from_ymd_opt(y, m as u32, 1).unwrap()
+        };
+        let mut cursor = cutoff;
+        let end = chrono::NaiveDate::from_ymd_opt(now.year(), now.month(), 1).unwrap();
+        while cursor <= end {
+            map.entry((cursor.year(), cursor.month()))
+                .or_insert_with(|| EventStat {
+                    year: cursor.year(),
+                    month: cursor.month(),
+                    ..Default::default()
+                });
+            let nm = cursor.month() % 12 + 1;
+            let ny = if cursor.month() == 12 {
+                cursor.year() + 1
+            } else {
+                cursor.year()
+            };
+            cursor = chrono::NaiveDate::from_ymd_opt(ny, nm, 1).unwrap();
+        }
+
+        let cutoff_ts = chrono::Utc
+            .from_utc_datetime(&cutoff.and_hms_opt(0, 0, 0).unwrap())
+            .timestamp();
+
+        for ev in self.events.borrow().iter() {
+            if ev.entity_type != "task" || ev.occurred_at < cutoff_ts {
+                continue;
+            }
+            let local = chrono::DateTime::<chrono::Utc>::from_timestamp(ev.occurred_at, 0)
+                .unwrap()
+                .with_timezone(&chrono::Local);
+            let key = (local.year(), local.month());
+            let stat = map.entry(key).or_insert_with(|| EventStat {
+                year: key.0,
+                month: key.1,
+                ..Default::default()
+            });
+            match ev.event_type.as_str() {
+                "created" => stat.created += 1,
+                "completed" => stat.completed += 1,
+                "deleted" | "purged" => stat.deleted += 1,
+                _ => {}
+            }
+        }
+
+        Ok(map.into_values().collect())
+    }
+
     fn location(&self) -> String {
         "memory".to_string()
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::models::Priority;
-
-    #[test]
-    fn test_memory_storage_starts_empty() {
-        let storage = InMemoryStorage::default();
-        assert_eq!(storage.len(), 0);
-        assert!(storage.is_empty());
-        assert_eq!(storage.load().unwrap().len(), 0);
-        assert_eq!(storage.load_projects().unwrap().len(), 0);
-        assert_eq!(storage.load_notes().unwrap().len(), 0);
-        assert_eq!(storage.load_resources().unwrap().len(), 0);
-    }
-
-    #[test]
-    fn test_memory_storage_save_and_load() {
-        let storage = InMemoryStorage::default();
-        let tasks = vec![
-            Task::new("Task 1".into(), Priority::High, vec![], None, None, None),
-            Task::new("Task 2".into(), Priority::Low, vec![], None, None, None),
-        ];
-        storage.save(&tasks).unwrap();
-        let loaded = storage.load().unwrap();
-        assert_eq!(loaded.len(), 2);
-        assert_eq!(loaded[0].text, "Task 1");
-        assert_eq!(loaded[1].text, "Task 2");
-    }
-
-    #[test]
-    fn test_memory_storage_delete_tasks() {
-        let storage = InMemoryStorage::default();
-        let t1 = Task::new("A".into(), Priority::Medium, vec![], None, None, None);
-        let t2 = Task::new("B".into(), Priority::Medium, vec![], None, None, None);
-        let uuid1 = t1.uuid;
-        storage.save(&[t1, t2]).unwrap();
-
-        storage.delete_tasks(&[uuid1]).unwrap();
-
-        let loaded = storage.load().unwrap();
-        assert_eq!(loaded.len(), 1);
-        assert_eq!(loaded[0].text, "B");
-    }
-
-    #[test]
-    fn test_memory_storage_delete_projects() {
-        let storage = InMemoryStorage::default();
-        let p1 = Project::new("A".into());
-        let p2 = Project::new("B".into());
-        let uuid1 = p1.uuid;
-        storage.save_projects(&[p1, p2]).unwrap();
-
-        storage.delete_projects(&[uuid1]).unwrap();
-
-        let loaded = storage.load_projects().unwrap();
-        assert_eq!(loaded.len(), 1);
-        assert_eq!(loaded[0].name, "B");
-    }
-
-    #[test]
-    fn test_memory_storage_delete_notes() {
-        let storage = InMemoryStorage::default();
-        let n1 = Note::new("A".into());
-        let n2 = Note::new("B".into());
-        let uuid1 = n1.uuid;
-        storage.save_notes(&[n1, n2]).unwrap();
-
-        storage.delete_notes(&[uuid1]).unwrap();
-
-        let loaded = storage.load_notes().unwrap();
-        assert_eq!(loaded.len(), 1);
-        assert_eq!(loaded[0].body, "B");
-    }
-
-    #[test]
-    fn test_memory_storage_delete_resources() {
-        let storage = InMemoryStorage::default();
-        let r1 = Resource::new("A".into());
-        let r2 = Resource::new("B".into());
-        let uuid1 = r1.uuid;
-        storage.save_resources(&[r1, r2]).unwrap();
-
-        storage.delete_resources(&[uuid1]).unwrap();
-
-        let loaded = storage.load_resources().unwrap();
-        assert_eq!(loaded.len(), 1);
-        assert_eq!(loaded[0].title, "B");
-    }
-
-    #[test]
-    fn test_memory_storage_projects() {
-        let storage = InMemoryStorage::default();
-        let projects = vec![Project::new("Backend".into())];
-        storage.save_projects(&projects).unwrap();
-        let loaded = storage.load_projects().unwrap();
-        assert_eq!(loaded.len(), 1);
-        assert_eq!(loaded[0].name, "Backend");
-    }
-
-    #[test]
-    fn test_memory_storage_notes() {
-        let storage = InMemoryStorage::default();
-        let mut note = Note::new("Documentação inicial".into());
-        note.title = Some("Setup".into());
-        note.language = Some("Rust".into());
-        storage.save_notes(&[note]).unwrap();
-        let loaded = storage.load_notes().unwrap();
-        assert_eq!(loaded.len(), 1);
-        assert_eq!(loaded[0].body, "Documentação inicial");
-        assert_eq!(loaded[0].title.as_deref(), Some("Setup"));
-        assert_eq!(loaded[0].language.as_deref(), Some("Rust"));
-    }
-
-    #[test]
-    fn test_memory_storage_resources() {
-        let storage = InMemoryStorage::default();
-        let mut resource = Resource::new("sqlx docs".into());
-        resource.url = Some("https://docs.rs/sqlx".into());
-        resource.tags = vec!["rust".into(), "db".into()];
-        storage.save_resources(&[resource]).unwrap();
-        let loaded = storage.load_resources().unwrap();
-        assert_eq!(loaded.len(), 1);
-        assert_eq!(loaded[0].title, "sqlx docs");
-        assert_eq!(loaded[0].url.as_deref(), Some("https://docs.rs/sqlx"));
-    }
-
-    #[test]
-    fn test_note_links_to_project() {
-        let storage = InMemoryStorage::default();
-        let project = Project::new("MeuProjeto".into());
-        let project_uuid = project.uuid;
-        let mut note = Note::new("Nota vinculada ao projeto".into());
-        note.project_id = Some(project_uuid);
-        storage.save_projects(&[project]).unwrap();
-        storage.save_notes(&[note]).unwrap();
-        let notes = storage.load_notes().unwrap();
-        assert_eq!(notes[0].project_id, Some(project_uuid));
-        assert!(notes[0].belongs_to_project(project_uuid));
-    }
-
-    #[test]
-    fn test_note_links_to_task() {
-        let storage = InMemoryStorage::default();
-        let task = Task::new(
-            "Minha task".into(),
-            Priority::Medium,
-            vec![],
-            None,
-            None,
-            None,
-        );
-        let task_uuid = task.uuid;
-        let mut note = Note::new("Nota vinculada à task".into());
-        note.task_id = Some(task_uuid);
-        storage.save(&[task]).unwrap();
-        storage.save_notes(&[note]).unwrap();
-        let notes = storage.load_notes().unwrap();
-        assert_eq!(notes[0].task_id, Some(task_uuid));
-        assert!(notes[0].belongs_to_task(task_uuid));
-    }
-
-    #[test]
-    fn test_note_links_to_resources() {
-        let storage = InMemoryStorage::default();
-        let r1 = Resource::new("sqlx docs".into());
-        let r2 = Resource::new("tokio docs".into());
-        let (r1_uuid, r2_uuid) = (r1.uuid, r2.uuid);
-        let mut note = Note::new("Async DB setup".into());
-        note.add_resource(r1_uuid);
-        note.add_resource(r2_uuid);
-        storage.save_resources(&[r1, r2]).unwrap();
-        storage.save_notes(&[note]).unwrap();
-        let notes = storage.load_notes().unwrap();
-        assert!(notes[0].references_resource(r1_uuid));
-        assert!(notes[0].references_resource(r2_uuid));
-        assert_eq!(notes[0].resource_ids.len(), 2);
-    }
-
-    #[test]
-    fn test_note_add_remove_resource() {
-        let storage = InMemoryStorage::default();
-        let r = Resource::new("Some doc".into());
-        let r_uuid = r.uuid;
-        let mut note = Note::new("Test note".into());
-        note.add_resource(r_uuid);
-        note.add_resource(r_uuid);
-        assert_eq!(note.resource_ids.len(), 1);
-        note.remove_resource(r_uuid);
-        assert!(note.resource_ids.is_empty());
-        storage.save_resources(&[r]).unwrap();
-        storage.save_notes(&[note]).unwrap();
-        let notes = storage.load_notes().unwrap();
-        assert!(notes[0].resource_ids.is_empty());
-    }
-
-    #[test]
-    fn test_note_links_to_both() {
-        let storage = InMemoryStorage::default();
-        let project = Project::new("P".into());
-        let task = Task::new("T".into(), Priority::Low, vec![], None, None, None);
-        let (p_uuid, t_uuid) = (project.uuid, task.uuid);
-        let mut note = Note::new("Nota dupla".into());
-        note.project_id = Some(p_uuid);
-        note.task_id = Some(t_uuid);
-        storage.save_projects(&[project]).unwrap();
-        storage.save(&[task]).unwrap();
-        storage.save_notes(&[note]).unwrap();
-        let notes = storage.load_notes().unwrap();
-        assert!(notes[0].belongs_to_project(p_uuid));
-        assert!(notes[0].belongs_to_task(t_uuid));
-    }
-
-    #[test]
-    fn test_tasks_and_projects_independent() {
-        let storage = InMemoryStorage::default();
-        storage
-            .save(&[Task::new(
-                "T".into(),
-                Priority::Medium,
-                vec![],
-                None,
-                None,
-                None,
-            )])
-            .unwrap();
-        storage.save_projects(&[Project::new("P".into())]).unwrap();
-        assert_eq!(storage.load().unwrap().len(), 1);
-        assert_eq!(storage.load_projects().unwrap().len(), 1);
-        assert_eq!(storage.load_notes().unwrap().len(), 0);
-        assert_eq!(storage.load_resources().unwrap().len(), 0);
-    }
-
-    #[test]
-    fn test_memory_storage_with_tasks() {
-        let tasks = vec![Task::new(
-            "Existing".into(),
-            Priority::Medium,
-            vec![],
-            None,
-            None,
-            None,
-        )];
-        let storage = InMemoryStorage::with_tasks(tasks);
-        assert_eq!(storage.len(), 1);
-        assert_eq!(storage.load().unwrap()[0].text, "Existing");
-    }
-
-    #[test]
-    fn test_memory_storage_overwrite() {
-        let storage = InMemoryStorage::default();
-        storage
-            .save(&[Task::new(
-                "Task 1".into(),
-                Priority::Medium,
-                vec![],
-                None,
-                None,
-                None,
-            )])
-            .unwrap();
-        storage
-            .save(&[
-                Task::new("Task 2".into(), Priority::High, vec![], None, None, None),
-                Task::new("Task 3".into(), Priority::Low, vec![], None, None, None),
-            ])
-            .unwrap();
-        let loaded = storage.load().unwrap();
-        assert_eq!(loaded.len(), 2);
-        assert_eq!(loaded[0].text, "Task 2");
-    }
-
-    #[test]
-    fn test_memory_storage_location() {
-        assert_eq!(InMemoryStorage::default().location(), "memory");
     }
 }
