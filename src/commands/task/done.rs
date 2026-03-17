@@ -1,24 +1,17 @@
 //! Handler for `todo done <ID>`.
-//!
-//! Marks a task as completed. If the task has pending dependencies it is
-//! rejected with a [`TodoError::TaskBlocked`]
-//! error. For recurring tasks a new occurrence is automatically created via
-//! [`Task::create_next_recurrence`](crate::models::Task::create_next_recurrence).
 
 use anyhow::Result;
 use colored::Colorize;
 
 use crate::error::TodoError;
-use crate::storage::Storage;
+use crate::storage::{EntityType, EventType, Storage};
 use crate::utils::validation::resolve_visible_index;
 
-/// Marks task `id` as done, creating the next recurrence if needed.
 pub fn execute(storage: &impl Storage, id: usize) -> Result<()> {
     execute_inner(storage, id, false)?;
     Ok(())
 }
 
-/// TUI variant: same logic, no stdout, returns a status string.
 pub fn execute_silent(storage: &impl Storage, id: usize) -> Result<String> {
     execute_inner(storage, id, true)
 }
@@ -45,7 +38,6 @@ fn execute_inner(storage: &impl Storage, id: usize, silent: bool) -> Result<Stri
             .filter(|(_, t)| !t.is_deleted())
             .map(|(i, _)| i)
             .collect();
-
         let ids = blocking
             .iter()
             .filter_map(|uuid| {
@@ -56,7 +48,6 @@ fn execute_inner(storage: &impl Storage, id: usize, silent: bool) -> Result<Stri
             })
             .collect::<Vec<_>>()
             .join(", ");
-
         return Err(TodoError::TaskBlocked(id, ids).into());
     }
 
@@ -65,7 +56,6 @@ fn execute_inner(storage: &impl Storage, id: usize, silent: bool) -> Result<Stri
 
     if let Some(next_task) = tasks[index].create_next_recurrence(task_uuid) {
         let next_due = next_task.due_date.unwrap();
-
         let already_exists = tasks.iter().any(|t| {
             !t.completed
                 && t.due_date == Some(next_due)
@@ -73,10 +63,12 @@ fn execute_inner(storage: &impl Storage, id: usize, silent: bool) -> Result<Stri
         });
 
         if !already_exists {
+            let next_uuid = next_task.uuid;
             tasks.push(next_task);
-            storage.save(&tasks)?;
-
             let next_vis_id = tasks.iter().filter(|t| !t.is_deleted()).count();
+            storage.save(&tasks)?;
+            storage.record_event(EntityType::Task, task_uuid, EventType::Completed)?;
+            storage.record_event(EntityType::Task, next_uuid, EventType::Created)?;
 
             let msg = format!(
                 "Task #{} marked as done. Next recurrence: #{} (due {})",
@@ -84,42 +76,33 @@ fn execute_inner(storage: &impl Storage, id: usize, silent: bool) -> Result<Stri
                 next_vis_id,
                 next_due.format("%Y-%m-%d")
             );
-
             if !silent {
-                let id_colored = format!("#{}", id).green();
-                let next_colored = format!("#{}", next_vis_id).yellow();
-
-                println!("Task {} marked as done.", id_colored);
+                println!("Task {} marked as done.", format!("#{}", id).green());
                 println!(
                     "Task {} created (due {})",
-                    next_colored,
+                    format!("#{}", next_vis_id).yellow(),
                     next_due.format("%Y-%m-%d")
                 );
             }
-
             Ok(msg)
         } else {
             storage.save(&tasks)?;
-
+            storage.record_event(EntityType::Task, task_uuid, EventType::Completed)?;
             if !silent {
-                let id_colored = format!("#{}", id).green();
-                println!("Task {} marked as done.", id_colored);
+                println!("Task {} marked as done.", format!("#{}", id).green());
                 println!(
                     "{}",
                     "Next recurrence already exists, skipping creation.".dimmed()
                 );
             }
-
             Ok(format!("Task #{} marked as done.", id))
         }
     } else {
         storage.save(&tasks)?;
-
+        storage.record_event(EntityType::Task, task_uuid, EventType::Completed)?;
         if !silent {
-            let id_colored = format!("#{}", id).green();
-            println!("Task {} marked as done.", id_colored);
+            println!("Task {} marked as done.", format!("#{}", id).green());
         }
-
         Ok(format!("Task #{} marked as done.", id))
     }
 }

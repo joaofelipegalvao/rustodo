@@ -1,12 +1,10 @@
 //! Handler for `todo undone <ID>`.
-//!
-//! Reverts a completed task back to pending status, clearing `completed_at`.
 
 use anyhow::Result;
 use colored::Colorize;
 
 use crate::error::TodoError;
-use crate::storage::Storage;
+use crate::storage::{EntityType, EventType, Storage};
 use crate::utils::validation::resolve_visible_index;
 
 pub fn execute(storage: &impl Storage, id: usize) -> Result<()> {
@@ -14,7 +12,6 @@ pub fn execute(storage: &impl Storage, id: usize) -> Result<()> {
     Ok(())
 }
 
-/// TUI variant: same logic, no stdout, returns a status string.
 pub fn execute_silent(storage: &impl Storage, id: usize) -> Result<String> {
     execute_inner(storage, id, true)
 }
@@ -33,13 +30,13 @@ fn execute_inner(storage: &impl Storage, id: usize, silent: bool) -> Result<Stri
         .into());
     }
 
+    let task_uuid = tasks[index].uuid;
     tasks[index].mark_undone();
     storage.save(&tasks)?;
+    storage.record_event(EntityType::Task, task_uuid, EventType::Uncompleted)?;
 
     if !silent {
-        let id_colored = format!("#{}", id).yellow();
-        println!("Task {} marked as pending.", id_colored);
+        println!("Task {} marked as pending.", format!("#{}", id).yellow());
     }
-
     Ok(format!("Task #{} marked as pending.", id))
 }

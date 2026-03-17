@@ -1,13 +1,10 @@
 //! Handler for `todo clear`.
-//!
-//! Soft-deletes all visible tasks. Notes linked to deleted tasks have their
-//! `task_id` cleared automatically.
 
 use anyhow::Result;
 use colored::Colorize;
 use uuid::Uuid;
 
-use crate::storage::Storage;
+use crate::storage::{EntityType, EventType, Storage};
 use crate::utils::confirm;
 
 pub fn execute(storage: &impl Storage, yes: bool) -> Result<()> {
@@ -42,7 +39,6 @@ pub fn execute(storage: &impl Storage, yes: bool) -> Result<()> {
         task.soft_delete();
     }
 
-    // Clear task_id from notes linked to deleted tasks
     let mut notes_updated = 0;
     for note in notes.iter_mut().filter(|n| !n.is_deleted()) {
         if let Some(tid) = note.task_id
@@ -55,6 +51,11 @@ pub fn execute(storage: &impl Storage, yes: bool) -> Result<()> {
     }
 
     storage.save_all(&tasks, &projects, &notes)?;
+
+    // Record one Deleted event per task
+    for uuid in &deleted_uuids {
+        storage.record_event(EntityType::Task, *uuid, EventType::Deleted)?;
+    }
 
     println!(
         "{} {} tasks have been removed",

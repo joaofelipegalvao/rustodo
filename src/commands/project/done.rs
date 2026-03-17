@@ -3,7 +3,7 @@
 use anyhow::Result;
 use colored::Colorize;
 
-use crate::storage::Storage;
+use crate::storage::{EntityType, EventType, Storage};
 use crate::utils::validation::resolve_visible_index;
 
 pub fn execute(storage: &impl Storage, id: usize) -> Result<()> {
@@ -11,7 +11,6 @@ pub fn execute(storage: &impl Storage, id: usize) -> Result<()> {
     Ok(())
 }
 
-/// TUI variant: same logic, no stdout, returns a status string.
 pub fn execute_silent(storage: &impl Storage, id: usize) -> Result<String> {
     execute_inner(storage, id, true)
 }
@@ -32,13 +31,14 @@ fn execute_inner(storage: &impl Storage, id: usize, silent: bool) -> Result<Stri
         return Ok(msg);
     }
 
+    let project_uuid = project.uuid;
     project.mark_done();
     storage.save_projects(&projects)?;
+    storage.record_event(EntityType::Project, project_uuid, EventType::Completed)?;
 
     let msg = format!("Project {} marked as done.", format!("#{}", id).green());
     if !silent {
         println!("{}", msg);
     }
-
     Ok(msg)
 }

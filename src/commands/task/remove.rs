@@ -1,12 +1,7 @@
-//! Handler for `todo remove <ID>`.
-//!
-//! Soft-deletes a task after optional confirmation. Notes linked to the
-//! removed task have their `task_id` cleared automatically.
-
 use anyhow::Result;
 use colored::Colorize;
 
-use crate::storage::Storage;
+use crate::storage::{EntityType, EventType, Storage};
 use crate::utils::confirm;
 use crate::utils::validation::resolve_visible_index;
 
@@ -38,7 +33,6 @@ fn execute_inner(storage: &impl Storage, id: usize, yes: bool, silent: bool) -> 
 
     tasks[real_index].soft_delete();
 
-    // Clear task_id from notes linked to this task
     for note in notes.iter_mut().filter(|n| !n.is_deleted()) {
         if note.task_id == Some(task_uuid) {
             note.task_id = None;
@@ -47,6 +41,7 @@ fn execute_inner(storage: &impl Storage, id: usize, yes: bool, silent: bool) -> 
     }
 
     storage.save_all(&tasks, &projects, &notes)?;
+    storage.record_event(EntityType::Task, task_uuid, EventType::Deleted)?;
 
     let msg = format!("Task removed: {}", task_text);
     if !silent {

@@ -1,11 +1,9 @@
-//! Handler for `todo project add`.
-
 use anyhow::Result;
 use colored::Colorize;
 
 use crate::cli::ProjectAddArgs;
 use crate::models::Project;
-use crate::storage::Storage;
+use crate::storage::{EntityType, EventType, Storage};
 use crate::utils::date_parser;
 
 pub fn execute(storage: &impl Storage, args: ProjectAddArgs) -> Result<()> {
@@ -25,7 +23,6 @@ pub fn execute(storage: &impl Storage, args: ProjectAddArgs) -> Result<()> {
     };
 
     let mut project = Project::new(args.name.clone());
-
     if let Some(difficulty) = args.difficulty {
         project.difficulty = difficulty;
     }
@@ -41,12 +38,11 @@ pub fn execute(storage: &impl Storage, args: ProjectAddArgs) -> Result<()> {
         project.due_date = Some(d);
     }
 
-    // Use the visible count for the displayed ID so it matches what the user
-    // sees in `project list`, regardless of how many soft-deleted projects
-    // exist in storage.
+    let project_uuid = project.uuid;
     let visible_id = projects.iter().filter(|p| !p.is_deleted()).count() + 1;
     projects.push(project);
     storage.save_projects(&projects)?;
+    storage.record_event(EntityType::Project, project_uuid, EventType::Created)?;
 
     println!(
         "{} Added project #{}: {}",

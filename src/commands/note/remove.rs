@@ -3,7 +3,7 @@
 use anyhow::Result;
 use colored::Colorize;
 
-use crate::storage::Storage;
+use crate::storage::{EntityType, EventType, Storage};
 use crate::utils::validation::resolve_visible_index;
 
 pub fn execute(storage: &impl Storage, id: usize, yes: bool) -> Result<()> {
@@ -36,8 +36,10 @@ pub fn execute(storage: &impl Storage, id: usize, yes: bool) -> Result<()> {
         }
     }
 
+    let note_uuid = notes[real_index].uuid;
     notes[real_index].soft_delete();
     storage.save_notes(&notes)?;
+    storage.record_event(EntityType::Note, note_uuid, EventType::Deleted)?;
 
     println!("{} Note #{} removed.", "✓".green(), id);
     Ok(())

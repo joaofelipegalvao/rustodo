@@ -6,7 +6,7 @@ use colored::Colorize;
 use crate::cli::NoteAddArgs;
 use crate::models::{Note, Project};
 use crate::services::tag_service::collect_all_tag_names;
-use crate::storage::Storage;
+use crate::storage::{EntityType, EventType, Storage};
 use crate::utils::tag_normalizer::normalize_tags;
 use crate::utils::validation::resolve_visible;
 
@@ -14,10 +14,8 @@ pub fn execute(storage: &impl Storage, args: NoteAddArgs) -> Result<()> {
     let (tasks, projects, mut notes) = storage.load_all()?;
     let resources = storage.load_resources()?;
 
-    // ── Resolve body from input source ────────────────────────────────────────
     let (body, is_markdown) = match (args.body, args.editor, args.file) {
         (Some(text), false, None) => (text, false),
-
         (None, true, None) => {
             let content = edit::edit_with_builder("", edit::Builder::new().suffix(".md"))?;
             let trimmed = content.trim().to_string();
@@ -26,19 +24,16 @@ pub fn execute(storage: &impl Storage, args: NoteAddArgs) -> Result<()> {
             }
             (trimmed, true)
         }
-
         (None, false, Some(path)) => {
             let content = std::fs::read_to_string(&path)
                 .map_err(|e| anyhow!("Failed to read file {}: {}", path.display(), e))?;
             (content, true)
         }
-
         (None, false, None) => {
             return Err(anyhow!(
                 "Provide a note body: <BODY>, --editor, or --file <PATH>"
             ));
         }
-
         _ => {
             return Err(anyhow!(
                 "Only one input source allowed: <BODY>, --editor, or --file <PATH>"
@@ -46,14 +41,12 @@ pub fn execute(storage: &impl Storage, args: NoteAddArgs) -> Result<()> {
         }
     };
 
-    // ── Resolve project name → UUID ───────────────────────────────────────────
     let project_id = if let Some(ref name) = args.project {
         Some(Project::resolve_or_create(storage, &projects, name)?)
     } else {
         None
     };
 
-    // ── Resolve task display-id → UUID ────────────────────────────────────────
     let task_id = if let Some(task_num) = args.task {
         let task = resolve_visible(&tasks, task_num, |t| t.is_deleted())
             .map_err(|_| anyhow!("Task #{} not found", task_num))?;
@@ -76,14 +69,15 @@ pub fn execute(storage: &impl Storage, args: NoteAddArgs) -> Result<()> {
     note.project_id = project_id;
     note.task_id = task_id;
 
-    let id = notes.len() + 1;
+    let note_uuid = note.uuid;
+    let id = notes.iter().filter(|n| !n.is_deleted()).count() + 1;
     notes.push(note);
     storage.save_notes(&notes)?;
+    storage.record_event(EntityType::Note, note_uuid, EventType::Created)?;
 
     for msg in &normalization_messages {
         println!("  {} Tag normalized: {}", "~".yellow(), msg.yellow());
     }
     println!("{} Added note #{}", "✓".green(), id);
-
     Ok(())
 }

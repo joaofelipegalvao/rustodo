@@ -7,7 +7,7 @@ use uuid::Uuid;
 use crate::cli::EditArgs;
 use crate::error::TodoError;
 use crate::models::{Project, detect_cycle};
-use crate::storage::Storage;
+use crate::storage::{EntityType, EventType, Storage};
 use crate::utils::date_parser;
 use crate::utils::validation::{self, validate_task_id, visible_indices};
 
@@ -16,7 +16,6 @@ pub fn execute(storage: &impl Storage, args: EditArgs) -> Result<()> {
     Ok(())
 }
 
-/// TUI variant: same logic, no stdout, returns a summary string.
 pub fn execute_silent(storage: &impl Storage, args: EditArgs) -> Result<String> {
     execute_inner(storage, args, true)
 }
@@ -104,7 +103,6 @@ fn execute_inner(storage: &impl Storage, args: EditArgs, silent: bool) -> Result
         changes.push(format!("priority → {}", new_priority.letter()));
     }
 
-    // ── project ───────────────────────────────────────────────────────────────
     if args.clear_project {
         if task.project_id.is_some() {
             task.project_id = None;
@@ -120,7 +118,6 @@ fn execute_inner(storage: &impl Storage, args: EditArgs, silent: bool) -> Result
         }
     }
 
-    // ── tags ──────────────────────────────────────────────────────────────────
     if args.clear_tags {
         if !task.tags.is_empty() {
             let old_tags = task.tags.clone();
@@ -152,7 +149,6 @@ fn execute_inner(storage: &impl Storage, args: EditArgs, silent: bool) -> Result
                 ));
             }
         }
-
         if !args.add_tag.is_empty() {
             validation::validate_tags(&args.add_tag)?;
             let mut added = Vec::new();
@@ -168,7 +164,6 @@ fn execute_inner(storage: &impl Storage, args: EditArgs, silent: bool) -> Result
         }
     }
 
-    // ── due date ──────────────────────────────────────────────────────────────
     if args.clear_due {
         if task.due_date.is_some() {
             task.due_date = None;
@@ -181,7 +176,6 @@ fn execute_inner(storage: &impl Storage, args: EditArgs, silent: bool) -> Result
         changes.push(format!("due date → {}", new_due.to_string().cyan()));
     }
 
-    // ── dependencies ──────────────────────────────────────────────────────────
     if args.clear_deps {
         if !task.depends_on.is_empty() {
             task.depends_on.clear();
@@ -225,8 +219,10 @@ fn execute_inner(storage: &impl Storage, args: EditArgs, silent: bool) -> Result
         return Ok("No changes made.".to_string());
     }
 
-    task.touch();
+    let task_uuid = tasks[real_index].uuid;
+    tasks[real_index].touch();
     storage.save(&tasks)?;
+    storage.record_event(EntityType::Task, task_uuid, EventType::Edited)?;
 
     if !silent {
         println!("{} Task #{} updated:", "✓".green(), args.id);

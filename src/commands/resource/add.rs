@@ -6,7 +6,7 @@ use colored::Colorize;
 use crate::cli::ResourceAddArgs;
 use crate::models::Resource;
 use crate::services::tag_service::collect_all_tag_names;
-use crate::storage::Storage;
+use crate::storage::{EntityType, EventType, Storage};
 use crate::utils::tag_normalizer::normalize_tags;
 
 pub fn execute(storage: &impl Storage, args: ResourceAddArgs) -> Result<()> {
@@ -14,7 +14,6 @@ pub fn execute(storage: &impl Storage, args: ResourceAddArgs) -> Result<()> {
     let tasks = storage.load()?;
     let notes = storage.load_notes()?;
 
-    // ── Duplicate warning (by URL if present, otherwise by title) ─────────────
     let duplicate = if let Some(ref url) = args.url {
         resources
             .iter()
@@ -37,7 +36,7 @@ pub fn execute(storage: &impl Storage, args: ResourceAddArgs) -> Result<()> {
         let reason = if args.url.is_some() { "URL" } else { "title" };
         eprintln!(
             "{} Resource with same {} \"{}\" already exists (#{}). Add anyway? [y/N] ",
-            "".yellow(),
+            "".yellow(),
             reason,
             existing.title,
             visible_id
@@ -59,14 +58,15 @@ pub fn execute(storage: &impl Storage, args: ResourceAddArgs) -> Result<()> {
     resource.description = args.description;
     resource.tags = normalized_tags;
 
+    let resource_uuid = resource.uuid;
     let visible_id = resources.iter().filter(|r| !r.is_deleted()).count() + 1;
     resources.push(resource);
     storage.save_resources(&resources)?;
+    storage.record_event(EntityType::Resource, resource_uuid, EventType::Created)?;
 
     for msg in &normalization_messages {
         println!("  {} Tag normalized: {}", "~".yellow(), msg.yellow());
     }
     println!("{} Added resource #{}", "✓".green(), visible_id);
-
     Ok(())
 }

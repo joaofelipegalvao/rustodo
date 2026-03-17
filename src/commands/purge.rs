@@ -1,22 +1,13 @@
 //! Handler for `todo purge`.
-//!
-//! Permanently removes soft-deleted tombstones older than N days across all
-//! entity types: tasks, projects, notes, and resources.
-//!
-//! Tombstones must be kept long enough for sync to propagate deletions
-//! across all devices — purging too early causes deleted tasks to reappear.
 
 use anyhow::Result;
 use chrono::{DateTime, Utc};
 use colored::Colorize;
 use uuid::Uuid;
 
-use crate::storage::Storage;
+use crate::storage::{EntityType, EventType, Storage};
 use crate::utils::confirm;
 
-// ── HasDeletedAt trait ────────────────────────────────────────────────────────
-
-/// Implemented by any entity that carries a soft-deletion timestamp.
 pub trait HasDeletedAt {
     fn deleted_at(&self) -> Option<DateTime<Utc>>;
     fn uuid(&self) -> Uuid;
@@ -77,9 +68,6 @@ impl HasDeletedAt for crate::models::Resource {
     }
 }
 
-// ── helper ────────────────────────────────────────────────────────────────────
-
-/// Collects UUIDs and labels of tombstones older than `cutoff`.
 fn collect_tombstones<T: HasDeletedAt>(items: &[T], cutoff: DateTime<Utc>) -> Vec<(Uuid, String)> {
     items
         .iter()
@@ -94,8 +82,6 @@ fn collect_tombstones<T: HasDeletedAt>(items: &[T], cutoff: DateTime<Utc>) -> Ve
         })
         .collect()
 }
-
-// ── execute ───────────────────────────────────────────────────────────────────
 
 pub fn execute(storage: &impl Storage, days: u32, dry_run: bool, yes: bool) -> Result<()> {
     let (tasks, projects, notes, resources) = storage.load_all_with_resources()?;
@@ -121,8 +107,6 @@ pub fn execute(storage: &impl Storage, days: u32, dry_run: bool, yes: bool) -> R
         );
         return Ok(());
     }
-
-    // ── preview ───────────────────────────────────────────────────────────────
 
     println!(
         "\n{} tombstone{} older than {} day{} would be permanently removed:\n",
@@ -157,7 +141,20 @@ pub fn execute(storage: &impl Storage, days: u32, dry_run: bool, yes: bool) -> R
         return Ok(());
     }
 
-    // ── purge — deleção física via storage ────────────────────────────────────
+    // Record Purged events BEFORE physical delete so the event log captures
+    // what was removed even though the rows are about to disappear.
+    for (uuid, _) in &task_tombs {
+        storage.record_event(EntityType::Task, *uuid, EventType::Purged)?;
+    }
+    for (uuid, _) in &project_tombs {
+        storage.record_event(EntityType::Project, *uuid, EventType::Purged)?;
+    }
+    for (uuid, _) in &note_tombs {
+        storage.record_event(EntityType::Note, *uuid, EventType::Purged)?;
+    }
+    for (uuid, _) in &resource_tombs {
+        storage.record_event(EntityType::Resource, *uuid, EventType::Purged)?;
+    }
 
     let task_uuids: Vec<Uuid> = task_tombs.iter().map(|(u, _)| *u).collect();
     let project_uuids: Vec<Uuid> = project_tombs.iter().map(|(u, _)| *u).collect();

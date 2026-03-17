@@ -1,12 +1,9 @@
 //! Handler for `todo resource remove <ID>`.
-//!
-//! Soft-deletes a resource after optional confirmation. Notes that referenced
-//! the removed resource have it removed from `resource_ids` automatically.
 
 use anyhow::Result;
 use colored::Colorize;
 
-use crate::storage::Storage;
+use crate::storage::{EntityType, EventType, Storage};
 use crate::utils::validation::resolve_visible_index;
 
 pub fn execute(storage: &impl Storage, id: usize, yes: bool) -> Result<()> {
@@ -35,7 +32,6 @@ pub fn execute(storage: &impl Storage, id: usize, yes: bool) -> Result<()> {
 
     resources[real_index].soft_delete();
 
-    // Remove this resource UUID from notes that reference it
     for note in notes.iter_mut().filter(|n| !n.is_deleted()) {
         let before = note.resource_ids.len();
         note.resource_ids.retain(|id| *id != resource_uuid);
@@ -46,6 +42,7 @@ pub fn execute(storage: &impl Storage, id: usize, yes: bool) -> Result<()> {
 
     storage.save_notes(&notes)?;
     storage.save_resources(&resources)?;
+    storage.record_event(EntityType::Resource, resource_uuid, EventType::Deleted)?;
 
     println!("{} Resource #{} removed.", "✓".green(), id);
     Ok(())

@@ -1,12 +1,9 @@
 //! Handler for `todo project remove <ID>`.
-//!
-//! Soft-deletes a project after optional confirmation. Tasks and notes linked
-//! to the removed project have their `project_id` cleared automatically.
 
 use anyhow::Result;
 use colored::Colorize;
 
-use crate::storage::Storage;
+use crate::storage::{EntityType, EventType, Storage};
 use crate::utils::validation::resolve_visible_index;
 
 pub fn execute(storage: &impl Storage, id: usize, yes: bool) -> Result<()> {
@@ -44,7 +41,6 @@ fn execute_inner(storage: &impl Storage, id: usize, yes: bool, silent: bool) -> 
 
     projects[real_index].soft_delete();
 
-    // Clear project_id from tasks and notes linked to this project
     for task in tasks.iter_mut().filter(|t| !t.is_deleted()) {
         if task.project_id == Some(project_uuid) {
             task.project_id = None;
@@ -59,6 +55,7 @@ fn execute_inner(storage: &impl Storage, id: usize, yes: bool, silent: bool) -> 
     }
 
     storage.save_all(&tasks, &projects, &notes)?;
+    storage.record_event(EntityType::Project, project_uuid, EventType::Deleted)?;
 
     let msg = format!("Project #{} ({}) removed.", id, name);
     if !silent {

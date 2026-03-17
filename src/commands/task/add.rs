@@ -7,16 +7,16 @@ use crate::cli::AddArgs;
 use crate::error::TodoError;
 use crate::models::{Project, Task};
 use crate::services::tag_service::collect_all_tag_names;
-use crate::storage::Storage;
+use crate::storage::{EntityType, EventType, Storage};
 use crate::utils::tag_normalizer::normalize_tags;
-use crate::{utils::date_parser, utils::validation};
+use crate::utils::validation::{self, resolve_uuid_visible, visible_indices};
+use crate::{utils::date_parser, utils::validation::validate_task_id};
 
 pub fn execute(storage: &impl Storage, args: AddArgs) -> Result<()> {
     execute_inner(storage, args, false)?;
     Ok(())
 }
 
-/// TUI variant: same logic, no stdout.
 pub fn execute_silent(storage: &impl Storage, args: AddArgs) -> Result<()> {
     execute_inner(storage, args, true)?;
     Ok(())
@@ -39,26 +39,23 @@ fn execute_inner(storage: &impl Storage, args: AddArgs, silent: bool) -> Result<
     validation::validate_recurrence(args.recurrence, due)?;
 
     let mut tasks = storage.load()?;
-    let new_id = tasks.len() + 1;
 
-    // ── Duplicate check (non-recurring, interactive only) ─────────────────────
+    // ── Duplicate check ───────────────────────────────────────────────────────
     if !silent && args.recurrence.is_none() {
-        let duplicate = tasks
-            .iter()
-            .enumerate()
-            .find(|(_, t)| !t.is_deleted() && t.text.to_lowercase() == args.text.to_lowercase());
-
-        if let Some((idx, _)) = duplicate {
+        let vis = visible_indices(&tasks, |t| t.is_deleted());
+        let duplicate = vis.iter().enumerate().find(|&(_, &real_idx)| {
+            tasks[real_idx].text.to_lowercase() == args.text.to_lowercase()
+        });
+        if let Some((vis_pos, _)) = duplicate {
+            let vis_id = vis_pos + 1;
             eprintln!(
                 "{} Task \"{}\" already exists (#{}). Add anyway? [y/N] ",
-                "".yellow(),
+                "".yellow(),
                 args.text,
-                idx + 1
+                vis_id,
             );
-
             let mut input = String::new();
             std::io::stdin().read_line(&mut input)?;
-
             if input.trim().to_lowercase() != "y" {
                 println!("{}", "Cancelled.".dimmed());
                 return Ok(0);
@@ -66,26 +63,33 @@ fn execute_inner(storage: &impl Storage, args: AddArgs, silent: bool) -> Result<
         }
     }
 
+    // ── Dependency validation ─────────────────────────────────────────────────
+    let vis = visible_indices(&tasks, |t| t.is_deleted());
+    let new_vis_id = vis.len() + 1;
+
     for &dep_id in &args.depends_on {
-        if dep_id == new_id {
-            return Err(TodoError::SelfDependency { task_id: new_id }.into());
+        if dep_id == new_vis_id {
+            return Err(TodoError::SelfDependency {
+                task_id: new_vis_id,
+            }
+            .into());
         }
-        validation::validate_task_id(dep_id, tasks.len())?;
+        validate_task_id(dep_id, vis.len())?;
     }
 
     let dep_uuids: Vec<uuid::Uuid> = args
         .depends_on
         .iter()
-        .map(|&dep_id| validation::resolve_uuid(dep_id, &tasks))
+        .map(|&dep_id| resolve_uuid_visible(dep_id, &tasks))
         .collect::<Result<_, _>>()
         .map_err(anyhow::Error::from)?;
 
+    // ── Tags & project ────────────────────────────────────────────────────────
     let notes = storage.load_notes()?;
     let resources = storage.load_resources()?;
     let existing_tags = collect_all_tag_names(&tasks, &notes, &resources);
     let (normalized_tags, normalization_messages) = normalize_tags(args.tag, &existing_tags);
 
-    // Resolve project name → UUID (creates the project if it doesn't exist yet)
     let project_id = if let Some(ref name) = args.project {
         let projects = storage.load_projects()?;
         Some(Project::resolve_or_create(storage, &projects, name)?)
@@ -93,6 +97,7 @@ fn execute_inner(storage: &impl Storage, args: AddArgs, silent: bool) -> Result<
         None
     };
 
+    // ── Build & persist ───────────────────────────────────────────────────────
     let mut task = Task::new(
         args.text,
         args.priority,
@@ -102,10 +107,12 @@ fn execute_inner(storage: &impl Storage, args: AddArgs, silent: bool) -> Result<
         args.recurrence,
     );
     task.depends_on = dep_uuids;
+    let task_uuid = task.uuid;
     tasks.push(task);
 
-    let id = tasks.len();
+    let id = vis.len() + 1;
     storage.save(&tasks)?;
+    storage.record_event(EntityType::Task, task_uuid, EventType::Created)?;
 
     if !silent {
         let ok = "✓".green();

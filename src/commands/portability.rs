@@ -3,10 +3,24 @@
 //! Export serializes all data to a JSON file (same envelope format as the
 //! legacy todos.json). Import reads that file and upserts everything into
 //! the SQLite database.
+//!
+//! # Import integrity
+//!
+//! Before writing anything, the import validates referential integrity:
+//! - Tasks whose `project_id` points to a UUID not present in the file have
+//!   their `project_id` cleared (with a warning) rather than being silently
+//!   stored with a dangling reference.
+//! - Notes whose `task_id` or `project_id` are dangling are cleared the
+//!   same way.
+//! - Notes whose `resource_ids` contain unknown UUIDs have those entries
+//!   removed.
+
 use anyhow::{Context, Result, bail};
 use colored::Colorize;
 use serde::{Deserialize, Serialize};
+use std::collections::HashSet;
 use std::path::PathBuf;
+use uuid::Uuid;
 
 use crate::models::{Note, Project, Resource, Task};
 use crate::storage::Storage;
@@ -29,8 +43,6 @@ struct Envelope {
 // ── export ────────────────────────────────────────────────────────────────────
 
 /// `todo export [FILE]` — serializes all data to a JSON file.
-///
-/// Defaults to `rustodo-export-YYYY-MM-DD.json` in the current directory.
 pub fn execute_export(storage: &impl Storage, file: Option<PathBuf>) -> Result<()> {
     let (tasks, projects, notes, resources) = storage.load_all_with_resources()?;
 
@@ -70,9 +82,6 @@ pub fn execute_export(storage: &impl Storage, file: Option<PathBuf>) -> Result<(
 // ── import ────────────────────────────────────────────────────────────────────
 
 /// `todo import <FILE>` — reads a JSON export and upserts into SQLite.
-///
-/// Existing data is preserved — import only adds or updates by UUID.
-/// Use `--replace` to clear all data before importing.
 pub fn execute_import(
     storage: &impl Storage,
     file: PathBuf,
@@ -86,7 +95,7 @@ pub fn execute_import(
     let content =
         std::fs::read_to_string(&file).context(format!("Failed to read {}", file.display()))?;
 
-    let envelope: Envelope = serde_json::from_str(&content)
+    let mut envelope: Envelope = serde_json::from_str(&content)
         .context("Failed to parse export file — is it a valid rustodo JSON export?")?;
 
     let task_count = envelope.tasks.len();
@@ -98,6 +107,9 @@ pub fn execute_import(
         println!("{}", "\nNothing to import — file is empty.\n".dimmed());
         return Ok(());
     }
+
+    // ── Referential integrity check ───────────────────────────────────────────
+    let warnings = validate_and_repair(&mut envelope);
 
     println!(
         "\n{} Importing from: {}\n",
@@ -111,6 +123,13 @@ pub fn execute_import(
         note_count.to_string().bright_white(),
         resource_count.to_string().bright_white(),
     );
+
+    if !warnings.is_empty() {
+        println!();
+        for w in &warnings {
+            println!("  {} {}", "⚠".yellow(), w.yellow());
+        }
+    }
 
     if replace {
         println!(
@@ -131,14 +150,11 @@ pub fn execute_import(
     }
 
     if replace {
-        // Load current data and soft-delete everything before importing
-        // (we use save with empty slices to replace)
         storage.save(&envelope.tasks)?;
         storage.save_projects(&envelope.projects)?;
         storage.save_notes(&envelope.notes)?;
         storage.save_resources(&envelope.resources)?;
     } else {
-        // Upsert — SqliteStorage.save() uses INSERT OR REPLACE by UUID
         if !envelope.tasks.is_empty() {
             storage.save(&envelope.tasks)?;
         }
@@ -163,4 +179,70 @@ pub fn execute_import(
     );
 
     Ok(())
+}
+
+// ── integrity validation ──────────────────────────────────────────────────────
+
+/// Repairs dangling foreign-key references within the envelope and returns
+/// human-readable warnings for each fix applied.
+///
+/// This runs entirely in memory before any data is written, so a corrupt
+/// export file cannot produce an inconsistent database.
+fn validate_and_repair(envelope: &mut Envelope) -> Vec<String> {
+    let mut warnings = Vec::new();
+
+    let project_uuids: HashSet<Uuid> = envelope.projects.iter().map(|p| p.uuid).collect();
+    let task_uuids: HashSet<Uuid> = envelope.tasks.iter().map(|t| t.uuid).collect();
+    let resource_uuids: HashSet<Uuid> = envelope.resources.iter().map(|r| r.uuid).collect();
+
+    // Tasks: clear project_id if the project is not in the envelope
+    for task in &mut envelope.tasks {
+        if let Some(pid) = task.project_id {
+            if !project_uuids.contains(&pid) {
+                warnings.push(format!(
+                    "Task \"{}\": project_id {} not found — cleared.",
+                    task.text, pid
+                ));
+                task.project_id = None;
+            }
+        }
+    }
+
+    // Notes: clear project_id, task_id, and unknown resource_ids
+    for note in &mut envelope.notes {
+        if let Some(pid) = note.project_id {
+            if !project_uuids.contains(&pid) {
+                let label = note.title.as_deref().unwrap_or("<untitled>");
+                warnings.push(format!(
+                    "Note \"{}\": project_id {} not found — cleared.",
+                    label, pid
+                ));
+                note.project_id = None;
+            }
+        }
+
+        if let Some(tid) = note.task_id {
+            if !task_uuids.contains(&tid) {
+                let label = note.title.as_deref().unwrap_or("<untitled>");
+                warnings.push(format!(
+                    "Note \"{}\": task_id {} not found — cleared.",
+                    label, tid
+                ));
+                note.task_id = None;
+            }
+        }
+
+        let before = note.resource_ids.len();
+        note.resource_ids.retain(|rid| resource_uuids.contains(rid));
+        let removed = before - note.resource_ids.len();
+        if removed > 0 {
+            let label = note.title.as_deref().unwrap_or("<untitled>");
+            warnings.push(format!(
+                "Note \"{}\": {} unknown resource link(s) removed.",
+                label, removed
+            ));
+        }
+    }
+
+    warnings
 }
