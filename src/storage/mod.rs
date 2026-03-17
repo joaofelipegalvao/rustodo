@@ -3,11 +3,11 @@
 //! | Type | Description |
 //! |---|---|
 //! | [`SqliteStorage`]   | Persists to a SQLite database in the OS data directory |
-//! | [`JsonStorage`]     | Legacy JSON storage — kept for migration and testing |
 //! | [`InMemoryStorage`] | Stores in memory — ideal for tests |
 
 use crate::models::{Note, Project, Resource, Task};
 use anyhow::Result;
+use uuid::Uuid;
 
 /// Trait defining storage operations for tasks, projects, notes, and resources.
 pub trait Storage {
@@ -19,6 +19,9 @@ pub trait Storage {
     /// Persist all tasks (upsert by UUID).
     fn save(&self, tasks: &[Task]) -> Result<()>;
 
+    /// Permanently delete tasks by UUID.
+    fn delete_tasks(&self, uuids: &[Uuid]) -> Result<()>;
+
     // ── projects ──────────────────────────────────────────────────────────────
 
     /// Load all projects from storage.
@@ -26,6 +29,9 @@ pub trait Storage {
 
     /// Persist all projects (upsert by UUID).
     fn save_projects(&self, projects: &[Project]) -> Result<()>;
+
+    /// Permanently delete projects by UUID.
+    fn delete_projects(&self, uuids: &[Uuid]) -> Result<()>;
 
     // ── notes ─────────────────────────────────────────────────────────────────
 
@@ -35,6 +41,9 @@ pub trait Storage {
     /// Persist all notes (upsert by UUID).
     fn save_notes(&self, notes: &[Note]) -> Result<()>;
 
+    /// Permanently delete notes by UUID.
+    fn delete_notes(&self, uuids: &[Uuid]) -> Result<()>;
+
     // ── resources ─────────────────────────────────────────────────────────────
 
     /// Load all resources from storage.
@@ -42,6 +51,9 @@ pub trait Storage {
 
     /// Persist all resources (upsert by UUID).
     fn save_resources(&self, resources: &[Resource]) -> Result<()>;
+
+    /// Permanently delete resources by UUID.
+    fn delete_resources(&self, uuids: &[Uuid]) -> Result<()>;
 
     // ── combined ──────────────────────────────────────────────────────────────
 
