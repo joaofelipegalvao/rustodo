@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.28.1](https://github.com/joaofelipegalvao/rustodo/compare/v2.28.0..v2.28.1) - 2026-03-17
+
+### Bug Fixes
+
+- Add missing title param in save_resources SQL query - ([a8dd68c](https://github.com/joaofelipegalvao/rustodo/commit/a8dd68ce960761466bbdb2a97e895a47666afc87))
+
+### Refactoring
+
+- Add Stats subcommand and minor improvements - ([7632642](https://github.com/joaofelipegalvao/rustodo/commit/763264285d4bfc7c4c7aaab5178d26284f6d8140))
 ## [2.28.0](https://github.com/joaofelipegalvao/rustodo/compare/v2.27.0..v2.28.0) - 2026-03-17
 
 ### Features
@@ -551,6 +560,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Features
 
 - V1 - basic todo CLI with add/list commands - ([9580ae2](https://github.com/joaofelipegalvao/rustodo/commit/9580ae297837c9a6c5d4b18868d2f3abac1b1b9e))
+[2.28.1]: https://github.com/joaofelipegalvao/rustodo/compare/v2.28.0...v2.28.1
 [2.28.0]: https://github.com/joaofelipegalvao/rustodo/compare/v2.27.0...v2.28.0
 [2.27.0]: https://github.com/joaofelipegalvao/rustodo/compare/v2.26.1...v2.27.0
 [2.26.1]: https://github.com/joaofelipegalvao/rustodo/compare/v2.26.0...v2.26.1
