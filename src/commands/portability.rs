@@ -197,39 +197,39 @@ fn validate_and_repair(envelope: &mut Envelope) -> Vec<String> {
 
     // Tasks: clear project_id if the project is not in the envelope
     for task in &mut envelope.tasks {
-        if let Some(pid) = task.project_id {
-            if !project_uuids.contains(&pid) {
-                warnings.push(format!(
-                    "Task \"{}\": project_id {} not found — cleared.",
-                    task.text, pid
-                ));
-                task.project_id = None;
-            }
+        if let Some(pid) = task.project_id
+            && !project_uuids.contains(&pid)
+        {
+            warnings.push(format!(
+                "Task \"{}\": project_id {} not found — cleared.",
+                task.text, pid
+            ));
+            task.project_id = None;
         }
     }
 
     // Notes: clear project_id, task_id, and unknown resource_ids
     for note in &mut envelope.notes {
-        if let Some(pid) = note.project_id {
-            if !project_uuids.contains(&pid) {
-                let label = note.title.as_deref().unwrap_or("<untitled>");
-                warnings.push(format!(
-                    "Note \"{}\": project_id {} not found — cleared.",
-                    label, pid
-                ));
-                note.project_id = None;
-            }
+        if let Some(pid) = note.project_id
+            && !project_uuids.contains(&pid)
+        {
+            let label = note.title.as_deref().unwrap_or("<untitled>");
+            warnings.push(format!(
+                "Note \"{}\": project_id {} not found — cleared.",
+                label, pid
+            ));
+            note.project_id = None;
         }
 
-        if let Some(tid) = note.task_id {
-            if !task_uuids.contains(&tid) {
-                let label = note.title.as_deref().unwrap_or("<untitled>");
-                warnings.push(format!(
-                    "Note \"{}\": task_id {} not found — cleared.",
-                    label, tid
-                ));
-                note.task_id = None;
-            }
+        if let Some(tid) = note.task_id
+            && !task_uuids.contains(&tid)
+        {
+            let label = note.title.as_deref().unwrap_or("<untitled>");
+            warnings.push(format!(
+                "Note \"{}\": task_id {} not found — cleared.",
+                label, tid
+            ));
+            note.task_id = None;
         }
 
         let before = note.resource_ids.len();
