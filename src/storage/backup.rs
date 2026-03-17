@@ -5,6 +5,12 @@
 //!
 //! Rotation policy: keep the last `max_backups` files (default 10).
 //! Backup is skipped if the last backup is newer than `min_interval_minutes`.
+//!
+//! # Security
+//!
+//! The backup path is passed via a bound parameter (`?1`) instead of string
+//! interpolation, preventing breakage on paths that contain single quotes
+//! (e.g. `/home/d'artagnan/.local/...`).
 
 use anyhow::{Context, Result};
 use std::path::{Path, PathBuf};
@@ -21,7 +27,7 @@ pub fn backup_if_needed(
 
     std::fs::create_dir_all(&backup_dir).context("Failed to create backups directory")?;
 
-    // Check if last backup is recent enough to skip
+    // Skip if the last backup is recent enough
     if let Some(last) = last_backup_time(&backup_dir) {
         let elapsed = std::time::SystemTime::now()
             .duration_since(last)
@@ -38,15 +44,27 @@ pub fn backup_if_needed(
 }
 
 /// Creates a manual backup regardless of interval.
+///
+/// The destination path is bound as a parameter to `VACUUM INTO` rather than
+/// interpolated into the SQL string, so paths with special characters
+/// (spaces, single quotes, non-ASCII) are handled correctly.
 pub fn create_backup(db_path: &Path, backup_dir: &Path) -> Result<PathBuf> {
     std::fs::create_dir_all(backup_dir).context("Failed to create backups directory")?;
 
     let timestamp = chrono::Local::now().format("%Y-%m-%d_%H-%M-%S");
     let backup_path = backup_dir.join(format!("{}.db", timestamp));
 
-    // VACUUM INTO creates a consistent snapshot — safe while DB is open
+    // Convert to a UTF-8 string so we can bind it as a SQL parameter.
+    // Paths that are not valid UTF-8 are rejected with a clear error rather
+    // than silently mangled.
+    let backup_path_str = backup_path
+        .to_str()
+        .context("Backup path contains non-UTF-8 characters")?;
+
     let conn = rusqlite::Connection::open(db_path).context("Failed to open DB for backup")?;
-    conn.execute(&format!("VACUUM INTO '{}'", backup_path.display()), [])
+
+    // Bind the path as a parameter — safe against paths with single quotes.
+    conn.execute("VACUUM INTO ?1", rusqlite::params![backup_path_str])
         .context("VACUUM INTO failed")?;
 
     Ok(backup_path)

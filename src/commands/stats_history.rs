@@ -1,102 +1,34 @@
 //! Handler for `todo stats history`.
 //!
-//! Shows a monthly history chart of tasks created, completed, and deleted —
-//! inspired by Taskwarrior's `ghistory` command.
+//! Shows a monthly history chart of tasks created, completed, and deleted.
+//! Data is read from the `events` table, which is append-only and survives
+//! `todo purge` — unlike the previous approach of inferring history from
+//! `created_at` / `deleted_at` fields on live task rows.
 
 use anyhow::Result;
-use chrono::{Datelike, Duration, Local};
 use colored::Colorize;
 
 use crate::storage::Storage;
 
 pub fn execute(storage: &impl Storage, months: usize) -> Result<()> {
-    let (all_tasks, _, _, _) = storage.load_all_with_resources()?;
+    let rows = storage.load_event_stats(months)?;
 
-    if all_tasks.is_empty() {
-        println!("{}", "\nNo data found.\n".dimmed());
-        return Ok(());
-    }
-
-    let today = Local::now().naive_local().date();
-
-    // Build list of (year, month) for the last `months` months
-    let mut periods: Vec<(i32, u32)> = Vec::new();
-    let mut cursor = today;
-    for _ in 0..months {
-        periods.push((cursor.year(), cursor.month()));
-        // Go back one month
-        cursor = cursor
-            .with_day(1)
-            .unwrap()
-            .checked_sub_signed(Duration::days(1))
-            .unwrap();
-    }
-    periods.reverse();
-
-    // Count per month
-    struct MonthStats {
-        label: String,
-        added: usize,
-        completed: usize,
-        deleted: usize,
-    }
-
-    let mut rows: Vec<MonthStats> = periods
-        .iter()
-        .map(|(year, month)| {
-            let added = all_tasks
-                .iter()
-                .filter(|t| {
-                    let d = t.created_at.date_naive();
-                    d.year() == *year && d.month() == *month
-                })
-                .count();
-
-            let completed = all_tasks
-                .iter()
-                .filter(|t| {
-                    t.completed_at
-                        .map(|d| d.year() == *year && d.month() == *month)
-                        .unwrap_or(false)
-                })
-                .count();
-
-            let deleted = all_tasks
-                .iter()
-                .filter(|t| {
-                    t.deleted_at
-                        .map(|d| d.year() == *year && d.month() == *month)
-                        .unwrap_or(false)
-                })
-                .count();
-
-            let label = format!("{} {:04}", month_abbr(*month), year);
-
-            MonthStats {
-                label,
-                added,
-                completed,
-                deleted,
-            }
-        })
-        .collect();
-
-    // Remove leading empty months
+    // Drop leading months that have zero activity
     let first_non_empty = rows
         .iter()
-        .position(|r| r.added > 0 || r.completed > 0 || r.deleted > 0);
-    if let Some(idx) = first_non_empty {
-        rows = rows.into_iter().skip(idx).collect();
-    }
+        .position(|r| r.created > 0 || r.completed > 0 || r.deleted > 0);
 
-    if rows.is_empty() {
-        println!("{}", "\nNo activity found.\n".dimmed());
-        return Ok(());
-    }
+    let rows = match first_non_empty {
+        Some(idx) => &rows[idx..],
+        None => {
+            println!("{}", "\nNo activity found.\n".dimmed());
+            return Ok(());
+        }
+    };
 
     let max_count = rows
         .iter()
-        .map(|r| r.added.max(r.completed).max(r.deleted))
+        .map(|r| r.created.max(r.completed).max(r.deleted))
         .max()
         .unwrap_or(1)
         .max(1);
@@ -105,17 +37,16 @@ pub fn execute(storage: &impl Storage, months: usize) -> Result<()> {
 
     println!("\n{}\n", "Monthly History".bright_white().bold());
     println!(
-        "  {:<10}  {:<bar_width$}  {}",
+        "  {:<10}  {:<width$}  {}",
         "Month".dimmed(),
         "Added / Completed / Deleted".dimmed(),
         "Count".dimmed(),
-        bar_width = bar_width + 2,
+        width = bar_width + 2,
     );
     println!("{}", "─".repeat(bar_width + 32).dimmed());
 
-    for row in &rows {
-        // Composite bar: added (green), completed (yellow), deleted (red)
-        let filled_a = (row.added * bar_width) / max_count;
+    for row in rows {
+        let filled_a = (row.created * bar_width) / max_count;
         let filled_c = (row.completed * bar_width) / max_count;
         let filled_d = (row.deleted * bar_width) / max_count;
         let total_filled = (filled_a + filled_c + filled_d).min(bar_width);
@@ -131,12 +62,13 @@ pub fn execute(storage: &impl Storage, months: usize) -> Result<()> {
 
         let detail = format!(
             "+{}  ✓{}  -{}",
-            row.added.to_string().green(),
+            row.created.to_string().green(),
             row.completed.to_string().yellow(),
             row.deleted.to_string().red(),
         );
 
-        println!("  {:<10}  {}  {}", row.label.dimmed(), bar, detail);
+        let label = format!("{} {:04}", month_abbr(row.month), row.year);
+        println!("  {:<10}  {}  {}", label.dimmed(), bar, detail);
     }
 
     println!("{}", "─".repeat(bar_width + 32).dimmed());
@@ -149,6 +81,61 @@ pub fn execute(storage: &impl Storage, months: usize) -> Result<()> {
         "█".red(),
         "Deleted".dimmed(),
         format!("(last {} months)", months).dimmed(),
+    );
+
+    Ok(())
+}
+
+pub fn execute_clear(
+    storage: &impl Storage,
+    all: bool,
+    days: Option<u32>,
+    yes: bool,
+) -> Result<()> {
+    if !all && days.is_none() {
+        anyhow::bail!(
+            "Specify --all to clear everything or --days N to clear events older than N days."
+        );
+    }
+
+    let description = if all {
+        "All event history will be permanently deleted.".to_string()
+    } else {
+        format!(
+            "Events older than {} day{} will be permanently deleted.",
+            days.unwrap(),
+            if days.unwrap() == 1 { "" } else { "s" }
+        )
+    };
+
+    println!(
+        "
+{}  {}
+",
+        "!".yellow(),
+        description.yellow()
+    );
+
+    if !yes {
+        print!("{} Proceed? [y/N]: ", "?".yellow());
+        use std::io::Write;
+        std::io::stdout().flush()?;
+        let mut input = String::new();
+        std::io::stdin().read_line(&mut input)?;
+        if !input.trim().eq_ignore_ascii_case("y") {
+            println!("{}", "Cancelled.".dimmed());
+            return Ok(());
+        }
+    }
+
+    let older_than = if all { None } else { days };
+    let removed = storage.clear_events(older_than)?;
+
+    println!(
+        "{} Removed {} event{}.",
+        "✓".green(),
+        removed.to_string().green(),
+        if removed == 1 { "" } else { "s" }
     );
 
     Ok(())
