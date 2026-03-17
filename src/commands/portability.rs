@@ -35,10 +35,10 @@ pub fn execute_export(storage: &impl Storage, file: Option<PathBuf>) -> Result<(
     let (tasks, projects, notes, resources) = storage.load_all_with_resources()?;
 
     let envelope = Envelope {
-        tasks: tasks.clone(),
-        projects: projects.clone(),
-        notes: notes.clone(),
-        resources: resources.clone(),
+        tasks,
+        projects,
+        notes,
+        resources,
     };
 
     let json = serde_json::to_string_pretty(&envelope).context("Failed to serialize data")?;
@@ -58,10 +58,10 @@ pub fn execute_export(storage: &impl Storage, file: Option<PathBuf>) -> Result<(
     );
     println!(
         "  {} tasks, {} projects, {} notes, {} resources",
-        tasks.len().to_string().dimmed(),
-        projects.len().to_string().dimmed(),
-        notes.len().to_string().dimmed(),
-        resources.len().to_string().dimmed(),
+        envelope.tasks.len().to_string().dimmed(),
+        envelope.projects.len().to_string().dimmed(),
+        envelope.notes.len().to_string().dimmed(),
+        envelope.resources.len().to_string().dimmed(),
     );
 
     Ok(())

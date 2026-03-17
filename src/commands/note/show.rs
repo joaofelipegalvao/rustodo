@@ -4,6 +4,7 @@ use anyhow::Result;
 use colored::Colorize;
 
 use crate::models::NoteFormat;
+use crate::render::formatting::note_preview;
 use crate::storage::Storage;
 use crate::utils::validation::resolve_visible;
 
@@ -28,13 +29,8 @@ pub fn execute(storage: &impl Storage, id: usize) -> Result<()> {
     // ── Body ──────────────────────────────────────────────────────────────────
     println!();
     if note.format == NoteFormat::Markdown {
-        let first_line = note
-            .body
-            .lines()
-            .find(|l| !l.trim().is_empty())
-            .map(|l| l.trim_start_matches('#').trim())
-            .unwrap_or("");
-        println!("  {}", first_line.bold());
+        let preview = note_preview(note);
+        println!("  {}", preview.bold());
         println!();
         println!(
             "  {} {}",

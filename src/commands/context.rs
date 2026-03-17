@@ -6,7 +6,7 @@
 use anyhow::Result;
 use colored::Colorize;
 
-use crate::render::formatting::truncate;
+use crate::render::formatting::{note_preview, truncate};
 use crate::storage::Storage;
 use crate::utils::validation::{resolve_visible_index, visible_indices};
 
@@ -125,17 +125,11 @@ pub fn execute(storage: &impl Storage, id: usize) -> Result<()> {
                 .map(|i| i + 1)
                 .unwrap_or(0);
 
-            let preview = note.title.as_deref().unwrap_or_else(|| {
-                note.body
-                    .lines()
-                    .find(|l| !l.trim().is_empty())
-                    .map(|l| l.trim_start_matches('#').trim())
-                    .unwrap_or("")
-            });
+            let preview = note_preview(note);
             println!(
                 "    {}  {}",
                 format!("#{}", note_vis_id).dimmed(),
-                truncate(preview, 50).bright_white()
+                truncate(&preview, 50).bright_white()
             );
         }
     }

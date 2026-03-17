@@ -2,7 +2,7 @@ use chrono::Local;
 use colored::{ColoredString, Colorize};
 use uuid::Uuid;
 
-use crate::models::{Project, Task};
+use crate::models::{Note, Project, Task};
 
 /// Resolves a `project_id` to its display name.
 ///
@@ -81,4 +81,22 @@ pub fn truncate(text: &str, max: usize) -> String {
         let truncated: String = text.chars().take(max.saturating_sub(3)).collect();
         format!("{}...", truncated)
     }
+}
+
+/// Returns a single-line preview of a note.
+///
+/// Uses the title if set, otherwise the first non-empty line of the body
+/// with any leading `#` characters stripped (markdown headings).
+///
+/// Used by `project show`, `resource show`, and anywhere a note needs
+/// a compact one-line representation.
+pub fn note_preview(note: &Note) -> String {
+    if let Some(ref title) = note.title {
+        return title.clone();
+    }
+    note.body
+        .lines()
+        .find(|l| !l.trim().is_empty())
+        .map(|l| l.trim_start_matches('#').trim().to_string())
+        .unwrap_or_default()
 }

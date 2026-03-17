@@ -4,21 +4,9 @@ use anyhow::Result;
 use colored::Colorize;
 
 use crate::models::count_by_project;
-use crate::render::formatting::truncate;
+use crate::render::formatting::{note_preview, truncate};
 use crate::storage::Storage;
 use crate::utils::validation::resolve_visible;
-
-/// Returns a single-line preview of a note — title if set, otherwise first non-empty line.
-fn note_preview(note: &crate::models::Note) -> String {
-    if let Some(ref title) = note.title {
-        return title.clone();
-    }
-    note.body
-        .lines()
-        .find(|l| !l.trim().is_empty())
-        .map(|l| l.trim_start_matches('#').trim().to_string())
-        .unwrap_or_default()
-}
 
 pub fn execute(storage: &impl Storage, id: usize) -> Result<()> {
     let (tasks, projects, notes) = storage.load_all()?;
