@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.27.0](https://github.com/joaofelipegalvao/rustodo/compare/v2.26.1..v2.27.0) - 2026-03-17
+
+### Features
+
+- Add delete methods to Storage trait - ([36211dc](https://github.com/joaofelipegalvao/rustodo/commit/36211dcd365e4c5070aa9d18aee279ebd7c5b31c))
+- Implement delete methods in SQLite and Memory storage - ([3d422a9](https://github.com/joaofelipegalvao/rustodo/commit/3d422a9b9bcbadee62a5c0ad474cb31e06f6fac9))
+
+### Refactoring
+
+- Refactor purge to use Storage delete methods - ([5eed169](https://github.com/joaofelipegalvao/rustodo/commit/5eed16915a5385efccd17188a9f9c1b70bc0c0ee))
+- Extract note_preview helper and use in show commands - ([4d95a66](https://github.com/joaofelipegalvao/rustodo/commit/4d95a6655b454375bc6a6a7ddf5b622ef66fb52f))
 ## [2.26.1](https://github.com/joaofelipegalvao/rustodo/compare/v2.26.0..v2.26.1) - 2026-03-17
 
 ### Refactoring
@@ -528,6 +539,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Features
 
 - V1 - basic todo CLI with add/list commands - ([9580ae2](https://github.com/joaofelipegalvao/rustodo/commit/9580ae297837c9a6c5d4b18868d2f3abac1b1b9e))
+[2.27.0]: https://github.com/joaofelipegalvao/rustodo/compare/v2.26.1...v2.27.0
 [2.26.1]: https://github.com/joaofelipegalvao/rustodo/compare/v2.26.0...v2.26.1
 [2.26.0]: https://github.com/joaofelipegalvao/rustodo/compare/v2.25.1...v2.26.0
 [2.25.1]: https://github.com/joaofelipegalvao/rustodo/compare/v2.25.0...v2.25.1
