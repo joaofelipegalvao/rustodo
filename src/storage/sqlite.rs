@@ -616,6 +616,7 @@ impl Storage for SqliteStorage {
                    deleted_at=excluded.deleted_at",
                 params![
                     resource.uuid.to_string(),
+                    resource.title,
                     resource.resource_type.map(resource_type_to_str),
                     resource.url,
                     resource.description,
