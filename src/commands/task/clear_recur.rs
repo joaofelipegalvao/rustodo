@@ -7,17 +7,18 @@ use anyhow::Result;
 use colored::Colorize;
 
 use crate::storage::Storage;
-use crate::utils::validation::validate_task_id;
+use crate::utils::validation::resolve_visible_index;
 
 pub fn execute(storage: &impl Storage, id: usize) -> Result<()> {
     let mut tasks = storage.load()?;
-    validate_task_id(id, tasks.len())?;
 
-    let index = id - 1;
+    let index = resolve_visible_index(&tasks, id, |t| t.is_deleted())
+        .map_err(|_| anyhow::anyhow!("invalid task ID: {}", id))?;
+
     let task = &mut tasks[index];
 
     let Some(old_pattern) = task.recurrence.take() else {
-        println!("{} Task #{} has no recurrence", "".yellow(), id);
+        println!("{} Task #{} has no recurrence", "".yellow(), id);
         return Ok(());
     };
 
