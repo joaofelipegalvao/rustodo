@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.28.0](https://github.com/joaofelipegalvao/rustodo/compare/v2.27.0..v2.28.0) - 2026-03-17
+
+### Features
+
+- Add event tracking to Storage trait - ([4b05ac6](https://github.com/joaofelipegalvao/rustodo/commit/4b05ac6068d3b07aaaa4fabec3c03597a3218e65))
+- Implement event tracking in SQLite and Memory storage - ([371acc3](https://github.com/joaofelipegalvao/rustodo/commit/371acc386a4e02ab24fa916746a1474e47d6e0fb))
+- Record events in commands - ([02b97f8](https://github.com/joaofelipegalvao/rustodo/commit/02b97f8f8d9587fe4cce1cc4bff130a3c2635f98))
+
+### Refactoring
+
+- Improve backup security and update stats_history - ([9d63629](https://github.com/joaofelipegalvao/rustodo/commit/9d63629524fed602963dddbbb73355fc0ddfdb6b))
+- Add Stats subcommand and minor improvements - ([711c7ea](https://github.com/joaofelipegalvao/rustodo/commit/711c7ea4c72c7b2847cfa019399167476c441654))
 ## [2.27.0](https://github.com/joaofelipegalvao/rustodo/compare/v2.26.1..v2.27.0) - 2026-03-17
 
 ### Features
@@ -539,6 +551,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Features
 
 - V1 - basic todo CLI with add/list commands - ([9580ae2](https://github.com/joaofelipegalvao/rustodo/commit/9580ae297837c9a6c5d4b18868d2f3abac1b1b9e))
+[2.28.0]: https://github.com/joaofelipegalvao/rustodo/compare/v2.27.0...v2.28.0
 [2.27.0]: https://github.com/joaofelipegalvao/rustodo/compare/v2.26.1...v2.27.0
 [2.26.1]: https://github.com/joaofelipegalvao/rustodo/compare/v2.26.0...v2.26.1
 [2.26.0]: https://github.com/joaofelipegalvao/rustodo/compare/v2.25.1...v2.26.0
