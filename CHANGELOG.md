@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.26.1](https://github.com/joaofelipegalvao/rustodo/compare/v2.26.0..v2.26.1) - 2026-03-17
+
+### Refactoring
+
+- Use resolve_visible_index in recur commands - ([04dabe7](https://github.com/joaofelipegalvao/rustodo/commit/04dabe7401d8f51e1adc7cef9d14b440858cee6b))
 ## [2.26.0](https://github.com/joaofelipegalvao/rustodo/compare/v2.25.1..v2.26.0) - 2026-03-14
 
 ### Features
@@ -523,6 +528,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Features
 
 - V1 - basic todo CLI with add/list commands - ([9580ae2](https://github.com/joaofelipegalvao/rustodo/commit/9580ae297837c9a6c5d4b18868d2f3abac1b1b9e))
+[2.26.1]: https://github.com/joaofelipegalvao/rustodo/compare/v2.26.0...v2.26.1
 [2.26.0]: https://github.com/joaofelipegalvao/rustodo/compare/v2.25.1...v2.26.0
 [2.25.1]: https://github.com/joaofelipegalvao/rustodo/compare/v2.25.0...v2.25.1
 [2.25.0]: https://github.com/joaofelipegalvao/rustodo/compare/v2.24.1...v2.25.0
