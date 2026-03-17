@@ -2,15 +2,12 @@
 
 use anyhow::Result;
 use std::cell::RefCell;
+use uuid::Uuid;
 
 use super::Storage;
 use crate::models::{Note, Project, Resource, Task};
 
 /// In-memory storage implementation
-///
-/// Stores tasks, projects, notes, and resources in memory without any file I/O,
-/// making tests fast and isolated.
-/// Uses `RefCell` for interior mutability since `Storage` trait methods take `&self`.
 #[derive(Default)]
 pub struct InMemoryStorage {
     tasks: RefCell<Vec<Task>>,
@@ -48,12 +45,24 @@ impl Storage for InMemoryStorage {
         Ok(())
     }
 
+    fn delete_tasks(&self, uuids: &[Uuid]) -> Result<()> {
+        self.tasks.borrow_mut().retain(|t| !uuids.contains(&t.uuid));
+        Ok(())
+    }
+
     fn load_projects(&self) -> Result<Vec<Project>> {
         Ok(self.projects.borrow().clone())
     }
 
     fn save_projects(&self, projects: &[Project]) -> Result<()> {
         *self.projects.borrow_mut() = projects.to_vec();
+        Ok(())
+    }
+
+    fn delete_projects(&self, uuids: &[Uuid]) -> Result<()> {
+        self.projects
+            .borrow_mut()
+            .retain(|p| !uuids.contains(&p.uuid));
         Ok(())
     }
 
@@ -66,12 +75,24 @@ impl Storage for InMemoryStorage {
         Ok(())
     }
 
+    fn delete_notes(&self, uuids: &[Uuid]) -> Result<()> {
+        self.notes.borrow_mut().retain(|n| !uuids.contains(&n.uuid));
+        Ok(())
+    }
+
     fn load_resources(&self) -> Result<Vec<Resource>> {
         Ok(self.resources.borrow().clone())
     }
 
     fn save_resources(&self, resources: &[Resource]) -> Result<()> {
         *self.resources.borrow_mut() = resources.to_vec();
+        Ok(())
+    }
+
+    fn delete_resources(&self, uuids: &[Uuid]) -> Result<()> {
+        self.resources
+            .borrow_mut()
+            .retain(|r| !uuids.contains(&r.uuid));
         Ok(())
     }
 
@@ -108,6 +129,66 @@ mod tests {
         assert_eq!(loaded.len(), 2);
         assert_eq!(loaded[0].text, "Task 1");
         assert_eq!(loaded[1].text, "Task 2");
+    }
+
+    #[test]
+    fn test_memory_storage_delete_tasks() {
+        let storage = InMemoryStorage::default();
+        let t1 = Task::new("A".into(), Priority::Medium, vec![], None, None, None);
+        let t2 = Task::new("B".into(), Priority::Medium, vec![], None, None, None);
+        let uuid1 = t1.uuid;
+        storage.save(&[t1, t2]).unwrap();
+
+        storage.delete_tasks(&[uuid1]).unwrap();
+
+        let loaded = storage.load().unwrap();
+        assert_eq!(loaded.len(), 1);
+        assert_eq!(loaded[0].text, "B");
+    }
+
+    #[test]
+    fn test_memory_storage_delete_projects() {
+        let storage = InMemoryStorage::default();
+        let p1 = Project::new("A".into());
+        let p2 = Project::new("B".into());
+        let uuid1 = p1.uuid;
+        storage.save_projects(&[p1, p2]).unwrap();
+
+        storage.delete_projects(&[uuid1]).unwrap();
+
+        let loaded = storage.load_projects().unwrap();
+        assert_eq!(loaded.len(), 1);
+        assert_eq!(loaded[0].name, "B");
+    }
+
+    #[test]
+    fn test_memory_storage_delete_notes() {
+        let storage = InMemoryStorage::default();
+        let n1 = Note::new("A".into());
+        let n2 = Note::new("B".into());
+        let uuid1 = n1.uuid;
+        storage.save_notes(&[n1, n2]).unwrap();
+
+        storage.delete_notes(&[uuid1]).unwrap();
+
+        let loaded = storage.load_notes().unwrap();
+        assert_eq!(loaded.len(), 1);
+        assert_eq!(loaded[0].body, "B");
+    }
+
+    #[test]
+    fn test_memory_storage_delete_resources() {
+        let storage = InMemoryStorage::default();
+        let r1 = Resource::new("A".into());
+        let r2 = Resource::new("B".into());
+        let uuid1 = r1.uuid;
+        storage.save_resources(&[r1, r2]).unwrap();
+
+        storage.delete_resources(&[uuid1]).unwrap();
+
+        let loaded = storage.load_resources().unwrap();
+        assert_eq!(loaded.len(), 1);
+        assert_eq!(loaded[0].title, "B");
     }
 
     #[test]
@@ -152,13 +233,10 @@ mod tests {
         let storage = InMemoryStorage::default();
         let project = Project::new("MeuProjeto".into());
         let project_uuid = project.uuid;
-
         let mut note = Note::new("Nota vinculada ao projeto".into());
         note.project_id = Some(project_uuid);
-
         storage.save_projects(&[project]).unwrap();
         storage.save_notes(&[note]).unwrap();
-
         let notes = storage.load_notes().unwrap();
         assert_eq!(notes[0].project_id, Some(project_uuid));
         assert!(notes[0].belongs_to_project(project_uuid));
@@ -176,13 +254,10 @@ mod tests {
             None,
         );
         let task_uuid = task.uuid;
-
         let mut note = Note::new("Nota vinculada à task".into());
         note.task_id = Some(task_uuid);
-
         storage.save(&[task]).unwrap();
         storage.save_notes(&[note]).unwrap();
-
         let notes = storage.load_notes().unwrap();
         assert_eq!(notes[0].task_id, Some(task_uuid));
         assert!(notes[0].belongs_to_task(task_uuid));
@@ -194,14 +269,11 @@ mod tests {
         let r1 = Resource::new("sqlx docs".into());
         let r2 = Resource::new("tokio docs".into());
         let (r1_uuid, r2_uuid) = (r1.uuid, r2.uuid);
-
         let mut note = Note::new("Async DB setup".into());
         note.add_resource(r1_uuid);
         note.add_resource(r2_uuid);
-
         storage.save_resources(&[r1, r2]).unwrap();
         storage.save_notes(&[note]).unwrap();
-
         let notes = storage.load_notes().unwrap();
         assert!(notes[0].references_resource(r1_uuid));
         assert!(notes[0].references_resource(r2_uuid));
@@ -213,16 +285,12 @@ mod tests {
         let storage = InMemoryStorage::default();
         let r = Resource::new("Some doc".into());
         let r_uuid = r.uuid;
-
         let mut note = Note::new("Test note".into());
         note.add_resource(r_uuid);
-        // add_resource is idempotent
         note.add_resource(r_uuid);
         assert_eq!(note.resource_ids.len(), 1);
-
         note.remove_resource(r_uuid);
         assert!(note.resource_ids.is_empty());
-
         storage.save_resources(&[r]).unwrap();
         storage.save_notes(&[note]).unwrap();
         let notes = storage.load_notes().unwrap();
@@ -235,15 +303,12 @@ mod tests {
         let project = Project::new("P".into());
         let task = Task::new("T".into(), Priority::Low, vec![], None, None, None);
         let (p_uuid, t_uuid) = (project.uuid, task.uuid);
-
         let mut note = Note::new("Nota dupla".into());
         note.project_id = Some(p_uuid);
         note.task_id = Some(t_uuid);
-
         storage.save_projects(&[project]).unwrap();
         storage.save(&[task]).unwrap();
         storage.save_notes(&[note]).unwrap();
-
         let notes = storage.load_notes().unwrap();
         assert!(notes[0].belongs_to_project(p_uuid));
         assert!(notes[0].belongs_to_task(t_uuid));

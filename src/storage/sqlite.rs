@@ -584,6 +584,62 @@ impl Storage for SqliteStorage {
     fn location(&self) -> String {
         self.path.display().to_string()
     }
+
+    fn delete_tasks(&self, uuids: &[Uuid]) -> Result<()> {
+        let conn = self.open()?;
+        for uuid in uuids {
+            conn.execute(
+                "DELETE FROM task_dependencies WHERE task_uuid = ?1 OR depends_on_uuid = ?1",
+                params![uuid.to_string()],
+            )?;
+            conn.execute(
+                "DELETE FROM tasks WHERE uuid = ?1",
+                params![uuid.to_string()],
+            )?;
+        }
+        Ok(())
+    }
+
+    fn delete_projects(&self, uuids: &[Uuid]) -> Result<()> {
+        let conn = self.open()?;
+        for uuid in uuids {
+            conn.execute(
+                "DELETE FROM projects WHERE uuid = ?1",
+                params![uuid.to_string()],
+            )?;
+        }
+        Ok(())
+    }
+
+    fn delete_notes(&self, uuids: &[Uuid]) -> Result<()> {
+        let conn = self.open()?;
+        for uuid in uuids {
+            conn.execute(
+                "DELETE FROM note_resources WHERE note_uuid = ?1",
+                params![uuid.to_string()],
+            )?;
+            conn.execute(
+                "DELETE FROM notes WHERE uuid = ?1",
+                params![uuid.to_string()],
+            )?;
+        }
+        Ok(())
+    }
+
+    fn delete_resources(&self, uuids: &[Uuid]) -> Result<()> {
+        let conn = self.open()?;
+        for uuid in uuids {
+            conn.execute(
+                "DELETE FROM note_resources WHERE resource_uuid = ?1",
+                params![uuid.to_string()],
+            )?;
+            conn.execute(
+                "DELETE FROM resources WHERE uuid = ?1",
+                params![uuid.to_string()],
+            )?;
+        }
+        Ok(())
+    }
 }
 
 // ── enum helpers ──────────────────────────────────────────────────────────────
@@ -745,8 +801,8 @@ mod tests {
     fn test_upsert_does_not_duplicate() {
         let (storage, _tmp) = make_storage();
         let task = Task::new("T".into(), Priority::Medium, vec![], None, None, None);
-        storage.save(&[task.clone()]).unwrap();
-        storage.save(&[task]).unwrap();
+        storage.save(std::slice::from_ref(&task)).unwrap();
+        storage.save(std::slice::from_ref(&task)).unwrap();
         assert_eq!(storage.load().unwrap().len(), 1);
     }
 
