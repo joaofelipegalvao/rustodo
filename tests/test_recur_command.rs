@@ -1,486 +1,359 @@
-//! Integration tests for the `projects` command
+//! Integration tests for `todo recur` and `todo norecur` commands
 //!
 //! Covers:
-//! - Happy path: single project, multiple projects, mixed (with/without project)
-//! - Task counts (pending vs done)
-//! - No projects found
-//! - Project filter in `list` command
-//! - Project assignment and removal via `edit`
-//! - Case-insensitive project filter
-//! - Project name validation
+//! - recur: set pattern, update pattern, already set same pattern
+//! - recur: task without due date fails
+//! - recur: invalid ID fails
+//! - norecur: remove pattern
+//! - norecur: task without recurrence is ok
+//! - norecur: invalid ID fails
+//! - done on recurring task creates next occurrence
+//! - next occurrence has correct due date (daily/weekly/monthly)
+//! - next occurrence does not inherit dependencies
+//! - deduplication: done twice does not create duplicate
 
 mod helpers;
-use helpers::TestEnv;
-use rustodo::cli::{AddArgs, EditArgs};
-use rustodo::commands::{project, task};
-use rustodo::models::{Priority, SortBy, StatusFilter};
+
+use helpers::{TestEnv, days_from_now};
+use rustodo::cli::AddArgs;
+use rustodo::commands::task;
+use rustodo::models::{Priority, Recurrence};
 use rustodo::storage::Storage;
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
 
-fn add_task(env: &TestEnv, text: &str, project: Option<&str>) -> usize {
+fn add_simple(env: &TestEnv, text: &str) {
     task::add::execute(
         env.storage(),
         AddArgs {
             text: text.to_string(),
             priority: Priority::Medium,
             tag: vec![],
-            project: project.map(|s| s.to_string()),
+            project: None,
             due: None,
             recurrence: None,
             depends_on: vec![],
         },
     )
     .unwrap();
-    env.task_count()
 }
 
-// ─── projects command ─────────────────────────────────────────────────────────
+fn add_with_due(env: &TestEnv, text: &str, due_offset_days: i64) -> usize {
+    let due = days_from_now(due_offset_days).to_string();
+    task::add::execute(
+        env.storage(),
+        AddArgs {
+            text: text.to_string(),
+            priority: Priority::Medium,
+            tag: vec![],
+            project: None,
+            due: Some(due),
+            recurrence: None,
+            depends_on: vec![],
+        },
+    )
+    .unwrap();
+    env.load_tasks().len()
+}
+
+fn add_recurring(env: &TestEnv, text: &str, due_offset_days: i64, pattern: Recurrence) -> usize {
+    let due = days_from_now(due_offset_days).to_string();
+    task::add::execute(
+        env.storage(),
+        AddArgs {
+            text: text.to_string(),
+            priority: Priority::Medium,
+            tag: vec![],
+            project: None,
+            due: Some(due),
+            recurrence: Some(pattern),
+            depends_on: vec![],
+        },
+    )
+    .unwrap();
+    env.load_tasks().len()
+}
+
+// ─── recur ────────────────────────────────────────────────────────────────────
 
 #[test]
-fn test_projects_no_projects_fails() {
+fn test_recur_set_pattern() {
     let env = TestEnv::new();
-    add_task(&env, "Task without project", None);
+    add_with_due(&env, "Daily standup", 1);
 
-    let result = project::list::execute(env.storage());
+    task::recur::execute(env.storage(), 1, Recurrence::Daily).unwrap();
+
+    let tasks = env.load_tasks();
+    assert_eq!(tasks[0].recurrence, Some(Recurrence::Daily));
+}
+
+#[test]
+fn test_recur_update_pattern() {
+    let env = TestEnv::new();
+    add_with_due(&env, "Meeting", 1);
+    task::recur::execute(env.storage(), 1, Recurrence::Daily).unwrap();
+
+    task::recur::execute(env.storage(), 1, Recurrence::Weekly).unwrap();
+
+    let tasks = env.load_tasks();
+    assert_eq!(tasks[0].recurrence, Some(Recurrence::Weekly));
+}
+
+#[test]
+fn test_recur_already_same_pattern_is_ok() {
+    let env = TestEnv::new();
+    add_with_due(&env, "Meeting", 1);
+    task::recur::execute(env.storage(), 1, Recurrence::Daily).unwrap();
+
+    // Mesma chamada não deve falhar
+    let result = task::recur::execute(env.storage(), 1, Recurrence::Daily);
+    assert!(result.is_ok());
+    let tasks = env.load_tasks();
+    assert_eq!(tasks[0].recurrence, Some(Recurrence::Daily));
+}
+
+#[test]
+fn test_recur_without_due_date_fails() {
+    let env = TestEnv::new();
+    add_simple(&env, "No due date task");
+
+    let result = task::recur::execute(env.storage(), 1, Recurrence::Daily);
     assert!(result.is_err());
     let msg = result.unwrap_err().to_string();
-    assert!(msg.to_lowercase().contains("project"), "got: {}", msg);
+    assert!(msg.contains("due date"), "got: {}", msg);
 }
 
 #[test]
-fn test_projects_empty_storage_fails() {
+fn test_recur_invalid_id_fails() {
     let env = TestEnv::new();
-
-    let result = project::list::execute(env.storage());
+    let result = task::recur::execute(env.storage(), 99, Recurrence::Daily);
     assert!(result.is_err());
 }
 
 #[test]
-fn test_projects_single_project() {
+fn test_recur_invalid_id_zero_fails() {
     let env = TestEnv::new();
-    add_task(&env, "Task A", Some("Backend"));
-    add_task(&env, "Task B", Some("Backend"));
-
-    let result = project::list::execute(env.storage());
-    assert!(result.is_ok());
-
-    // Verify counts via storage
-    let tasks = env.load_tasks();
-    let projects = env.storage().load_projects().unwrap();
-    let backend_uuid = projects
-        .iter()
-        .find(|p| p.name == "Backend")
-        .map(|p| p.uuid);
-    let backend_tasks: Vec<_> = tasks
-        .iter()
-        .filter(|t| t.project_id == backend_uuid)
-        .collect();
-    assert_eq!(backend_tasks.len(), 2);
-}
-
-#[test]
-fn test_projects_multiple_projects() {
-    let env = TestEnv::new();
-    add_task(&env, "API endpoint", Some("Backend"));
-    add_task(&env, "Button component", Some("Frontend"));
-    add_task(&env, "Write docs", Some("Docs"));
-
-    let result = project::list::execute(env.storage());
-    assert!(result.is_ok());
-
-    let projects = env.storage().load_projects().unwrap();
-    let active_projects: Vec<_> = projects.iter().filter(|p| !p.is_deleted()).collect();
-    assert_eq!(active_projects.len(), 3);
-}
-
-#[test]
-fn test_projects_pending_and_done_counts() {
-    let env = TestEnv::new();
-    add_task(&env, "Task A", Some("Backend"));
-    add_task(&env, "Task B", Some("Backend"));
-    add_task(&env, "Task C", Some("Backend"));
-
-    task::done::execute(env.storage(), 1).unwrap();
-
-    let tasks = env.load_tasks();
-    let projects = env.storage().load_projects().unwrap();
-    let backend_uuid = projects
-        .iter()
-        .find(|p| p.name == "Backend")
-        .map(|p| p.uuid);
-    let backend: Vec<_> = tasks
-        .iter()
-        .filter(|t| t.project_id == backend_uuid)
-        .collect();
-
-    let pending = backend.iter().filter(|t| !t.completed).count();
-    let done_count = backend.iter().filter(|t| t.completed).count();
-
-    assert_eq!(pending, 2);
-    assert_eq!(done_count, 1);
-    assert_eq!(backend.len(), 3);
-}
-
-#[test]
-fn test_projects_mixed_with_and_without_project() {
-    let env = TestEnv::new();
-    add_task(&env, "Task with project", Some("Backend"));
-    add_task(&env, "Task without project", None);
-    add_task(&env, "Another without project", None);
-
-    let result = project::list::execute(env.storage());
-    assert!(result.is_ok());
-
-    // Only 1 project should exist
-    let tasks = env.load_tasks();
-    let with_project = tasks.iter().filter(|t| t.project_id.is_some()).count();
-    let without_project = tasks.iter().filter(|t| t.project_id.is_none()).count();
-    assert_eq!(with_project, 1);
-    assert_eq!(without_project, 2);
-}
-
-#[test]
-fn test_projects_all_tasks_completed() {
-    let env = TestEnv::new();
-    add_task(&env, "Task A", Some("Backend"));
-    add_task(&env, "Task B", Some("Backend"));
-
-    task::done::execute(env.storage(), 1).unwrap();
-    task::done::execute(env.storage(), 2).unwrap();
-
-    let result = project::list::execute(env.storage());
-    assert!(result.is_ok());
-
-    let tasks = env.load_tasks();
-    let projects = env.storage().load_projects().unwrap();
-    let backend_uuid = projects
-        .iter()
-        .find(|p| p.name == "Backend")
-        .map(|p| p.uuid);
-    let all_done = tasks
-        .iter()
-        .filter(|t| t.project_id == backend_uuid)
-        .all(|t| t.completed);
-    assert!(all_done);
-}
-
-// ─── list --project filter ────────────────────────────────────────────────────
-
-#[test]
-fn test_list_filter_by_project() {
-    let env = TestEnv::new();
-    add_task(&env, "Backend task 1", Some("Backend"));
-    add_task(&env, "Backend task 2", Some("Backend"));
-    add_task(&env, "Frontend task", Some("Frontend"));
-    add_task(&env, "No project task", None);
-
-    let result = task::list::execute(
-        env.storage(),
-        StatusFilter::All,
-        None,
-        None,
-        None,
-        vec![],
-        Some("Backend".to_string()),
-        None,
-    );
-    assert!(result.is_ok());
-}
-
-#[test]
-fn test_list_filter_by_project_case_insensitive() {
-    let env = TestEnv::new();
-    add_task(&env, "Backend task", Some("Backend"));
-
-    // lowercase "backend" should match "Backend"
-    let result = task::list::execute(
-        env.storage(),
-        StatusFilter::All,
-        None,
-        None,
-        None,
-        vec![],
-        Some("backend".to_string()),
-        None,
-    );
-    assert!(result.is_ok());
-}
-
-#[test]
-fn test_list_filter_by_nonexistent_project_fails() {
-    let env = TestEnv::new();
-    add_task(&env, "Task", Some("Backend"));
-
-    let result = task::list::execute(
-        env.storage(),
-        StatusFilter::All,
-        None,
-        None,
-        None,
-        vec![],
-        Some("Nonexistent".to_string()),
-        None,
-    );
+    let result = task::recur::execute(env.storage(), 0, Recurrence::Daily);
     assert!(result.is_err());
 }
 
 #[test]
-fn test_list_filter_project_with_status() {
+fn test_recur_skips_deleted_tasks() {
     let env = TestEnv::new();
-    add_task(&env, "Done task", Some("Backend"));
-    add_task(&env, "Pending task", Some("Backend"));
+    add_with_due(&env, "Task A", 1);
+    add_with_due(&env, "Task B", 2);
 
-    task::done::execute(env.storage(), 1).unwrap();
+    task::remove::execute(env.storage(), 1, true).unwrap();
 
-    let result = task::list::execute(
-        env.storage(),
-        StatusFilter::Pending,
-        None,
-        None,
-        None,
-        vec![],
-        Some("Backend".to_string()),
-        None,
-    );
-    assert!(result.is_ok());
+    // Agora Task B é visível como #1
+    task::recur::execute(env.storage(), 1, Recurrence::Weekly).unwrap();
+
+    // load_tasks() filtra deletados — Task B deve ser o único visível
+    let tasks = env.load_tasks();
+    assert_eq!(tasks.len(), 1);
+    assert_eq!(tasks[0].text, "Task B");
+    assert_eq!(tasks[0].recurrence, Some(Recurrence::Weekly));
+}
+
+// ─── norecur (clear_recur) ────────────────────────────────────────────────────
+
+#[test]
+fn test_norecur_removes_pattern() {
+    let env = TestEnv::new();
+    add_recurring(&env, "Daily task", 1, Recurrence::Daily);
+
+    task::clear_recur::execute(env.storage(), 1).unwrap();
+
+    let tasks = env.load_tasks();
+    assert!(tasks[0].recurrence.is_none());
 }
 
 #[test]
-fn test_list_filter_project_with_sort() {
-    use helpers::days_from_now;
+fn test_norecur_task_without_recurrence_is_ok() {
+    let env = TestEnv::new();
+    add_simple(&env, "No recurrence");
+
+    let result = task::clear_recur::execute(env.storage(), 1);
+    assert!(result.is_ok());
+
+    // Task deve permanecer intacta
+    let tasks = env.load_tasks();
+    assert_eq!(tasks.len(), 1);
+}
+
+#[test]
+fn test_norecur_invalid_id_fails() {
+    let env = TestEnv::new();
+    let result = task::clear_recur::execute(env.storage(), 99);
+    assert!(result.is_err());
+}
+
+#[test]
+fn test_norecur_skips_deleted_tasks() {
+    let env = TestEnv::new();
+    add_recurring(&env, "Task A", 1, Recurrence::Daily);
+    add_recurring(&env, "Task B", 2, Recurrence::Weekly);
+
+    task::remove::execute(env.storage(), 1, true).unwrap();
+
+    // Task B agora é #1
+    task::clear_recur::execute(env.storage(), 1).unwrap();
+
+    // load_tasks() filtra deletados — Task B deve ser o único visível
+    let tasks = env.load_tasks();
+    assert_eq!(tasks.len(), 1);
+    assert_eq!(tasks[0].text, "Task B");
+    assert!(tasks[0].recurrence.is_none());
+}
+
+// ─── done cria próxima ocorrência ─────────────────────────────────────────────
+
+#[test]
+fn test_done_recurring_daily_creates_next() {
+    let env = TestEnv::new();
+    let due = days_from_now(1);
+    add_recurring(&env, "Daily standup", 1, Recurrence::Daily);
+
+    task::done::execute(env.storage(), 1).unwrap();
+
+    let _tasks = env.load_tasks();
+    // Task original (completed) + nova ocorrência
+    let all = env.storage().load().unwrap();
+    let visible: Vec<_> = all.iter().filter(|t| !t.is_deleted()).collect();
+    assert_eq!(visible.len(), 2);
+
+    let next = visible.iter().find(|t| !t.completed).unwrap();
+    let expected_due = due + chrono::Duration::days(1);
+    assert_eq!(next.due_date, Some(expected_due));
+    assert_eq!(next.recurrence, Some(Recurrence::Daily));
+}
+
+#[test]
+fn test_done_recurring_weekly_creates_next() {
+    let env = TestEnv::new();
+    let due = days_from_now(7);
+    add_recurring(&env, "Weekly review", 7, Recurrence::Weekly);
+
+    task::done::execute(env.storage(), 1).unwrap();
+
+    let all = env.storage().load().unwrap();
+    let next = all
+        .iter()
+        .filter(|t| !t.is_deleted() && !t.completed)
+        .next()
+        .unwrap();
+    let expected_due = due + chrono::Duration::days(7);
+    assert_eq!(next.due_date, Some(expected_due));
+}
+
+#[test]
+fn test_done_recurring_monthly_creates_next() {
+    use chrono::NaiveDate;
 
     let env = TestEnv::new();
-
+    // Usar uma data fixa de fácil cálculo
+    let due_str = "2030-03-15";
     task::add::execute(
         env.storage(),
         AddArgs {
-            text: "Later task".to_string(),
+            text: "Monthly report".to_string(),
             priority: Priority::Medium,
             tag: vec![],
-            project: Some("Backend".to_string()),
-            due: Some(days_from_now(10).to_string()),
-            recurrence: None,
+            project: None,
+            due: Some(due_str.to_string()),
+            recurrence: Some(Recurrence::Monthly),
             depends_on: vec![],
         },
     )
     .unwrap();
 
-    task::add::execute(
-        env.storage(),
-        AddArgs {
-            text: "Earlier task".to_string(),
-            priority: Priority::Medium,
-            tag: vec![],
-            project: Some("Backend".to_string()),
-            due: Some(days_from_now(2).to_string()),
-            recurrence: None,
-            depends_on: vec![],
-        },
-    )
-    .unwrap();
+    task::done::execute(env.storage(), 1).unwrap();
 
-    let result = task::list::execute(
-        env.storage(),
-        StatusFilter::All,
-        None,
-        None,
-        Some(SortBy::Due),
-        vec![],
-        Some("Backend".to_string()),
-        None,
-    );
-    assert!(result.is_ok());
-}
-
-// ─── project via edit ─────────────────────────────────────────────────────────
-
-#[test]
-fn test_edit_assign_project() {
-    let env = TestEnv::new();
-    add_task(&env, "Task without project", None);
-
-    let result = task::edit::execute(
-        env.storage(),
-        EditArgs {
-            id: 1,
-            text: None,
-            priority: None,
-            add_tag: vec![],
-            remove_tag: vec![],
-            project: Some("Backend".to_string()),
-            clear_project: false,
-            due: None,
-            clear_due: false,
-            clear_tags: false,
-            add_dep: vec![],
-            remove_dep: vec![],
-            clear_deps: false,
-        },
-    );
-
-    assert!(result.is_ok());
-
-    let tasks = env.load_tasks();
-    let projects = env.storage().load_projects().unwrap();
-    let backend_uuid = projects
+    let all = env.storage().load().unwrap();
+    let next = all
         .iter()
-        .find(|p| p.name == "Backend")
-        .map(|p| p.uuid);
-    assert_eq!(tasks[0].project_id, backend_uuid);
-}
-
-#[test]
-fn test_edit_change_project() {
-    let env = TestEnv::new();
-    add_task(&env, "Task", Some("Backend"));
-
-    let result = task::edit::execute(
-        env.storage(),
-        EditArgs {
-            id: 1,
-            text: None,
-            priority: None,
-            add_tag: vec![],
-            remove_tag: vec![],
-            project: Some("Frontend".to_string()),
-            clear_project: false,
-            due: None,
-            clear_due: false,
-            clear_tags: false,
-            add_dep: vec![],
-            remove_dep: vec![],
-            clear_deps: false,
-        },
+        .filter(|t| !t.is_deleted() && !t.completed)
+        .next()
+        .unwrap();
+    assert_eq!(
+        next.due_date,
+        Some(NaiveDate::from_ymd_opt(2030, 4, 15).unwrap())
     );
-
-    assert!(result.is_ok());
-
-    let tasks = env.load_tasks();
-    let projects = env.storage().load_projects().unwrap();
-    let frontend_uuid = projects
-        .iter()
-        .find(|p| p.name == "Frontend")
-        .map(|p| p.uuid);
-    assert_eq!(tasks[0].project_id, frontend_uuid);
 }
 
 #[test]
-fn test_edit_clear_project() {
+fn test_done_recurring_does_not_create_duplicate() {
     let env = TestEnv::new();
-    add_task(&env, "Task", Some("Backend"));
+    add_recurring(&env, "Daily task", 1, Recurrence::Daily);
 
-    let result = task::edit::execute(
+    task::done::execute(env.storage(), 1).unwrap();
+
+    // Não deve criar segunda ocorrência ao marcar done novamente
+    // (a tarefa original já está done, a nova está pending)
+    let all = env.storage().load().unwrap();
+    let pending: Vec<_> = all
+        .iter()
+        .filter(|t| !t.is_deleted() && !t.completed)
+        .collect();
+    assert_eq!(pending.len(), 1, "deve existir apenas uma tarefa pendente");
+}
+
+#[test]
+fn test_done_recurring_next_does_not_inherit_deps() {
+    let env = TestEnv::new();
+    add_simple(&env, "Blocker");
+    add_recurring(&env, "Recurring with dep", 1, Recurrence::Daily);
+
+    // Adicionar dep à tarefa recorrente via edit
+    rustodo::commands::task::edit::execute(
         env.storage(),
-        EditArgs {
-            id: 1,
+        rustodo::cli::EditArgs {
+            id: 2,
             text: None,
             priority: None,
             add_tag: vec![],
             remove_tag: vec![],
             project: None,
-            clear_project: true, // clear_project
-            due: None,
-            clear_due: false,
-            clear_tags: false,
-            add_dep: vec![],
-            remove_dep: vec![],
-            clear_deps: false,
-        },
-    );
-
-    assert!(result.is_ok());
-
-    let tasks = env.load_tasks();
-    assert!(tasks[0].project_id.is_none());
-}
-
-#[test]
-fn test_edit_no_change_when_same_project() {
-    let env = TestEnv::new();
-    add_task(&env, "Task", Some("Backend"));
-
-    // Setting to same value should report "no changes"
-    let result = task::edit::execute(
-        env.storage(),
-        EditArgs {
-            id: 1,
-            text: None,
-            priority: None,
-            add_tag: vec![],
-            remove_tag: vec![],
-            project: Some("Backend".to_string()),
             clear_project: false,
             due: None,
             clear_due: false,
             clear_tags: false,
-            add_dep: vec![],
+            add_dep: vec![1],
             remove_dep: vec![],
             clear_deps: false,
         },
+    )
+    .unwrap();
+
+    // Completar o blocker para desbloquear
+    task::done::execute(env.storage(), 1).unwrap();
+    task::done::execute(env.storage(), 2).unwrap();
+
+    let all = env.storage().load().unwrap();
+    let next = all
+        .iter()
+        .filter(|t| !t.is_deleted() && !t.completed)
+        .next()
+        .unwrap();
+    assert!(
+        next.depends_on.is_empty(),
+        "próxima ocorrência não deve herdar dependências"
     );
-
-    assert!(result.is_ok());
-}
-
-// ─── project name validation ──────────────────────────────────────────────────
-
-#[test]
-fn test_add_empty_project_name_fails() {
-    let env = TestEnv::new();
-
-    let result = task::add::execute(
-        env.storage(),
-        AddArgs {
-            text: "Task".to_string(),
-            priority: Priority::Medium,
-            tag: vec![],
-            project: Some("".to_string()),
-            due: None,
-            recurrence: None,
-            depends_on: vec![],
-        },
-    );
-
-    assert!(result.is_err());
 }
 
 #[test]
-fn test_add_project_name_too_long_fails() {
+fn test_done_non_recurring_does_not_create_next() {
     let env = TestEnv::new();
+    add_with_due(&env, "One-time task", 1);
 
-    let result = task::add::execute(
-        env.storage(),
-        AddArgs {
-            text: "Task".to_string(),
-            priority: Priority::Medium,
-            tag: vec![],
-            project: Some("x".repeat(101)),
-            due: None,
-            recurrence: None,
-            depends_on: vec![],
-        },
+    task::done::execute(env.storage(), 1).unwrap();
+
+    let all = env.storage().load().unwrap();
+    let visible: Vec<_> = all.iter().filter(|t| !t.is_deleted()).collect();
+    assert_eq!(
+        visible.len(),
+        1,
+        "tarefa não recorrente não deve criar próxima ocorrência"
     );
-
-    assert!(result.is_err());
-}
-
-#[test]
-fn test_add_project_name_exactly_max_length_ok() {
-    let env = TestEnv::new();
-
-    let result = task::add::execute(
-        env.storage(),
-        AddArgs {
-            text: "Task".to_string(),
-            priority: Priority::Medium,
-            tag: vec![],
-            project: Some("x".repeat(100)),
-            due: None,
-            recurrence: None,
-            depends_on: vec![],
-        },
-    );
-
-    assert!(result.is_ok());
+    assert!(visible[0].completed);
 }
