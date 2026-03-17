@@ -7,72 +7,105 @@
 //! across all devices — purging too early causes deleted tasks to reappear.
 
 use anyhow::Result;
-use chrono::Utc;
+use chrono::{DateTime, Utc};
 use colored::Colorize;
+use uuid::Uuid;
 
 use crate::storage::Storage;
 use crate::utils::confirm;
 
-/// A purgeable tombstone with enough info to display and remove it.
-struct Tombstone {
-    index: usize,
-    label: String,
+// ── HasDeletedAt trait ────────────────────────────────────────────────────────
+
+/// Implemented by any entity that carries a soft-deletion timestamp.
+pub trait HasDeletedAt {
+    fn deleted_at(&self) -> Option<DateTime<Utc>>;
+    fn uuid(&self) -> Uuid;
+    fn label(&self) -> String;
 }
 
-/// Collects tombstone indices and labels from a slice of entities that expose
-/// `deleted_at: Option<DateTime<Utc>>` and a display label.
-macro_rules! collect_tombstones {
-    ($items:expr, $cutoff:expr, $label_fn:expr) => {
-        $items
-            .iter()
-            .enumerate()
-            .filter_map(|(i, item)| {
-                item.deleted_at.and_then(|deleted_at| {
-                    if deleted_at <= $cutoff {
-                        Some(Tombstone {
-                            index: i,
-                            label: $label_fn(item),
-                        })
-                    } else {
-                        None
-                    }
-                })
-            })
-            .collect::<Vec<_>>()
-    };
-}
-
-/// Removes items at the given tombstone indices (descending to preserve indices).
-fn purge_indices<T>(items: &mut Vec<T>, tombstones: &[Tombstone]) {
-    let mut indices: Vec<usize> = tombstones.iter().map(|t| t.index).collect();
-    indices.sort_unstable_by(|a, b| b.cmp(a));
-    for i in indices {
-        items.remove(i);
+impl HasDeletedAt for crate::models::Task {
+    fn deleted_at(&self) -> Option<DateTime<Utc>> {
+        self.deleted_at
+    }
+    fn uuid(&self) -> Uuid {
+        self.uuid
+    }
+    fn label(&self) -> String {
+        self.text.clone()
     }
 }
 
-pub fn execute(storage: &impl Storage, days: u32, dry_run: bool, yes: bool) -> Result<()> {
-    let (mut tasks, mut projects, mut notes, mut resources) = storage.load_all_with_resources()?;
+impl HasDeletedAt for crate::models::Project {
+    fn deleted_at(&self) -> Option<DateTime<Utc>> {
+        self.deleted_at
+    }
+    fn uuid(&self) -> Uuid {
+        self.uuid
+    }
+    fn label(&self) -> String {
+        self.name.clone()
+    }
+}
 
-    let cutoff = Utc::now() - chrono::Duration::days(days as i64);
-
-    let task_tombs = collect_tombstones!(&tasks, cutoff, |t: &crate::models::Task| t.text.clone());
-    let project_tombs = collect_tombstones!(&projects, cutoff, |p: &crate::models::Project| p
-        .name
-        .clone());
-    let note_tombs = collect_tombstones!(&notes, cutoff, |n: &crate::models::Note| n
-        .title
-        .clone()
-        .unwrap_or_else(|| {
-            n.body
+impl HasDeletedAt for crate::models::Note {
+    fn deleted_at(&self) -> Option<DateTime<Utc>> {
+        self.deleted_at
+    }
+    fn uuid(&self) -> Uuid {
+        self.uuid
+    }
+    fn label(&self) -> String {
+        self.title.clone().unwrap_or_else(|| {
+            self.body
                 .lines()
                 .find(|l| !l.trim().is_empty())
                 .map(|l| l.trim_start_matches('#').trim().to_string())
                 .unwrap_or_default()
-        }));
-    let resource_tombs = collect_tombstones!(&resources, cutoff, |r: &crate::models::Resource| r
-        .title
-        .clone());
+        })
+    }
+}
+
+impl HasDeletedAt for crate::models::Resource {
+    fn deleted_at(&self) -> Option<DateTime<Utc>> {
+        self.deleted_at
+    }
+    fn uuid(&self) -> Uuid {
+        self.uuid
+    }
+    fn label(&self) -> String {
+        self.title.clone()
+    }
+}
+
+// ── helper ────────────────────────────────────────────────────────────────────
+
+/// Collects UUIDs and labels of tombstones older than `cutoff`.
+fn collect_tombstones<T: HasDeletedAt>(items: &[T], cutoff: DateTime<Utc>) -> Vec<(Uuid, String)> {
+    items
+        .iter()
+        .filter_map(|item| {
+            item.deleted_at().and_then(|deleted_at| {
+                if deleted_at <= cutoff {
+                    Some((item.uuid(), item.label()))
+                } else {
+                    None
+                }
+            })
+        })
+        .collect()
+}
+
+// ── execute ───────────────────────────────────────────────────────────────────
+
+pub fn execute(storage: &impl Storage, days: u32, dry_run: bool, yes: bool) -> Result<()> {
+    let (tasks, projects, notes, resources) = storage.load_all_with_resources()?;
+
+    let cutoff = Utc::now() - chrono::Duration::days(days as i64);
+
+    let task_tombs = collect_tombstones(&tasks, cutoff);
+    let project_tombs = collect_tombstones(&projects, cutoff);
+    let note_tombs = collect_tombstones(&notes, cutoff);
+    let resource_tombs = collect_tombstones(&resources, cutoff);
 
     let total = task_tombs.len() + project_tombs.len() + note_tombs.len() + resource_tombs.len();
 
@@ -99,11 +132,11 @@ pub fn execute(storage: &impl Storage, days: u32, dry_run: bool, yes: bool) -> R
         if days == 1 { "" } else { "s" },
     );
 
-    let print_section = |label: &str, tombs: &[Tombstone]| {
+    let print_section = |label: &str, tombs: &[(Uuid, String)]| {
         if !tombs.is_empty() {
             println!("  {}:", label.dimmed());
-            for t in tombs {
-                println!("    {} {}", "✗".dimmed(), t.label.dimmed());
+            for (_, lbl) in tombs {
+                println!("    {} {}", "✗".dimmed(), lbl.dimmed());
             }
         }
     };
@@ -124,15 +157,25 @@ pub fn execute(storage: &impl Storage, days: u32, dry_run: bool, yes: bool) -> R
         return Ok(());
     }
 
-    // ── purge ─────────────────────────────────────────────────────────────────
+    // ── purge — deleção física via storage ────────────────────────────────────
 
-    purge_indices(&mut tasks, &task_tombs);
-    purge_indices(&mut projects, &project_tombs);
-    purge_indices(&mut notes, &note_tombs);
-    purge_indices(&mut resources, &resource_tombs);
+    let task_uuids: Vec<Uuid> = task_tombs.iter().map(|(u, _)| *u).collect();
+    let project_uuids: Vec<Uuid> = project_tombs.iter().map(|(u, _)| *u).collect();
+    let note_uuids: Vec<Uuid> = note_tombs.iter().map(|(u, _)| *u).collect();
+    let resource_uuids: Vec<Uuid> = resource_tombs.iter().map(|(u, _)| *u).collect();
 
-    storage.save_all(&tasks, &projects, &notes)?;
-    storage.save_resources(&resources)?;
+    if !task_uuids.is_empty() {
+        storage.delete_tasks(&task_uuids)?;
+    }
+    if !project_uuids.is_empty() {
+        storage.delete_projects(&project_uuids)?;
+    }
+    if !note_uuids.is_empty() {
+        storage.delete_notes(&note_uuids)?;
+    }
+    if !resource_uuids.is_empty() {
+        storage.delete_resources(&resource_uuids)?;
+    }
 
     println!(
         "{} Permanently removed {} tombstone{}.",
