@@ -49,6 +49,26 @@ impl Storage for InMemoryStorage {
         Ok(self.tasks.borrow().clone())
     }
 
+    fn upsert_task(&self, task: &Task) -> Result<()> {
+        let mut tasks = self.tasks.borrow_mut();
+        if let Some(existing) = tasks.iter_mut().find(|t| t.uuid == task.uuid) {
+            *existing = task.clone();
+        } else {
+            tasks.push(task.clone());
+        }
+        Ok(())
+    }
+
+    fn upsert_project(&self, project: &Project) -> Result<()> {
+        let mut projects = self.projects.borrow_mut();
+        if let Some(existing) = projects.iter_mut().find(|p| p.uuid == project.uuid) {
+            *existing = project.clone();
+        } else {
+            projects.push(project.clone());
+        }
+        Ok(())
+    }
+
     fn save(&self, tasks: &[Task]) -> Result<()> {
         *self.tasks.borrow_mut() = tasks.to_vec();
         Ok(())

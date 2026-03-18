@@ -36,6 +36,7 @@ use serde::{Serialize, de::DeserializeOwned};
 use uuid::Uuid;
 
 use super::{EntityType, EventStat, EventType, Storage};
+use crate::models::StatusFilter;
 use crate::models::{
     Difficulty, Note, NoteFormat, Priority, Project, Recurrence, Resource, ResourceType, Task,
 };
@@ -431,6 +432,217 @@ impl Storage for SqliteStorage {
         Ok(tasks)
     }
 
+    fn upsert_task(&self, task: &Task) -> Result<()> {
+        let conn = self.conn.borrow();
+        let uuid_str = task.uuid.to_string();
+        conn.execute(
+            "INSERT INTO tasks (uuid, text, completed, priority, due_date, recurrence,
+                      project_id, parent_id, tags, completed_at, created_at,
+                      updated_at, deleted_at)
+             VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13)
+             ON CONFLICT(uuid) DO UPDATE SET
+               text=excluded.text, completed=excluded.completed,
+               priority=excluded.priority, due_date=excluded.due_date,
+               recurrence=excluded.recurrence, project_id=excluded.project_id,
+               parent_id=excluded.parent_id, tags=excluded.tags,
+               completed_at=excluded.completed_at, updated_at=excluded.updated_at,
+               deleted_at=excluded.deleted_at",
+            params![
+                uuid_str,
+                task.text,
+                task.completed as i64,
+                priority_to_str(task.priority),
+                task.due_date.map(|d| d.format("%Y-%m-%d").to_string()),
+                task.recurrence.map(recurrence_to_str),
+                task.project_id.map(|u| u.to_string()),
+                task.parent_id.map(|u| u.to_string()),
+                JsonVec(task.tags.clone()),
+                task.completed_at.map(|d| {
+                    let dt: DateTime<Utc> = Utc.from_utc_datetime(&d.and_hms_opt(0, 0, 0).unwrap());
+                    to_unix(dt)
+                }),
+                to_unix(task.created_at),
+                opt_to_unix(task.updated_at),
+                opt_to_unix(task.deleted_at),
+            ],
+        )
+        .context("Failed to upsert task")?;
+
+        conn.execute(
+            "DELETE FROM task_dependencies WHERE task_uuid = ?1",
+            params![uuid_str],
+        )?;
+        for dep_uuid in &task.depends_on {
+            conn.execute(
+                "INSERT OR IGNORE INTO task_dependencies
+                 (task_uuid, depends_on_uuid) VALUES (?1, ?2)",
+                params![uuid_str, dep_uuid.to_string()],
+            )?;
+        }
+        Ok(())
+    }
+
+    fn upsert_project(&self, project: &Project) -> Result<()> {
+        self.conn
+            .borrow()
+            .execute(
+                "INSERT INTO projects (uuid, name, completed, difficulty, tech, due_date,
+                          completed_at, created_at, updated_at, deleted_at)
+                 VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10)
+                 ON CONFLICT(uuid) DO UPDATE SET
+                   name=excluded.name, completed=excluded.completed,
+                   difficulty=excluded.difficulty, tech=excluded.tech,
+                   due_date=excluded.due_date, completed_at=excluded.completed_at,
+                   updated_at=excluded.updated_at, deleted_at=excluded.deleted_at",
+                params![
+                    project.uuid.to_string(),
+                    project.name,
+                    project.completed as i64,
+                    difficulty_to_str(project.difficulty),
+                    JsonVec(project.tech.clone()),
+                    project.due_date.map(|d| d.format("%Y-%m-%d").to_string()),
+                    project
+                        .completed_at
+                        .map(|d| d.format("%Y-%m-%d").to_string()),
+                    to_unix(project.created_at),
+                    opt_to_unix(project.updated_at),
+                    opt_to_unix(project.deleted_at),
+                ],
+            )
+            .context("Failed to upsert project")?;
+        Ok(())
+    }
+
+    fn search_tasks(
+        &self,
+        q: &str,
+        tags: &[String],
+        project_id: Option<Uuid>,
+        status: StatusFilter,
+    ) -> Result<Vec<Task>> {
+        let conn = self.conn.borrow();
+        let pattern = format!("%{}%", q.to_lowercase());
+
+        let status_clause = match status {
+            StatusFilter::Pending => " AND completed = 0",
+            StatusFilter::Done => " AND completed = 1",
+            StatusFilter::All => "",
+        };
+        let proj_clause = if project_id.is_some() {
+            " AND project_id = ?2"
+        } else {
+            ""
+        };
+
+        let sql = format!(
+            "SELECT * FROM tasks WHERE deleted_at IS NULL AND LOWER(text) LIKE ?1{}{} ORDER BY created_at",
+            status_clause, proj_clause
+        );
+
+        let mut stmt = conn.prepare(&sql)?;
+        let tasks: Vec<Task> = if let Some(uuid) = project_id {
+            stmt.query_map(rusqlite::params![pattern, uuid.to_string()], |row| {
+                let uuid_str: String = row.get("uuid")?;
+                row_to_task(row, &conn, &uuid_str)
+            })?
+            .collect::<rusqlite::Result<Vec<_>>>()
+            .context("Failed to search tasks")?
+        } else {
+            stmt.query_map(rusqlite::params![pattern], |row| {
+                let uuid_str: String = row.get("uuid")?;
+                row_to_task(row, &conn, &uuid_str)
+            })?
+            .collect::<rusqlite::Result<Vec<_>>>()
+            .context("Failed to search tasks")?
+        };
+
+        Ok(tasks
+            .into_iter()
+            .filter(|t| tags.is_empty() || tags.iter().all(|tag| t.tags.contains(tag)))
+            .collect())
+    }
+
+    fn search_notes(
+        &self,
+        q: &str,
+        tags: &[String],
+        project_id: Option<Uuid>,
+    ) -> Result<Vec<Note>> {
+        let conn = self.conn.borrow();
+        let pattern = format!("%{}%", q.to_lowercase());
+        let proj_clause = if project_id.is_some() {
+            " AND project_id = ?2"
+        } else {
+            ""
+        };
+
+        let sql = format!(
+            "SELECT * FROM notes WHERE deleted_at IS NULL AND (
+               LOWER(COALESCE(title,'')) LIKE ?1 OR
+               LOWER(body) LIKE ?1 OR
+               LOWER(COALESCE(language,'')) LIKE ?1
+             ){} ORDER BY created_at",
+            proj_clause
+        );
+
+        let mut stmt = conn.prepare(&sql)?;
+        let notes: Vec<Note> = if let Some(uuid) = project_id {
+            stmt.query_map(rusqlite::params![pattern, uuid.to_string()], |row| {
+                row_to_note(row, &conn)
+            })?
+            .collect::<rusqlite::Result<Vec<_>>>()
+            .context("Failed to search notes")?
+        } else {
+            stmt.query_map(rusqlite::params![pattern], |row| row_to_note(row, &conn))?
+                .collect::<rusqlite::Result<Vec<_>>>()
+                .context("Failed to search notes")?
+        };
+
+        Ok(notes
+            .into_iter()
+            .filter(|n| tags.is_empty() || tags.iter().all(|tag| n.tags.contains(tag)))
+            .collect())
+    }
+
+    fn search_projects(&self, q: &str) -> Result<Vec<Project>> {
+        let conn = self.conn.borrow();
+        let pattern = format!("%{}%", q.to_lowercase());
+
+        let mut stmt = conn.prepare(
+            "SELECT * FROM projects WHERE deleted_at IS NULL AND (
+               LOWER(name) LIKE ?1 OR LOWER(tech) LIKE ?1
+             ) ORDER BY created_at",
+        )?;
+
+        stmt.query_map(rusqlite::params![pattern], row_to_project)?
+            .collect::<rusqlite::Result<Vec<_>>>()
+            .context("Failed to search projects")
+    }
+
+    fn search_resources(&self, q: &str, tags: &[String]) -> Result<Vec<Resource>> {
+        let conn = self.conn.borrow();
+        let pattern = format!("%{}%", q.to_lowercase());
+
+        let mut stmt = conn.prepare(
+            "SELECT * FROM resources WHERE deleted_at IS NULL AND (
+               LOWER(title) LIKE ?1 OR
+               LOWER(COALESCE(url,'')) LIKE ?1 OR
+               LOWER(COALESCE(description,'')) LIKE ?1 OR
+               LOWER(tags) LIKE ?1
+             ) ORDER BY created_at",
+        )?;
+
+        let resources: Vec<Resource> = stmt
+            .query_map(rusqlite::params![pattern], row_to_resource)?
+            .collect::<rusqlite::Result<Vec<_>>>()
+            .context("Failed to search resources")?;
+
+        Ok(resources
+            .into_iter()
+            .filter(|r| tags.is_empty() || tags.iter().all(|tag| r.tags.contains(tag)))
+            .collect())
+    }
+
     fn save(&self, tasks: &[Task]) -> Result<()> {
         let mut conn = self.conn.borrow_mut();
         let tx = conn.transaction().context("Failed to begin transaction")?;
@@ -616,7 +828,7 @@ impl Storage for SqliteStorage {
                    deleted_at=excluded.deleted_at",
                 params![
                     resource.uuid.to_string(),
-                    resource.title,
+                    resource.title.clone(),
                     resource.resource_type.map(resource_type_to_str),
                     resource.url,
                     resource.description,
@@ -963,5 +1175,340 @@ mod tests {
         task.soft_delete();
         storage.save(&[task]).unwrap();
         assert!(storage.load().unwrap()[0].is_deleted());
+    }
+    // ── upsert_task ───────────────────────────────────────────────────────────
+
+    #[test]
+    fn test_upsert_task_creates_new() {
+        let (storage, _tmp) = make_storage();
+        let task = Task::new("New task".into(), Priority::High, vec![], None, None, None);
+        storage.upsert_task(&task).unwrap();
+        let loaded = storage.load().unwrap();
+        assert_eq!(loaded.len(), 1);
+        assert_eq!(loaded[0].text, "New task");
+        assert_eq!(loaded[0].priority, Priority::High);
+    }
+
+    #[test]
+    fn test_upsert_task_updates_existing() {
+        let (storage, _tmp) = make_storage();
+        let mut task = Task::new("Original".into(), Priority::Low, vec![], None, None, None);
+        storage.upsert_task(&task).unwrap();
+        task.text = "Updated".into();
+        task.priority = Priority::High;
+        storage.upsert_task(&task).unwrap();
+        let loaded = storage.load().unwrap();
+        assert_eq!(loaded.len(), 1);
+        assert_eq!(loaded[0].text, "Updated");
+        assert_eq!(loaded[0].priority, Priority::High);
+    }
+
+    #[test]
+    fn test_upsert_task_preserves_completed_at() {
+        let (storage, _tmp) = make_storage();
+        let mut task = Task::new("T".into(), Priority::Medium, vec![], None, None, None);
+        task.mark_done();
+        storage.upsert_task(&task).unwrap();
+        let loaded = storage.load().unwrap();
+        assert!(loaded[0].completed);
+        assert!(loaded[0].completed_at.is_some());
+    }
+
+    // ── upsert_project ────────────────────────────────────────────────────────
+
+    #[test]
+    fn test_upsert_project_creates_new() {
+        let (storage, _tmp) = make_storage();
+        let project = crate::models::Project::new("My Project".into());
+        storage.upsert_project(&project).unwrap();
+        let loaded = storage.load_projects().unwrap();
+        assert_eq!(loaded.len(), 1);
+        assert_eq!(loaded[0].name, "My Project");
+    }
+
+    #[test]
+    fn test_upsert_project_updates_existing() {
+        let (storage, _tmp) = make_storage();
+        let mut project = crate::models::Project::new("Old Name".into());
+        storage.upsert_project(&project).unwrap();
+        project.name = "New Name".into();
+        storage.upsert_project(&project).unwrap();
+        let loaded = storage.load_projects().unwrap();
+        assert_eq!(loaded.len(), 1);
+        assert_eq!(loaded[0].name, "New Name");
+    }
+
+    // ── search_tasks ──────────────────────────────────────────────────────────
+
+    #[test]
+    fn test_search_tasks_by_text() {
+        let (storage, _tmp) = make_storage();
+        storage
+            .save(&[
+                Task::new(
+                    "Buy milk".into(),
+                    Priority::Medium,
+                    vec![],
+                    None,
+                    None,
+                    None,
+                ),
+                Task::new(
+                    "Buy bread".into(),
+                    Priority::Medium,
+                    vec![],
+                    None,
+                    None,
+                    None,
+                ),
+                Task::new(
+                    "Call dentist".into(),
+                    Priority::Medium,
+                    vec![],
+                    None,
+                    None,
+                    None,
+                ),
+            ])
+            .unwrap();
+
+        let results = storage
+            .search_tasks("buy", &[], None, crate::models::StatusFilter::All)
+            .unwrap();
+        assert_eq!(results.len(), 2);
+        assert!(
+            results
+                .iter()
+                .all(|t| t.text.to_lowercase().contains("buy"))
+        );
+    }
+
+    #[test]
+    fn test_search_tasks_case_insensitive() {
+        let (storage, _tmp) = make_storage();
+        storage
+            .save(&[Task::new(
+                "Buy Milk".into(),
+                Priority::Medium,
+                vec![],
+                None,
+                None,
+                None,
+            )])
+            .unwrap();
+
+        let results = storage
+            .search_tasks("buy milk", &[], None, crate::models::StatusFilter::All)
+            .unwrap();
+        assert_eq!(results.len(), 1);
+    }
+
+    #[test]
+    fn test_search_tasks_excludes_deleted() {
+        let (storage, _tmp) = make_storage();
+        let mut task = Task::new(
+            "Buy milk".into(),
+            Priority::Medium,
+            vec![],
+            None,
+            None,
+            None,
+        );
+        task.soft_delete();
+        storage.save(&[task]).unwrap();
+
+        let results = storage
+            .search_tasks("buy", &[], None, crate::models::StatusFilter::All)
+            .unwrap();
+        assert_eq!(results.len(), 0);
+    }
+
+    #[test]
+    fn test_search_tasks_status_filter_pending() {
+        let (storage, _tmp) = make_storage();
+        let mut done_task = Task::new(
+            "Done task".into(),
+            Priority::Medium,
+            vec![],
+            None,
+            None,
+            None,
+        );
+        done_task.mark_done();
+        storage
+            .save(&[
+                Task::new(
+                    "Pending task".into(),
+                    Priority::Medium,
+                    vec![],
+                    None,
+                    None,
+                    None,
+                ),
+                done_task,
+            ])
+            .unwrap();
+
+        let results = storage
+            .search_tasks("task", &[], None, crate::models::StatusFilter::Pending)
+            .unwrap();
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0].text, "Pending task");
+    }
+
+    #[test]
+    fn test_search_tasks_status_filter_done() {
+        let (storage, _tmp) = make_storage();
+        let mut done_task = Task::new(
+            "Done task".into(),
+            Priority::Medium,
+            vec![],
+            None,
+            None,
+            None,
+        );
+        done_task.mark_done();
+        storage
+            .save(&[
+                Task::new(
+                    "Pending task".into(),
+                    Priority::Medium,
+                    vec![],
+                    None,
+                    None,
+                    None,
+                ),
+                done_task,
+            ])
+            .unwrap();
+
+        let results = storage
+            .search_tasks("task", &[], None, crate::models::StatusFilter::Done)
+            .unwrap();
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0].text, "Done task");
+    }
+
+    #[test]
+    fn test_search_tasks_tag_filter() {
+        let (storage, _tmp) = make_storage();
+        storage
+            .save(&[
+                Task::new(
+                    "Task A".into(),
+                    Priority::Medium,
+                    vec!["rust".into()],
+                    None,
+                    None,
+                    None,
+                ),
+                Task::new(
+                    "Task B".into(),
+                    Priority::Medium,
+                    vec!["python".into()],
+                    None,
+                    None,
+                    None,
+                ),
+            ])
+            .unwrap();
+
+        let results = storage
+            .search_tasks(
+                "task",
+                &["rust".to_string()],
+                None,
+                crate::models::StatusFilter::All,
+            )
+            .unwrap();
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0].text, "Task A");
+    }
+
+    #[test]
+    fn test_search_tasks_no_results() {
+        let (storage, _tmp) = make_storage();
+        storage
+            .save(&[Task::new(
+                "Buy milk".into(),
+                Priority::Medium,
+                vec![],
+                None,
+                None,
+                None,
+            )])
+            .unwrap();
+
+        let results = storage
+            .search_tasks("xyz", &[], None, crate::models::StatusFilter::All)
+            .unwrap();
+        assert!(results.is_empty());
+    }
+
+    // ── search_projects ───────────────────────────────────────────────────────
+
+    #[test]
+    fn test_search_projects_by_name() {
+        let (storage, _tmp) = make_storage();
+        let p1 = crate::models::Project::new("Rustodo".into());
+        let p2 = crate::models::Project::new("Python CLI".into());
+        storage.save_projects(&[p1, p2]).unwrap();
+
+        let results = storage.search_projects("rust").unwrap();
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0].name, "Rustodo");
+    }
+
+    #[test]
+    fn test_search_projects_excludes_deleted() {
+        let (storage, _tmp) = make_storage();
+        let mut p = crate::models::Project::new("Rustodo".into());
+        p.soft_delete();
+        storage.save_projects(&[p]).unwrap();
+
+        let results = storage.search_projects("rust").unwrap();
+        assert!(results.is_empty());
+    }
+
+    // ── search_resources ──────────────────────────────────────────────────────
+
+    #[test]
+    fn test_search_resources_by_title() {
+        let (storage, _tmp) = make_storage();
+        let mut r1 = crate::models::Resource::new("SQLx docs".into());
+        let r2 = crate::models::Resource::new("Tokio tutorial".into());
+        r1.url = Some("https://docs.rs/sqlx".into());
+        storage.save_resources(&[r1, r2]).unwrap();
+
+        let results = storage.search_resources("sqlx", &[]).unwrap();
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0].title, "SQLx docs");
+    }
+
+    #[test]
+    fn test_search_resources_by_url() {
+        let (storage, _tmp) = make_storage();
+        let mut r = crate::models::Resource::new("Docs".into());
+        r.url = Some("https://docs.rs/sqlx".into());
+        storage.save_resources(&[r]).unwrap();
+
+        let results = storage.search_resources("docs.rs", &[]).unwrap();
+        assert_eq!(results.len(), 1);
+    }
+
+    #[test]
+    fn test_search_resources_tag_filter() {
+        let (storage, _tmp) = make_storage();
+        let mut r1 = crate::models::Resource::new("Resource A".into());
+        r1.tags = vec!["rust".into()];
+        let mut r2 = crate::models::Resource::new("Resource B".into());
+        r2.tags = vec!["python".into()];
+        storage.save_resources(&[r1, r2]).unwrap();
+
+        let results = storage
+            .search_resources("resource", &["rust".to_string()])
+            .unwrap();
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0].title, "Resource A");
     }
 }
