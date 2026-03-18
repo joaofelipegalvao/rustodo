@@ -73,3 +73,79 @@ pub fn execute(storage: &impl Storage, yes: bool) -> Result<()> {
 
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::models::{Note, Priority, Task};
+    use crate::storage::InMemoryStorage;
+
+    fn make_task(text: &str) -> Task {
+        Task::new(text.into(), Priority::Medium, vec![], None, None, None)
+    }
+
+    #[test]
+    fn test_clear_soft_deletes_all_tasks() {
+        let storage = InMemoryStorage::default();
+        storage
+            .save(&[
+                make_task("Task A"),
+                make_task("Task B"),
+                make_task("Task C"),
+            ])
+            .unwrap();
+
+        execute(&storage, true).unwrap();
+
+        let tasks = storage.load().unwrap();
+        assert!(tasks.iter().all(|t| t.is_deleted()));
+    }
+
+    #[test]
+    fn test_clear_empty_storage_is_ok() {
+        let storage = InMemoryStorage::default();
+        execute(&storage, true).unwrap();
+        assert!(storage.load().unwrap().is_empty());
+    }
+
+    #[test]
+    fn test_clear_does_not_remove_already_deleted() {
+        let storage = InMemoryStorage::default();
+        let mut deleted = make_task("Already deleted");
+        deleted.soft_delete();
+        storage.save(&[deleted, make_task("Active")]).unwrap();
+
+        execute(&storage, true).unwrap();
+
+        // Both end up deleted — the active one gets soft-deleted too
+        let tasks = storage.load().unwrap();
+        assert!(tasks.iter().all(|t| t.is_deleted()));
+    }
+
+    #[test]
+    fn test_clear_unlinks_note_task_ids() {
+        let storage = InMemoryStorage::default();
+        let task = make_task("Task");
+        let task_uuid = task.uuid;
+        storage.save(&[task]).unwrap();
+
+        let mut note = Note::new("Note body".into());
+        note.task_id = Some(task_uuid);
+        storage.save_notes(&[note]).unwrap();
+
+        execute(&storage, true).unwrap();
+
+        assert!(storage.load_notes().unwrap()[0].task_id.is_none());
+    }
+
+    #[test]
+    fn test_clear_preserves_notes_themselves() {
+        let storage = InMemoryStorage::default();
+        storage.save(&[make_task("Task")]).unwrap();
+        storage.save_notes(&[Note::new("Note".into())]).unwrap();
+
+        execute(&storage, true).unwrap();
+
+        assert!(!storage.load_notes().unwrap().is_empty());
+    }
+}

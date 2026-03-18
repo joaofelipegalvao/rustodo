@@ -44,3 +44,61 @@ pub fn execute(storage: &impl Storage, id: usize, yes: bool) -> Result<()> {
     println!("{} Note #{} removed.", "✓".green(), id);
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::models::Note;
+    use crate::storage::InMemoryStorage;
+
+    fn make_note(body: &str) -> Note {
+        Note::new(body.into())
+    }
+
+    #[test]
+    fn test_note_remove_soft_deletes() {
+        let storage = InMemoryStorage::default();
+        storage.save_notes(&[make_note("Note body")]).unwrap();
+
+        execute(&storage, 1, true).unwrap();
+
+        assert!(storage.load_notes().unwrap()[0].is_deleted());
+    }
+
+    #[test]
+    fn test_note_remove_invalid_id_returns_error() {
+        let storage = InMemoryStorage::default();
+        storage.save_notes(&[make_note("Note")]).unwrap();
+
+        assert!(execute(&storage, 99, true).is_err());
+    }
+
+    #[test]
+    fn test_note_remove_does_not_affect_other_notes() {
+        let storage = InMemoryStorage::default();
+        storage
+            .save_notes(&[make_note("Note A"), make_note("Note B")])
+            .unwrap();
+
+        execute(&storage, 1, true).unwrap();
+
+        let notes = storage.load_notes().unwrap();
+        assert!(notes[0].is_deleted());
+        assert!(!notes[1].is_deleted());
+    }
+
+    #[test]
+    fn test_note_remove_skips_deleted_in_id_resolution() {
+        let storage = InMemoryStorage::default();
+        let mut deleted = make_note("Deleted");
+        deleted.soft_delete();
+        let active = make_note("Active");
+        storage.save_notes(&[deleted, active]).unwrap();
+
+        execute(&storage, 1, true).unwrap();
+
+        let notes = storage.load_notes().unwrap();
+        assert!(notes[0].is_deleted()); // was already deleted
+        assert!(notes[1].is_deleted()); // #1 resolved to active
+    }
+}

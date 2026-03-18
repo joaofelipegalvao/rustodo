@@ -49,3 +49,79 @@ fn execute_inner(storage: &impl Storage, id: usize, yes: bool, silent: bool) -> 
     }
     Ok(msg)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::models::{Priority, Task};
+    use crate::storage::InMemoryStorage;
+
+    fn make_task(text: &str) -> Task {
+        Task::new(text.into(), Priority::Medium, vec![], None, None, None)
+    }
+
+    #[test]
+    fn test_remove_soft_deletes_task() {
+        let storage = InMemoryStorage::default();
+        storage.save(&[make_task("Task A")]).unwrap();
+
+        execute_silent(&storage, 1).unwrap();
+
+        let tasks = storage.load().unwrap();
+        assert!(tasks[0].is_deleted());
+    }
+
+    #[test]
+    fn test_remove_invalid_id_returns_error() {
+        let storage = InMemoryStorage::default();
+        storage.save(&[make_task("Task")]).unwrap();
+
+        assert!(execute_silent(&storage, 99).is_err());
+    }
+
+    #[test]
+    fn test_remove_does_not_affect_other_tasks() {
+        let storage = InMemoryStorage::default();
+        storage
+            .save(&[make_task("Task A"), make_task("Task B")])
+            .unwrap();
+
+        execute_silent(&storage, 1).unwrap();
+
+        let tasks = storage.load().unwrap();
+        assert!(tasks[0].is_deleted());
+        assert!(!tasks[1].is_deleted());
+    }
+
+    #[test]
+    fn test_remove_clears_note_task_id() {
+        let storage = InMemoryStorage::default();
+        let task = make_task("Task");
+        let task_uuid = task.uuid;
+        storage.save(&[task]).unwrap();
+
+        let mut note = crate::models::Note::new("Note body".into());
+        note.task_id = Some(task_uuid);
+        storage.save_notes(&[note]).unwrap();
+
+        execute_silent(&storage, 1).unwrap();
+
+        let notes = storage.load_notes().unwrap();
+        assert!(notes[0].task_id.is_none());
+    }
+
+    #[test]
+    fn test_remove_skips_deleted_in_id_resolution() {
+        let storage = InMemoryStorage::default();
+        let mut deleted = make_task("Deleted");
+        deleted.soft_delete();
+        let active = make_task("Active");
+        storage.save(&[deleted, active]).unwrap();
+
+        execute_silent(&storage, 1).unwrap();
+
+        let tasks = storage.load().unwrap();
+        assert!(tasks[0].is_deleted()); // was already deleted
+        assert!(tasks[1].is_deleted()); // #1 resolved to active, now deleted
+    }
+}

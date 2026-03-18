@@ -47,7 +47,11 @@ pub fn execute(
     let task_results = storage.search_tasks(&query, &tags, proj_uuid, status)?;
     let note_results = storage.search_notes(&query, &tags, proj_uuid)?;
     let project_results = if tags.is_empty() {
-        storage.search_projects(&query)?
+        storage
+            .search_projects(&query)?
+            .into_iter()
+            .filter(|p| proj_uuid.is_none_or(|uuid| p.uuid == uuid))
+            .collect()
     } else {
         vec![]
     };
