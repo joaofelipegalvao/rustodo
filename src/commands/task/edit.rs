@@ -233,3 +233,377 @@ fn execute_inner(storage: &impl Storage, args: EditArgs, silent: bool) -> Result
 
     Ok(format!("Task #{} updated.", args.id))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::models::{Priority, Task};
+    use crate::storage::InMemoryStorage;
+
+    fn args(id: usize) -> EditArgs {
+        EditArgs {
+            id,
+            text: None,
+            priority: None,
+            add_tag: vec![],
+            remove_tag: vec![],
+            project: None,
+            clear_project: false,
+            due: None,
+            clear_due: false,
+            clear_tags: false,
+            add_dep: vec![],
+            remove_dep: vec![],
+            clear_deps: false,
+        }
+    }
+
+    fn make_task(text: &str) -> Task {
+        Task::new(text.into(), Priority::Medium, vec![], None, None, None)
+    }
+
+    // ── text ──────────────────────────────────────────────────────────────────
+
+    #[test]
+    fn test_edit_text() {
+        let storage = InMemoryStorage::default();
+        storage.save(&[make_task("Old text")]).unwrap();
+
+        execute_silent(
+            &storage,
+            EditArgs {
+                text: Some("New text".into()),
+                ..args(1)
+            },
+        )
+        .unwrap();
+
+        assert_eq!(storage.load().unwrap()[0].text, "New text");
+    }
+
+    #[test]
+    fn test_edit_empty_text_fails() {
+        let storage = InMemoryStorage::default();
+        storage.save(&[make_task("Task")]).unwrap();
+
+        let err = execute_silent(
+            &storage,
+            EditArgs {
+                text: Some("  ".into()),
+                ..args(1)
+            },
+        )
+        .unwrap_err();
+        assert!(err.to_string().contains("empty"));
+    }
+
+    #[test]
+    fn test_edit_same_text_no_changes() {
+        let storage = InMemoryStorage::default();
+        storage.save(&[make_task("Same text")]).unwrap();
+
+        let result = execute_silent(
+            &storage,
+            EditArgs {
+                text: Some("Same text".into()),
+                ..args(1)
+            },
+        )
+        .unwrap();
+        assert!(result.contains("No changes"));
+    }
+
+    // ── priority ──────────────────────────────────────────────────────────────
+
+    #[test]
+    fn test_edit_priority() {
+        let storage = InMemoryStorage::default();
+        storage.save(&[make_task("Task")]).unwrap();
+
+        execute_silent(
+            &storage,
+            EditArgs {
+                priority: Some(Priority::High),
+                ..args(1)
+            },
+        )
+        .unwrap();
+
+        assert_eq!(storage.load().unwrap()[0].priority, Priority::High);
+    }
+
+    #[test]
+    fn test_edit_same_priority_no_changes() {
+        let storage = InMemoryStorage::default();
+        storage.save(&[make_task("Task")]).unwrap();
+
+        let result = execute_silent(
+            &storage,
+            EditArgs {
+                priority: Some(Priority::Medium),
+                ..args(1)
+            },
+        )
+        .unwrap();
+        assert!(result.contains("No changes"));
+    }
+
+    // ── tags ──────────────────────────────────────────────────────────────────
+
+    #[test]
+    fn test_edit_add_tag() {
+        let storage = InMemoryStorage::default();
+        storage.save(&[make_task("Task")]).unwrap();
+
+        execute_silent(
+            &storage,
+            EditArgs {
+                add_tag: vec!["rust".into()],
+                ..args(1)
+            },
+        )
+        .unwrap();
+
+        assert!(
+            storage.load().unwrap()[0]
+                .tags
+                .contains(&"rust".to_string())
+        );
+    }
+
+    #[test]
+    fn test_edit_add_duplicate_tag_no_changes() {
+        let storage = InMemoryStorage::default();
+        let mut task = make_task("Task");
+        task.tags = vec!["rust".into()];
+        storage.save(&[task]).unwrap();
+
+        let result = execute_silent(
+            &storage,
+            EditArgs {
+                add_tag: vec!["rust".into()],
+                ..args(1)
+            },
+        )
+        .unwrap();
+        assert!(result.contains("No changes"));
+        assert_eq!(storage.load().unwrap()[0].tags.len(), 1);
+    }
+
+    #[test]
+    fn test_edit_remove_tag() {
+        let storage = InMemoryStorage::default();
+        let mut task = make_task("Task");
+        task.tags = vec!["rust".into(), "backend".into()];
+        storage.save(&[task]).unwrap();
+
+        execute_silent(
+            &storage,
+            EditArgs {
+                remove_tag: vec!["rust".into()],
+                ..args(1)
+            },
+        )
+        .unwrap();
+
+        let tags = &storage.load().unwrap()[0].tags;
+        assert!(!tags.contains(&"rust".to_string()));
+        assert!(tags.contains(&"backend".to_string()));
+    }
+
+    #[test]
+    fn test_edit_remove_nonexistent_tag_fails() {
+        let storage = InMemoryStorage::default();
+        let mut task = make_task("Task");
+        task.tags = vec!["rust".into()];
+        storage.save(&[task]).unwrap();
+
+        let err = execute_silent(
+            &storage,
+            EditArgs {
+                remove_tag: vec!["python".into()],
+                ..args(1)
+            },
+        )
+        .unwrap_err();
+        assert!(err.to_string().contains("python"));
+    }
+
+    #[test]
+    fn test_edit_clear_tags() {
+        let storage = InMemoryStorage::default();
+        let mut task = make_task("Task");
+        task.tags = vec!["rust".into(), "backend".into()];
+        storage.save(&[task]).unwrap();
+
+        execute_silent(
+            &storage,
+            EditArgs {
+                clear_tags: true,
+                ..args(1)
+            },
+        )
+        .unwrap();
+
+        assert!(storage.load().unwrap()[0].tags.is_empty());
+    }
+
+    #[test]
+    fn test_edit_clear_tags_already_empty_no_changes() {
+        let storage = InMemoryStorage::default();
+        storage.save(&[make_task("Task")]).unwrap();
+
+        let result = execute_silent(
+            &storage,
+            EditArgs {
+                clear_tags: true,
+                ..args(1)
+            },
+        )
+        .unwrap();
+        assert!(result.contains("No changes"));
+    }
+
+    // ── due date ──────────────────────────────────────────────────────────────
+
+    #[test]
+    fn test_edit_clear_due() {
+        let storage = InMemoryStorage::default();
+        let mut task = make_task("Task");
+        task.due_date = Some(chrono::NaiveDate::from_ymd_opt(2099, 12, 31).unwrap());
+        storage.save(&[task]).unwrap();
+
+        execute_silent(
+            &storage,
+            EditArgs {
+                clear_due: true,
+                ..args(1)
+            },
+        )
+        .unwrap();
+
+        assert!(storage.load().unwrap()[0].due_date.is_none());
+    }
+
+    #[test]
+    fn test_edit_clear_due_already_none_no_changes() {
+        let storage = InMemoryStorage::default();
+        storage.save(&[make_task("Task")]).unwrap();
+
+        let result = execute_silent(
+            &storage,
+            EditArgs {
+                clear_due: true,
+                ..args(1)
+            },
+        )
+        .unwrap();
+        assert!(result.contains("No changes"));
+    }
+
+    // ── project ───────────────────────────────────────────────────────────────
+
+    #[test]
+    fn test_edit_clear_project() {
+        let storage = InMemoryStorage::default();
+        let project = crate::models::Project::new("MyProject".into());
+        let proj_uuid = project.uuid;
+        storage.save_projects(&[project]).unwrap();
+        let mut task = make_task("Task");
+        task.project_id = Some(proj_uuid);
+        storage.save(&[task]).unwrap();
+
+        execute_silent(
+            &storage,
+            EditArgs {
+                clear_project: true,
+                ..args(1)
+            },
+        )
+        .unwrap();
+
+        assert!(storage.load().unwrap()[0].project_id.is_none());
+    }
+
+    #[test]
+    fn test_edit_clear_project_already_none_no_changes() {
+        let storage = InMemoryStorage::default();
+        storage.save(&[make_task("Task")]).unwrap();
+
+        let result = execute_silent(
+            &storage,
+            EditArgs {
+                clear_project: true,
+                ..args(1)
+            },
+        )
+        .unwrap();
+        assert!(result.contains("No changes"));
+    }
+
+    // ── invalid id ────────────────────────────────────────────────────────────
+
+    #[test]
+    fn test_edit_invalid_id_returns_error() {
+        let storage = InMemoryStorage::default();
+        storage.save(&[make_task("Task")]).unwrap();
+
+        assert!(execute_silent(&storage, args(99)).is_err());
+    }
+
+    #[test]
+    fn test_edit_skips_deleted_in_id_resolution() {
+        let storage = InMemoryStorage::default();
+        let mut deleted = make_task("Deleted");
+        deleted.soft_delete();
+        let active = make_task("Active");
+        storage.save(&[deleted, active]).unwrap();
+
+        execute_silent(
+            &storage,
+            EditArgs {
+                text: Some("Edited".into()),
+                ..args(1)
+            },
+        )
+        .unwrap();
+
+        let tasks = storage.load().unwrap();
+        assert_eq!(tasks[0].text, "Deleted"); // untouched
+        assert_eq!(tasks[1].text, "Edited"); // #1 resolved to active
+    }
+
+    // ── no changes ────────────────────────────────────────────────────────────
+
+    #[test]
+    fn test_edit_no_args_no_changes() {
+        let storage = InMemoryStorage::default();
+        storage.save(&[make_task("Task")]).unwrap();
+
+        let result = execute_silent(&storage, args(1)).unwrap();
+        assert!(result.contains("No changes"));
+    }
+
+    // ── touch on save ─────────────────────────────────────────────────────────
+
+    #[test]
+    fn test_edit_updates_updated_at() {
+        let storage = InMemoryStorage::default();
+        let task = make_task("Task");
+        let original_updated_at = task.updated_at;
+        storage.save(&[task]).unwrap();
+
+        std::thread::sleep(std::time::Duration::from_millis(10));
+        execute_silent(
+            &storage,
+            EditArgs {
+                text: Some("New text".into()),
+                ..args(1)
+            },
+        )
+        .unwrap();
+
+        let updated = storage.load().unwrap();
+        assert!(updated[0].updated_at > original_updated_at);
+    }
+}
