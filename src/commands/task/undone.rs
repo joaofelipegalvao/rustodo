@@ -32,11 +32,68 @@ fn execute_inner(storage: &impl Storage, id: usize, silent: bool) -> Result<Stri
 
     let task_uuid = tasks[index].uuid;
     tasks[index].mark_undone();
-    storage.save(&tasks)?;
+    storage.upsert_task(&tasks[index])?;
     storage.record_event(EntityType::Task, task_uuid, EventType::Uncompleted)?;
 
     if !silent {
         println!("Task {} marked as pending.", format!("#{}", id).yellow());
     }
     Ok(format!("Task #{} marked as pending.", id))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::models::{Priority, Task};
+    use crate::storage::InMemoryStorage;
+
+    fn make_done_task(text: &str) -> Task {
+        let mut t = Task::new(text.into(), Priority::Medium, vec![], None, None, None);
+        t.mark_done();
+        t
+    }
+
+    #[test]
+    fn test_undone_marks_task_pending() {
+        let storage = InMemoryStorage::default();
+        storage.save(&[make_done_task("Task")]).unwrap();
+
+        execute_silent(&storage, 1).unwrap();
+
+        let tasks = storage.load().unwrap();
+        assert!(!tasks[0].completed);
+        assert!(tasks[0].completed_at.is_none());
+    }
+
+    #[test]
+    fn test_undone_invalid_id_returns_error() {
+        let storage = InMemoryStorage::default();
+        storage.save(&[make_done_task("Task")]).unwrap();
+
+        assert!(execute_silent(&storage, 99).is_err());
+    }
+
+    #[test]
+    fn test_undone_already_pending_returns_error() {
+        let storage = InMemoryStorage::default();
+        let task = Task::new("Task".into(), Priority::Medium, vec![], None, None, None);
+        storage.save(&[task]).unwrap();
+
+        let err = execute_silent(&storage, 1).unwrap_err();
+        assert!(err.to_string().contains("pending"));
+    }
+
+    #[test]
+    fn test_undone_does_not_affect_other_tasks() {
+        let storage = InMemoryStorage::default();
+        storage
+            .save(&[make_done_task("Task A"), make_done_task("Task B")])
+            .unwrap();
+
+        execute_silent(&storage, 1).unwrap();
+
+        let tasks = storage.load().unwrap();
+        assert!(!tasks[0].completed);
+        assert!(tasks[1].completed);
+    }
 }

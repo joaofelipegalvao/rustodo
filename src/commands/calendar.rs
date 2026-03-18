@@ -28,7 +28,8 @@ pub fn execute(storage: &impl Storage, month: Option<u32>, year: Option<i32>) ->
         HolidayCache::default()
     };
 
-    let (all_tasks, all_projects, _, _) = storage.load_all_with_resources()?;
+    let all_tasks = storage.load()?;
+    let all_projects = storage.load_projects()?;
     let tasks: Vec<_> = all_tasks.iter().filter(|t| !t.is_deleted()).collect();
     let projects: Vec<_> = all_projects.iter().filter(|p| !p.is_deleted()).collect();
 

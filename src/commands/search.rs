@@ -27,13 +27,9 @@ pub fn execute(
     project: Option<String>,
     status: StatusFilter,
 ) -> Result<()> {
-    let (all_tasks, projects, all_notes, all_resources) = storage.load_all_with_resources()?;
-
-    let q = query.to_lowercase();
-
     // ── Resolve project UUID ───────────────────────────────────────────────────
-    // If --project was supplied but not found, bail out immediately.
     let proj_uuid: Option<Uuid> = if let Some(ref project_name) = project {
+        let projects = storage.load_projects()?;
         let uuid = projects
             .iter()
             .find(|p| p.name.to_lowercase() == project_name.to_lowercase() && !p.is_deleted())
@@ -42,87 +38,20 @@ pub fn execute(
         if uuid.is_none() {
             return Err(TodoError::ProjectNotFound(project_name.clone()).into());
         }
-
         uuid
     } else {
         None
     };
 
-    // ── Shared filter helpers ──────────────────────────────────────────────────
-    let matches_tags =
-        |item_tags: &Vec<String>| tags.is_empty() || tags.iter().all(|tag| item_tags.contains(tag));
-
-    let matches_proj =
-        |item_proj: Option<Uuid>| proj_uuid.is_none_or(|uuid| item_proj == Some(uuid));
-
-    // ── Tasks ─────────────────────────────────────────────────────────────────
-    let visible_tasks: Vec<_> = all_tasks
-        .iter()
-        .filter(|t| !t.is_deleted())
-        .cloned()
-        .collect();
-
-    let task_results: Vec<(usize, &_)> = visible_tasks
-        .iter()
-        .enumerate()
-        .filter(|(_, t)| t.text.to_lowercase().contains(&q))
-        .filter(|(_, t)| t.matches_status(status))
-        .filter(|(_, t)| matches_tags(&t.tags))
-        .filter(|(_, t)| proj_uuid.is_none_or(|uuid| t.project_id == Some(uuid)))
-        .map(|(i, t)| (i + 1, t))
-        .collect();
-
-    // ── Notes ─────────────────────────────────────────────────────────────────
-    let note_results: Vec<&_> = all_notes
-        .iter()
-        .filter(|n| !n.is_deleted())
-        .filter(|n| {
-            n.title.as_deref().unwrap_or("").to_lowercase().contains(&q)
-                || n.body.to_lowercase().contains(&q)
-                || n.tags.iter().any(|t| t.to_lowercase().contains(&q))
-                || n.language
-                    .as_deref()
-                    .unwrap_or("")
-                    .to_lowercase()
-                    .contains(&q)
-        })
-        .filter(|n| matches_proj(n.project_id))
-        .filter(|n| matches_tags(&n.tags))
-        .collect();
-
-    // ── Projects ──────────────────────────────────────────────────────────────
-    // Projects have no tags — hidden entirely when --tag is passed.
-    let project_results: Vec<&_> = if !tags.is_empty() {
-        vec![]
+    // ── Search each entity via storage (SQLite uses WHERE LIKE) ───────────────
+    let task_results = storage.search_tasks(&query, &tags, proj_uuid, status)?;
+    let note_results = storage.search_notes(&query, &tags, proj_uuid)?;
+    let project_results = if tags.is_empty() {
+        storage.search_projects(&query)?
     } else {
-        projects
-            .iter()
-            .filter(|p| !p.is_deleted())
-            .filter(|p| {
-                p.name.to_lowercase().contains(&q)
-                    || p.tech.iter().any(|t| t.to_lowercase().contains(&q))
-            })
-            .filter(|p| proj_uuid.is_none_or(|uuid| p.uuid == uuid))
-            .collect()
+        vec![]
     };
-
-    // ── Resources ─────────────────────────────────────────────────────────────
-    // Resources have no project_id — project filter does not apply.
-    let resource_results: Vec<&_> = all_resources
-        .iter()
-        .filter(|r| !r.is_deleted())
-        .filter(|r| {
-            r.title.to_lowercase().contains(&q)
-                || r.url.as_deref().unwrap_or("").to_lowercase().contains(&q)
-                || r.description
-                    .as_deref()
-                    .unwrap_or("")
-                    .to_lowercase()
-                    .contains(&q)
-                || r.tags.iter().any(|t| t.to_lowercase().contains(&q))
-        })
-        .filter(|r| matches_tags(&r.tags))
-        .collect();
+    let resource_results = storage.search_resources(&query, &tags)?;
 
     if task_results.is_empty()
         && note_results.is_empty()
@@ -143,27 +72,78 @@ pub fn execute(
     );
 
     if !task_results.is_empty() {
-        let title = format!("Tasks  ({})", task_results.len());
+        // Render context: full task list needed for deps/blocking display
+        let all_tasks = storage.load()?;
+        let all_projects = storage.load_projects()?;
+        let all_notes = storage.load_notes()?;
+        let all_resources = storage.load_resources()?;
+
+        let visible_tasks: Vec<_> = all_tasks
+            .iter()
+            .filter(|t| !t.is_deleted())
+            .cloned()
+            .collect();
+        let task_pairs: Vec<(usize, &_)> = task_results
+            .iter()
+            .filter_map(|t| {
+                visible_tasks
+                    .iter()
+                    .position(|v| v.uuid == t.uuid)
+                    .map(|i| (i + 1, t))
+            })
+            .collect();
+
+        let title = format!("Tasks  ({})", task_pairs.len());
         display_lists(
-            &task_results,
+            &task_pairs,
             &title,
             &visible_tasks,
-            &projects,
+            &all_projects,
             &all_notes,
             &all_resources,
         );
-    }
 
-    if !project_results.is_empty() {
-        display_projects(&project_results, &all_tasks, &all_notes);
-    }
-
-    if !note_results.is_empty() {
-        display_notes(&note_results, &projects, &all_resources);
-    }
-
-    if !resource_results.is_empty() {
-        display_resources(&resource_results, &all_notes);
+        if !project_results.is_empty() {
+            display_projects(
+                &project_results.iter().collect::<Vec<_>>(),
+                &all_tasks,
+                &all_notes,
+            );
+        }
+        if !note_results.is_empty() {
+            display_notes(
+                &note_results.iter().collect::<Vec<_>>(),
+                &all_projects,
+                &all_resources,
+            );
+        }
+        if !resource_results.is_empty() {
+            display_resources(&resource_results.iter().collect::<Vec<_>>(), &all_notes);
+        }
+    } else {
+        // No tasks — load only what's needed for each render section
+        if !project_results.is_empty() {
+            let all_tasks = storage.load()?;
+            let all_notes = storage.load_notes()?;
+            display_projects(
+                &project_results.iter().collect::<Vec<_>>(),
+                &all_tasks,
+                &all_notes,
+            );
+        }
+        if !note_results.is_empty() {
+            let all_projects = storage.load_projects()?;
+            let all_resources = storage.load_resources()?;
+            display_notes(
+                &note_results.iter().collect::<Vec<_>>(),
+                &all_projects,
+                &all_resources,
+            );
+        }
+        if !resource_results.is_empty() {
+            let all_notes = storage.load_notes()?;
+            display_resources(&resource_results.iter().collect::<Vec<_>>(), &all_notes);
+        }
     }
 
     Ok(())

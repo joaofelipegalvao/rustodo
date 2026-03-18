@@ -11,7 +11,7 @@ use crate::storage::Storage;
 use crate::utils::confirm;
 
 pub fn execute(storage: &impl Storage, yes: bool) -> Result<()> {
-    let (_, _, mut notes) = storage.load_all()?;
+    let mut notes = storage.load_notes()?;
 
     let visible_count = notes.iter().filter(|n| !n.is_deleted()).count();
 

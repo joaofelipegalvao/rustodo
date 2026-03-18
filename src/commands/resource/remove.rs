@@ -7,7 +7,8 @@ use crate::storage::{EntityType, EventType, Storage};
 use crate::utils::validation::resolve_visible_index;
 
 pub fn execute(storage: &impl Storage, id: usize, yes: bool) -> Result<()> {
-    let (_, _, mut notes, mut resources) = storage.load_all_with_resources()?;
+    let mut notes = storage.load_notes()?;
+    let mut resources = storage.load_resources()?;
 
     let real_index = resolve_visible_index(&resources, id, |r| r.is_deleted())
         .map_err(|_| anyhow::anyhow!("Resource #{} not found", id))?;

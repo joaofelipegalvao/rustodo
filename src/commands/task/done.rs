@@ -64,9 +64,9 @@ fn execute_inner(storage: &impl Storage, id: usize, silent: bool) -> Result<Stri
 
         if !already_exists {
             let next_uuid = next_task.uuid;
-            tasks.push(next_task);
-            let next_vis_id = tasks.iter().filter(|t| !t.is_deleted()).count();
-            storage.save(&tasks)?;
+            let next_vis_id = tasks.iter().filter(|t| !t.is_deleted()).count() + 1;
+            storage.upsert_task(&tasks[index])?;
+            storage.upsert_task(&next_task)?;
             storage.record_event(EntityType::Task, task_uuid, EventType::Completed)?;
             storage.record_event(EntityType::Task, next_uuid, EventType::Created)?;
 
@@ -86,7 +86,7 @@ fn execute_inner(storage: &impl Storage, id: usize, silent: bool) -> Result<Stri
             }
             Ok(msg)
         } else {
-            storage.save(&tasks)?;
+            storage.upsert_task(&tasks[index])?;
             storage.record_event(EntityType::Task, task_uuid, EventType::Completed)?;
             if !silent {
                 println!("Task {} marked as done.", format!("#{}", id).green());
@@ -98,11 +98,84 @@ fn execute_inner(storage: &impl Storage, id: usize, silent: bool) -> Result<Stri
             Ok(format!("Task #{} marked as done.", id))
         }
     } else {
-        storage.save(&tasks)?;
+        storage.upsert_task(&tasks[index])?;
         storage.record_event(EntityType::Task, task_uuid, EventType::Completed)?;
         if !silent {
             println!("Task {} marked as done.", format!("#{}", id).green());
         }
         Ok(format!("Task #{} marked as done.", id))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::models::{Priority, Task};
+    use crate::storage::InMemoryStorage;
+
+    fn make_task(text: &str) -> Task {
+        Task::new(text.into(), Priority::Medium, vec![], None, None, None)
+    }
+
+    #[test]
+    fn test_done_marks_task_completed() {
+        let storage = InMemoryStorage::default();
+        let task = make_task("Buy milk");
+        storage.save(&[task]).unwrap();
+
+        execute_silent(&storage, 1).unwrap();
+
+        let tasks = storage.load().unwrap();
+        assert!(tasks[0].completed);
+        assert!(tasks[0].completed_at.is_some());
+    }
+
+    #[test]
+    fn test_done_invalid_id_returns_error() {
+        let storage = InMemoryStorage::default();
+        storage.save(&[make_task("Task")]).unwrap();
+
+        assert!(execute_silent(&storage, 99).is_err());
+    }
+
+    #[test]
+    fn test_done_already_completed_returns_error() {
+        let storage = InMemoryStorage::default();
+        let mut task = make_task("Task");
+        task.mark_done();
+        storage.save(&[task]).unwrap();
+
+        let err = execute_silent(&storage, 1).unwrap_err();
+        assert!(err.to_string().contains("completed"));
+    }
+
+    #[test]
+    fn test_done_does_not_affect_other_tasks() {
+        let storage = InMemoryStorage::default();
+        storage
+            .save(&[make_task("Task A"), make_task("Task B")])
+            .unwrap();
+
+        execute_silent(&storage, 1).unwrap();
+
+        let tasks = storage.load().unwrap();
+        assert!(tasks[0].completed);
+        assert!(!tasks[1].completed);
+    }
+
+    #[test]
+    fn test_done_skips_deleted_tasks_in_id_resolution() {
+        let storage = InMemoryStorage::default();
+        let mut deleted = make_task("Deleted");
+        deleted.soft_delete();
+        let active = make_task("Active");
+        storage.save(&[deleted, active]).unwrap();
+
+        // #1 should resolve to "Active", not "Deleted"
+        execute_silent(&storage, 1).unwrap();
+
+        let tasks = storage.load().unwrap();
+        assert!(!tasks[0].completed); // deleted stays untouched
+        assert!(tasks[1].completed); // active gets marked done
     }
 }

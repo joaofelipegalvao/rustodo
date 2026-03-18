@@ -15,7 +15,8 @@ use crate::storage::Storage;
 const DEFAULT_LIMIT: usize = 5;
 
 pub fn execute(storage: &impl Storage, limit: Option<usize>) -> Result<()> {
-    let (all_tasks, projects, _, _) = storage.load_all_with_resources()?;
+    let all_tasks = storage.load()?;
+    let projects = storage.load_projects()?;
     let limit = limit.unwrap_or(DEFAULT_LIMIT);
 
     let pending: Vec<&Task> = all_tasks

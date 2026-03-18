@@ -7,7 +7,7 @@ use crate::storage::{EntityType, EventType, Storage};
 use crate::utils::date_parser;
 
 pub fn execute(storage: &impl Storage, args: ProjectAddArgs) -> Result<()> {
-    let (_, mut projects, _) = storage.load_all()?;
+    let projects = storage.load_projects()?;
 
     if projects
         .iter()
@@ -40,8 +40,7 @@ pub fn execute(storage: &impl Storage, args: ProjectAddArgs) -> Result<()> {
 
     let project_uuid = project.uuid;
     let visible_id = projects.iter().filter(|p| !p.is_deleted()).count() + 1;
-    projects.push(project);
-    storage.save_projects(&projects)?;
+    storage.upsert_project(&project)?;
     storage.record_event(EntityType::Project, project_uuid, EventType::Created)?;
 
     println!(
@@ -51,4 +50,103 @@ pub fn execute(storage: &impl Storage, args: ProjectAddArgs) -> Result<()> {
         args.name.cyan()
     );
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::cli::ProjectAddArgs;
+    use crate::models::Difficulty;
+    use crate::storage::InMemoryStorage;
+
+    fn args(name: &str) -> ProjectAddArgs {
+        ProjectAddArgs {
+            name: name.into(),
+            difficulty: None,
+            tech: vec![],
+            due: None,
+        }
+    }
+
+    #[test]
+    fn test_project_add_creates_project() {
+        let storage = InMemoryStorage::default();
+        execute(&storage, args("Rustodo")).unwrap();
+
+        let projects = storage.load_projects().unwrap();
+        assert_eq!(projects.len(), 1);
+        assert_eq!(projects[0].name, "Rustodo");
+    }
+
+    #[test]
+    fn test_project_add_duplicate_name_returns_error() {
+        let storage = InMemoryStorage::default();
+        execute(&storage, args("Rustodo")).unwrap();
+
+        let err = execute(&storage, args("Rustodo")).unwrap_err();
+        assert!(err.to_string().contains("already exists"));
+    }
+
+    #[test]
+    fn test_project_add_duplicate_case_insensitive() {
+        let storage = InMemoryStorage::default();
+        execute(&storage, args("Rustodo")).unwrap();
+
+        let err = execute(&storage, args("rustodo")).unwrap_err();
+        assert!(err.to_string().contains("already exists"));
+    }
+
+    #[test]
+    fn test_project_add_with_difficulty() {
+        let storage = InMemoryStorage::default();
+        execute(
+            &storage,
+            ProjectAddArgs {
+                name: "Hard project".into(),
+                difficulty: Some(Difficulty::Hard),
+                tech: vec![],
+                due: None,
+            },
+        )
+        .unwrap();
+
+        let projects = storage.load_projects().unwrap();
+        assert_eq!(projects[0].difficulty, Difficulty::Hard);
+    }
+
+    #[test]
+    fn test_project_add_with_tech() {
+        let storage = InMemoryStorage::default();
+        execute(
+            &storage,
+            ProjectAddArgs {
+                name: "Tech project".into(),
+                difficulty: None,
+                tech: vec!["rust".into(), "sqlite".into()],
+                due: None,
+            },
+        )
+        .unwrap();
+
+        let projects = storage.load_projects().unwrap();
+        assert_eq!(projects[0].tech, vec!["rust", "sqlite"]);
+    }
+
+    #[test]
+    fn test_project_add_deleted_project_allows_reuse_of_name() {
+        let storage = InMemoryStorage::default();
+        let mut p = crate::models::Project::new("Rustodo".into());
+        p.soft_delete();
+        storage.save_projects(&[p]).unwrap();
+
+        // Should succeed since the existing one is deleted
+        execute(&storage, args("Rustodo")).unwrap();
+        let active: Vec<_> = storage
+            .load_projects()
+            .unwrap()
+            .into_iter()
+            .filter(|p| !p.is_deleted())
+            .collect();
+        assert_eq!(active.len(), 1);
+    }
 }

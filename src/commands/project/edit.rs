@@ -9,7 +9,7 @@ use crate::utils::date_parser;
 use crate::utils::validation::resolve_visible_index;
 
 pub fn execute(storage: &impl Storage, args: ProjectEditArgs) -> Result<()> {
-    let (_, mut projects, _) = storage.load_all()?;
+    let mut projects = storage.load_projects()?;
 
     let real_index = resolve_visible_index(&projects, args.id, |p| p.is_deleted())
         .map_err(|_| anyhow::anyhow!("Project #{} not found", args.id))?;
@@ -117,7 +117,7 @@ pub fn execute(storage: &impl Storage, args: ProjectEditArgs) -> Result<()> {
     }
 
     projects[real_index].touch();
-    storage.save_projects(&projects)?;
+    storage.upsert_project(&projects[real_index])?;
 
     println!("{} Project #{} updated:", "✓".green(), args.id);
     for change in &changes {

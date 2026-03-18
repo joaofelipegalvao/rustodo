@@ -221,7 +221,7 @@ fn execute_inner(storage: &impl Storage, args: EditArgs, silent: bool) -> Result
 
     let task_uuid = tasks[real_index].uuid;
     tasks[real_index].touch();
-    storage.save(&tasks)?;
+    storage.upsert_task(&tasks[real_index])?;
     storage.record_event(EntityType::Task, task_uuid, EventType::Edited)?;
 
     if !silent {

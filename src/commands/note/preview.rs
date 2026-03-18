@@ -9,7 +9,7 @@ use crate::storage::Storage;
 use crate::utils::validation::resolve_visible;
 
 pub fn execute(storage: &impl Storage, id: usize) -> Result<()> {
-    let (_, _, notes, _) = storage.load_all_with_resources()?;
+    let notes = storage.load_notes()?;
 
     let note = resolve_visible(&notes, id, |n| n.is_deleted())
         .map_err(|_| anyhow::anyhow!("Note #{} not found", id))?;
