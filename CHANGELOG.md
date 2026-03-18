@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.30.0](https://github.com/joaofelipegalvao/rustodo/compare/v2.29.0..v2.30.0) - 2026-03-18
+
+### Features
+
+- Add upsert_note and upsert_resource to Storage trait - ([477b14a](https://github.com/joaofelipegalvao/rustodo/commit/477b14a76231e6ff23da23447dff744b26d99f56))
+
+### Refactoring
+
+- Use upsert in commands and add tests - ([c34e89a](https://github.com/joaofelipegalvao/rustodo/commit/c34e89a8aeacde76200df7f4fd9c8ca9b346618d))
 ## [2.29.0](https://github.com/joaofelipegalvao/rustodo/compare/v2.28.1..v2.29.0) - 2026-03-18
 
 ### Features
@@ -570,6 +579,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Features
 
 - V1 - basic todo CLI with add/list commands - ([9580ae2](https://github.com/joaofelipegalvao/rustodo/commit/9580ae297837c9a6c5d4b18868d2f3abac1b1b9e))
+[2.30.0]: https://github.com/joaofelipegalvao/rustodo/compare/v2.29.0...v2.30.0
 [2.29.0]: https://github.com/joaofelipegalvao/rustodo/compare/v2.28.1...v2.29.0
 [2.28.1]: https://github.com/joaofelipegalvao/rustodo/compare/v2.28.0...v2.28.1
 [2.28.0]: https://github.com/joaofelipegalvao/rustodo/compare/v2.27.0...v2.28.0
