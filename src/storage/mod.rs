@@ -243,6 +243,16 @@ pub trait Storage {
         self.save_projects(std::slice::from_ref(project))
     }
 
+    /// Persist a single note by UUID (upsert). Avoids rewriting the full table.
+    fn upsert_note(&self, note: &Note) -> Result<()> {
+        self.save_notes(std::slice::from_ref(note))
+    }
+
+    /// Persist a single resource by UUID (upsert). Avoids rewriting the full table.
+    fn upsert_resource(&self, resource: &Resource) -> Result<()> {
+        self.save_resources(std::slice::from_ref(resource))
+    }
+
     // ── combined ──────────────────────────────────────────────────────────────
 
     /// Load tasks, projects, and notes in a single call.

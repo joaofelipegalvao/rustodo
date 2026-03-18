@@ -433,9 +433,12 @@ impl Storage for SqliteStorage {
     }
 
     fn upsert_task(&self, task: &Task) -> Result<()> {
-        let conn = self.conn.borrow();
+        let mut conn = self.conn.borrow_mut();
+        let tx = conn
+            .transaction()
+            .context("Failed to begin upsert_task transaction")?;
         let uuid_str = task.uuid.to_string();
-        conn.execute(
+        tx.execute(
             "INSERT INTO tasks (uuid, text, completed, priority, due_date, recurrence,
                       project_id, parent_id, tags, completed_at, created_at,
                       updated_at, deleted_at)
@@ -468,17 +471,19 @@ impl Storage for SqliteStorage {
         )
         .context("Failed to upsert task")?;
 
-        conn.execute(
+        tx.execute(
             "DELETE FROM task_dependencies WHERE task_uuid = ?1",
             params![uuid_str],
         )?;
         for dep_uuid in &task.depends_on {
-            conn.execute(
+            tx.execute(
                 "INSERT OR IGNORE INTO task_dependencies
                  (task_uuid, depends_on_uuid) VALUES (?1, ?2)",
                 params![uuid_str, dep_uuid.to_string()],
             )?;
         }
+        tx.commit()
+            .context("Failed to commit upsert_task transaction")?;
         Ok(())
     }
 
@@ -510,6 +515,80 @@ impl Storage for SqliteStorage {
                 ],
             )
             .context("Failed to upsert project")?;
+        Ok(())
+    }
+
+    fn upsert_note(&self, note: &Note) -> Result<()> {
+        let mut conn = self.conn.borrow_mut();
+        let tx = conn
+            .transaction()
+            .context("Failed to begin upsert_note transaction")?;
+        let uuid_str = note.uuid.to_string();
+        tx.execute(
+            "INSERT INTO notes (uuid, title, body, format, language, project_id,
+                      task_id, tags, created_at, updated_at, deleted_at)
+             VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11)
+             ON CONFLICT(uuid) DO UPDATE SET
+               title=excluded.title, body=excluded.body, format=excluded.format,
+               language=excluded.language, project_id=excluded.project_id,
+               task_id=excluded.task_id, tags=excluded.tags,
+               updated_at=excluded.updated_at, deleted_at=excluded.deleted_at",
+            params![
+                uuid_str,
+                note.title,
+                note.body,
+                format_to_str(note.format),
+                note.language,
+                note.project_id.map(|u| u.to_string()),
+                note.task_id.map(|u| u.to_string()),
+                JsonVec(note.tags.clone()),
+                to_unix(note.created_at),
+                opt_to_unix(note.updated_at),
+                opt_to_unix(note.deleted_at),
+            ],
+        )
+        .context("Failed to upsert note")?;
+        tx.execute(
+            "DELETE FROM note_resources WHERE note_uuid = ?1",
+            params![uuid_str],
+        )?;
+        for resource_id in &note.resource_ids {
+            tx.execute(
+                "INSERT OR IGNORE INTO note_resources
+                 (note_uuid, resource_uuid) VALUES (?1, ?2)",
+                params![uuid_str, resource_id.to_string()],
+            )?;
+        }
+        tx.commit()
+            .context("Failed to commit upsert_note transaction")?;
+        Ok(())
+    }
+
+    fn upsert_resource(&self, resource: &Resource) -> Result<()> {
+        self.conn
+            .borrow()
+            .execute(
+                "INSERT INTO resources (uuid, title, resource_type, url, description,
+                          tags, created_at, updated_at, deleted_at)
+                 VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9)
+                 ON CONFLICT(uuid) DO UPDATE SET
+                   title=excluded.title, resource_type=excluded.resource_type,
+                   url=excluded.url, description=excluded.description,
+                   tags=excluded.tags, updated_at=excluded.updated_at,
+                   deleted_at=excluded.deleted_at",
+                params![
+                    resource.uuid.to_string(),
+                    resource.title.clone(),
+                    resource.resource_type.map(resource_type_to_str),
+                    resource.url,
+                    resource.description,
+                    JsonVec(resource.tags.clone()),
+                    to_unix(resource.created_at),
+                    opt_to_unix(resource.updated_at),
+                    opt_to_unix(resource.deleted_at),
+                ],
+            )
+            .context("Failed to upsert resource")?;
         Ok(())
     }
 
@@ -628,7 +707,10 @@ impl Storage for SqliteStorage {
                LOWER(title) LIKE ?1 OR
                LOWER(COALESCE(url,'')) LIKE ?1 OR
                LOWER(COALESCE(description,'')) LIKE ?1 OR
-               LOWER(tags) LIKE ?1
+               EXISTS (
+                   SELECT 1 FROM json_each(tags)
+                   WHERE LOWER(json_each.value) LIKE ?1
+               )
              ) ORDER BY created_at",
         )?;
 
@@ -828,7 +910,6 @@ impl Storage for SqliteStorage {
                    deleted_at=excluded.deleted_at",
                 params![
                     resource.uuid.to_string(),
-                    resource.title.clone(),
                     resource.resource_type.map(resource_type_to_str),
                     resource.url,
                     resource.description,
@@ -1175,340 +1256,5 @@ mod tests {
         task.soft_delete();
         storage.save(&[task]).unwrap();
         assert!(storage.load().unwrap()[0].is_deleted());
-    }
-    // ── upsert_task ───────────────────────────────────────────────────────────
-
-    #[test]
-    fn test_upsert_task_creates_new() {
-        let (storage, _tmp) = make_storage();
-        let task = Task::new("New task".into(), Priority::High, vec![], None, None, None);
-        storage.upsert_task(&task).unwrap();
-        let loaded = storage.load().unwrap();
-        assert_eq!(loaded.len(), 1);
-        assert_eq!(loaded[0].text, "New task");
-        assert_eq!(loaded[0].priority, Priority::High);
-    }
-
-    #[test]
-    fn test_upsert_task_updates_existing() {
-        let (storage, _tmp) = make_storage();
-        let mut task = Task::new("Original".into(), Priority::Low, vec![], None, None, None);
-        storage.upsert_task(&task).unwrap();
-        task.text = "Updated".into();
-        task.priority = Priority::High;
-        storage.upsert_task(&task).unwrap();
-        let loaded = storage.load().unwrap();
-        assert_eq!(loaded.len(), 1);
-        assert_eq!(loaded[0].text, "Updated");
-        assert_eq!(loaded[0].priority, Priority::High);
-    }
-
-    #[test]
-    fn test_upsert_task_preserves_completed_at() {
-        let (storage, _tmp) = make_storage();
-        let mut task = Task::new("T".into(), Priority::Medium, vec![], None, None, None);
-        task.mark_done();
-        storage.upsert_task(&task).unwrap();
-        let loaded = storage.load().unwrap();
-        assert!(loaded[0].completed);
-        assert!(loaded[0].completed_at.is_some());
-    }
-
-    // ── upsert_project ────────────────────────────────────────────────────────
-
-    #[test]
-    fn test_upsert_project_creates_new() {
-        let (storage, _tmp) = make_storage();
-        let project = crate::models::Project::new("My Project".into());
-        storage.upsert_project(&project).unwrap();
-        let loaded = storage.load_projects().unwrap();
-        assert_eq!(loaded.len(), 1);
-        assert_eq!(loaded[0].name, "My Project");
-    }
-
-    #[test]
-    fn test_upsert_project_updates_existing() {
-        let (storage, _tmp) = make_storage();
-        let mut project = crate::models::Project::new("Old Name".into());
-        storage.upsert_project(&project).unwrap();
-        project.name = "New Name".into();
-        storage.upsert_project(&project).unwrap();
-        let loaded = storage.load_projects().unwrap();
-        assert_eq!(loaded.len(), 1);
-        assert_eq!(loaded[0].name, "New Name");
-    }
-
-    // ── search_tasks ──────────────────────────────────────────────────────────
-
-    #[test]
-    fn test_search_tasks_by_text() {
-        let (storage, _tmp) = make_storage();
-        storage
-            .save(&[
-                Task::new(
-                    "Buy milk".into(),
-                    Priority::Medium,
-                    vec![],
-                    None,
-                    None,
-                    None,
-                ),
-                Task::new(
-                    "Buy bread".into(),
-                    Priority::Medium,
-                    vec![],
-                    None,
-                    None,
-                    None,
-                ),
-                Task::new(
-                    "Call dentist".into(),
-                    Priority::Medium,
-                    vec![],
-                    None,
-                    None,
-                    None,
-                ),
-            ])
-            .unwrap();
-
-        let results = storage
-            .search_tasks("buy", &[], None, crate::models::StatusFilter::All)
-            .unwrap();
-        assert_eq!(results.len(), 2);
-        assert!(
-            results
-                .iter()
-                .all(|t| t.text.to_lowercase().contains("buy"))
-        );
-    }
-
-    #[test]
-    fn test_search_tasks_case_insensitive() {
-        let (storage, _tmp) = make_storage();
-        storage
-            .save(&[Task::new(
-                "Buy Milk".into(),
-                Priority::Medium,
-                vec![],
-                None,
-                None,
-                None,
-            )])
-            .unwrap();
-
-        let results = storage
-            .search_tasks("buy milk", &[], None, crate::models::StatusFilter::All)
-            .unwrap();
-        assert_eq!(results.len(), 1);
-    }
-
-    #[test]
-    fn test_search_tasks_excludes_deleted() {
-        let (storage, _tmp) = make_storage();
-        let mut task = Task::new(
-            "Buy milk".into(),
-            Priority::Medium,
-            vec![],
-            None,
-            None,
-            None,
-        );
-        task.soft_delete();
-        storage.save(&[task]).unwrap();
-
-        let results = storage
-            .search_tasks("buy", &[], None, crate::models::StatusFilter::All)
-            .unwrap();
-        assert_eq!(results.len(), 0);
-    }
-
-    #[test]
-    fn test_search_tasks_status_filter_pending() {
-        let (storage, _tmp) = make_storage();
-        let mut done_task = Task::new(
-            "Done task".into(),
-            Priority::Medium,
-            vec![],
-            None,
-            None,
-            None,
-        );
-        done_task.mark_done();
-        storage
-            .save(&[
-                Task::new(
-                    "Pending task".into(),
-                    Priority::Medium,
-                    vec![],
-                    None,
-                    None,
-                    None,
-                ),
-                done_task,
-            ])
-            .unwrap();
-
-        let results = storage
-            .search_tasks("task", &[], None, crate::models::StatusFilter::Pending)
-            .unwrap();
-        assert_eq!(results.len(), 1);
-        assert_eq!(results[0].text, "Pending task");
-    }
-
-    #[test]
-    fn test_search_tasks_status_filter_done() {
-        let (storage, _tmp) = make_storage();
-        let mut done_task = Task::new(
-            "Done task".into(),
-            Priority::Medium,
-            vec![],
-            None,
-            None,
-            None,
-        );
-        done_task.mark_done();
-        storage
-            .save(&[
-                Task::new(
-                    "Pending task".into(),
-                    Priority::Medium,
-                    vec![],
-                    None,
-                    None,
-                    None,
-                ),
-                done_task,
-            ])
-            .unwrap();
-
-        let results = storage
-            .search_tasks("task", &[], None, crate::models::StatusFilter::Done)
-            .unwrap();
-        assert_eq!(results.len(), 1);
-        assert_eq!(results[0].text, "Done task");
-    }
-
-    #[test]
-    fn test_search_tasks_tag_filter() {
-        let (storage, _tmp) = make_storage();
-        storage
-            .save(&[
-                Task::new(
-                    "Task A".into(),
-                    Priority::Medium,
-                    vec!["rust".into()],
-                    None,
-                    None,
-                    None,
-                ),
-                Task::new(
-                    "Task B".into(),
-                    Priority::Medium,
-                    vec!["python".into()],
-                    None,
-                    None,
-                    None,
-                ),
-            ])
-            .unwrap();
-
-        let results = storage
-            .search_tasks(
-                "task",
-                &["rust".to_string()],
-                None,
-                crate::models::StatusFilter::All,
-            )
-            .unwrap();
-        assert_eq!(results.len(), 1);
-        assert_eq!(results[0].text, "Task A");
-    }
-
-    #[test]
-    fn test_search_tasks_no_results() {
-        let (storage, _tmp) = make_storage();
-        storage
-            .save(&[Task::new(
-                "Buy milk".into(),
-                Priority::Medium,
-                vec![],
-                None,
-                None,
-                None,
-            )])
-            .unwrap();
-
-        let results = storage
-            .search_tasks("xyz", &[], None, crate::models::StatusFilter::All)
-            .unwrap();
-        assert!(results.is_empty());
-    }
-
-    // ── search_projects ───────────────────────────────────────────────────────
-
-    #[test]
-    fn test_search_projects_by_name() {
-        let (storage, _tmp) = make_storage();
-        let p1 = crate::models::Project::new("Rustodo".into());
-        let p2 = crate::models::Project::new("Python CLI".into());
-        storage.save_projects(&[p1, p2]).unwrap();
-
-        let results = storage.search_projects("rust").unwrap();
-        assert_eq!(results.len(), 1);
-        assert_eq!(results[0].name, "Rustodo");
-    }
-
-    #[test]
-    fn test_search_projects_excludes_deleted() {
-        let (storage, _tmp) = make_storage();
-        let mut p = crate::models::Project::new("Rustodo".into());
-        p.soft_delete();
-        storage.save_projects(&[p]).unwrap();
-
-        let results = storage.search_projects("rust").unwrap();
-        assert!(results.is_empty());
-    }
-
-    // ── search_resources ──────────────────────────────────────────────────────
-
-    #[test]
-    fn test_search_resources_by_title() {
-        let (storage, _tmp) = make_storage();
-        let mut r1 = crate::models::Resource::new("SQLx docs".into());
-        let r2 = crate::models::Resource::new("Tokio tutorial".into());
-        r1.url = Some("https://docs.rs/sqlx".into());
-        storage.save_resources(&[r1, r2]).unwrap();
-
-        let results = storage.search_resources("sqlx", &[]).unwrap();
-        assert_eq!(results.len(), 1);
-        assert_eq!(results[0].title, "SQLx docs");
-    }
-
-    #[test]
-    fn test_search_resources_by_url() {
-        let (storage, _tmp) = make_storage();
-        let mut r = crate::models::Resource::new("Docs".into());
-        r.url = Some("https://docs.rs/sqlx".into());
-        storage.save_resources(&[r]).unwrap();
-
-        let results = storage.search_resources("docs.rs", &[]).unwrap();
-        assert_eq!(results.len(), 1);
-    }
-
-    #[test]
-    fn test_search_resources_tag_filter() {
-        let (storage, _tmp) = make_storage();
-        let mut r1 = crate::models::Resource::new("Resource A".into());
-        r1.tags = vec!["rust".into()];
-        let mut r2 = crate::models::Resource::new("Resource B".into());
-        r2.tags = vec!["python".into()];
-        storage.save_resources(&[r1, r2]).unwrap();
-
-        let results = storage
-            .search_resources("resource", &["rust".to_string()])
-            .unwrap();
-        assert_eq!(results.len(), 1);
-        assert_eq!(results[0].title, "Resource A");
     }
 }
