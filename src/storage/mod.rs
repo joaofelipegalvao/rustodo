@@ -5,6 +5,7 @@
 //! | [`SqliteStorage`]   | Persists to a SQLite database in the OS data directory |
 //! | [`InMemoryStorage`] | Stores in memory — ideal for tests |
 
+use crate::models::StatusFilter;
 use crate::models::{Note, Project, Resource, Task};
 use anyhow::Result;
 use uuid::Uuid;
@@ -137,6 +138,110 @@ pub trait Storage {
     /// Used by `stats_history` to build the activity chart. Returns one
     /// `EventStat` per month, oldest first, covering only `task` events.
     fn load_event_stats(&self, months: usize) -> Result<Vec<EventStat>>;
+
+    // ── search ────────────────────────────────────────────────────────────────
+
+    /// Search tasks by substring query with optional tag and project filters.
+    fn search_tasks(
+        &self,
+        q: &str,
+        tags: &[String],
+        project_id: Option<Uuid>,
+        status: StatusFilter,
+    ) -> Result<Vec<Task>> {
+        let q_lower = q.to_lowercase();
+        Ok(self
+            .load()?
+            .into_iter()
+            .filter(|t| !t.is_deleted())
+            .filter(|t| t.text.to_lowercase().contains(&q_lower))
+            .filter(|t| t.matches_status(status))
+            .filter(|t| tags.is_empty() || tags.iter().all(|tag| t.tags.contains(tag)))
+            .filter(|t| project_id.is_none_or(|uuid| t.project_id == Some(uuid)))
+            .collect())
+    }
+
+    /// Search notes by substring query with optional tag and project filters.
+    fn search_notes(
+        &self,
+        q: &str,
+        tags: &[String],
+        project_id: Option<Uuid>,
+    ) -> Result<Vec<Note>> {
+        let q_lower = q.to_lowercase();
+        Ok(self
+            .load_notes()?
+            .into_iter()
+            .filter(|n| !n.is_deleted())
+            .filter(|n| {
+                n.title
+                    .as_deref()
+                    .unwrap_or("")
+                    .to_lowercase()
+                    .contains(&q_lower)
+                    || n.body.to_lowercase().contains(&q_lower)
+                    || n.tags.iter().any(|t| t.to_lowercase().contains(&q_lower))
+                    || n.language
+                        .as_deref()
+                        .unwrap_or("")
+                        .to_lowercase()
+                        .contains(&q_lower)
+            })
+            .filter(|n| tags.is_empty() || tags.iter().all(|tag| n.tags.contains(tag)))
+            .filter(|n| project_id.is_none_or(|uuid| n.project_id == Some(uuid)))
+            .collect())
+    }
+
+    /// Search projects by substring query.
+    fn search_projects(&self, q: &str) -> Result<Vec<Project>> {
+        let q_lower = q.to_lowercase();
+        Ok(self
+            .load_projects()?
+            .into_iter()
+            .filter(|p| !p.is_deleted())
+            .filter(|p| {
+                p.name.to_lowercase().contains(&q_lower)
+                    || p.tech.iter().any(|t| t.to_lowercase().contains(&q_lower))
+            })
+            .collect())
+    }
+
+    /// Search resources by substring query with optional tag filter.
+    fn search_resources(&self, q: &str, tags: &[String]) -> Result<Vec<Resource>> {
+        let q_lower = q.to_lowercase();
+        Ok(self
+            .load_resources()?
+            .into_iter()
+            .filter(|r| !r.is_deleted())
+            .filter(|r| {
+                r.title.to_lowercase().contains(&q_lower)
+                    || r.url
+                        .as_deref()
+                        .unwrap_or("")
+                        .to_lowercase()
+                        .contains(&q_lower)
+                    || r.description
+                        .as_deref()
+                        .unwrap_or("")
+                        .to_lowercase()
+                        .contains(&q_lower)
+                    || r.tags.iter().any(|t| t.to_lowercase().contains(&q_lower))
+            })
+            .filter(|r| tags.is_empty() || tags.iter().all(|tag| r.tags.contains(tag)))
+            .collect())
+    }
+
+    // ── single-entity upserts ─────────────────────────────────────────────────
+
+    /// Persist a single task by UUID (upsert). Avoids rewriting the full table.
+    fn upsert_task(&self, task: &Task) -> Result<()> {
+        self.save(std::slice::from_ref(task))
+    }
+
+    /// Persist a single project by UUID (upsert). Avoids rewriting the full table.
+    fn upsert_project(&self, project: &Project) -> Result<()> {
+        self.save_projects(std::slice::from_ref(project))
+    }
 
     // ── combined ──────────────────────────────────────────────────────────────
 
