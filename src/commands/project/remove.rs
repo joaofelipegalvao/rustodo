@@ -63,3 +63,82 @@ fn execute_inner(storage: &impl Storage, id: usize, yes: bool, silent: bool) -> 
     }
     Ok(msg)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::models::{Note, Priority, Project, Task};
+    use crate::storage::InMemoryStorage;
+
+    fn make_project(name: &str) -> Project {
+        Project::new(name.into())
+    }
+
+    #[test]
+    fn test_project_remove_soft_deletes() {
+        let storage = InMemoryStorage::default();
+        storage.save_projects(&[make_project("Rustodo")]).unwrap();
+
+        execute_silent(&storage, 1).unwrap();
+
+        assert!(storage.load_projects().unwrap()[0].is_deleted());
+    }
+
+    #[test]
+    fn test_project_remove_invalid_id_fails() {
+        let storage = InMemoryStorage::default();
+        storage.save_projects(&[make_project("Project")]).unwrap();
+
+        assert!(execute_silent(&storage, 99).is_err());
+    }
+
+    #[test]
+    fn test_project_remove_does_not_affect_others() {
+        let storage = InMemoryStorage::default();
+        storage
+            .save_projects(&[make_project("A"), make_project("B")])
+            .unwrap();
+
+        execute_silent(&storage, 1).unwrap();
+
+        let projects = storage.load_projects().unwrap();
+        assert!(projects[0].is_deleted());
+        assert!(!projects[1].is_deleted());
+    }
+
+    #[test]
+    fn test_project_remove_clears_task_project_id() {
+        let storage = InMemoryStorage::default();
+        let p = make_project("Rustodo");
+        let uuid = p.uuid;
+        storage.save_projects(&[p]).unwrap();
+        let task = Task::new(
+            "Task".into(),
+            Priority::Medium,
+            vec![],
+            Some(uuid),
+            None,
+            None,
+        );
+        storage.save(&[task]).unwrap();
+
+        execute_silent(&storage, 1).unwrap();
+
+        assert!(storage.load().unwrap()[0].project_id.is_none());
+    }
+
+    #[test]
+    fn test_project_remove_clears_note_project_id() {
+        let storage = InMemoryStorage::default();
+        let p = make_project("Rustodo");
+        let uuid = p.uuid;
+        storage.save_projects(&[p]).unwrap();
+        let mut note = Note::new("Body".into());
+        note.project_id = Some(uuid);
+        storage.save_notes(&[note]).unwrap();
+
+        execute_silent(&storage, 1).unwrap();
+
+        assert!(storage.load_notes().unwrap()[0].project_id.is_none());
+    }
+}

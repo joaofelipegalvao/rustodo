@@ -246,3 +246,138 @@ fn validate_and_repair(envelope: &mut Envelope) -> Vec<String> {
 
     warnings
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::models::{Note, Priority, Project, Resource, Task};
+    use crate::storage::InMemoryStorage;
+    use tempfile::TempDir;
+
+    fn make_task(text: &str) -> Task {
+        Task::new(text.into(), Priority::Medium, vec![], None, None, None)
+    }
+
+    fn export_and_read(storage: &InMemoryStorage) -> (TempDir, PathBuf) {
+        let tmp = TempDir::new().unwrap();
+        let path = tmp.path().join("export.json");
+        execute_export(storage, Some(path.clone())).unwrap();
+        (tmp, path)
+    }
+
+    #[test]
+    fn test_export_creates_file() {
+        let storage = InMemoryStorage::default();
+        storage.save(&[make_task("Task")]).unwrap();
+
+        let (_tmp, path) = export_and_read(&storage);
+        assert!(path.exists());
+    }
+
+    #[test]
+    fn test_export_contains_tasks() {
+        let storage = InMemoryStorage::default();
+        storage.save(&[make_task("Buy milk")]).unwrap();
+
+        let (_tmp, path) = export_and_read(&storage);
+        let content = std::fs::read_to_string(&path).unwrap();
+        assert!(content.contains("Buy milk"));
+    }
+
+    #[test]
+    fn test_import_restores_tasks() {
+        let storage = InMemoryStorage::default();
+        storage.save(&[make_task("Buy milk")]).unwrap();
+
+        let (_tmp, path) = export_and_read(&storage);
+
+        let storage2 = InMemoryStorage::default();
+        execute_import(&storage2, path, false, true).unwrap();
+
+        let tasks = storage2.load().unwrap();
+        assert_eq!(tasks.len(), 1);
+        assert_eq!(tasks[0].text, "Buy milk");
+    }
+
+    #[test]
+    fn test_import_nonexistent_file_fails() {
+        let storage = InMemoryStorage::default();
+        assert!(
+            execute_import(
+                &storage,
+                PathBuf::from("/nonexistent/file.json"),
+                false,
+                true
+            )
+            .is_err()
+        );
+    }
+
+    #[test]
+    fn test_import_replace_clears_existing() {
+        let storage = InMemoryStorage::default();
+        storage.save(&[make_task("Old task")]).unwrap();
+
+        let storage2 = InMemoryStorage::default();
+        storage2.save(&[make_task("New task")]).unwrap();
+        let (_tmp, path) = export_and_read(&storage2);
+
+        execute_import(&storage, path, true, true).unwrap();
+
+        let tasks = storage.load().unwrap();
+        assert_eq!(tasks.len(), 1);
+        assert_eq!(tasks[0].text, "New task");
+    }
+
+    #[test]
+    fn test_import_repairs_dangling_project_id() {
+        let storage = InMemoryStorage::default();
+        let mut task = make_task("Task");
+        task.project_id = Some(uuid::Uuid::new_v4()); // dangling UUID
+        storage.save(&[task]).unwrap();
+
+        let (_tmp, path) = export_and_read(&storage);
+
+        let storage2 = InMemoryStorage::default();
+        execute_import(&storage2, path, false, true).unwrap();
+
+        // project_id should be cleared because project doesn't exist in export
+        assert!(storage2.load().unwrap()[0].project_id.is_none());
+    }
+
+    #[test]
+    fn test_export_import_roundtrip_with_all_entities() {
+        let storage = InMemoryStorage::default();
+        let project = Project::new("Rustodo".into());
+        let proj_uuid = project.uuid;
+        storage.save_projects(&[project]).unwrap();
+
+        let task = Task::new(
+            "Task".into(),
+            Priority::High,
+            vec!["rust".into()],
+            Some(proj_uuid),
+            None,
+            None,
+        );
+        storage.save(&[task]).unwrap();
+
+        let mut note = Note::new("Note body".into());
+        note.project_id = Some(proj_uuid);
+        storage.save_notes(&[note]).unwrap();
+
+        let mut resource = Resource::new("Docs".into());
+        resource.url = Some("https://docs.rs".into());
+        storage.save_resources(&[resource]).unwrap();
+
+        let (_tmp, path) = export_and_read(&storage);
+
+        let storage2 = InMemoryStorage::default();
+        execute_import(&storage2, path, false, true).unwrap();
+
+        assert_eq!(storage2.load().unwrap().len(), 1);
+        assert_eq!(storage2.load_projects().unwrap().len(), 1);
+        assert_eq!(storage2.load_notes().unwrap().len(), 1);
+        assert_eq!(storage2.load_resources().unwrap().len(), 1);
+    }
+}

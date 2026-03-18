@@ -1,5 +1,3 @@
-// src/commands/stats.rs
-
 //! Handler for `todo stats`.
 
 use anyhow::Result;

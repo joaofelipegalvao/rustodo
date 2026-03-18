@@ -152,3 +152,151 @@ pub fn execute(
 
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::models::StatusFilter;
+    use crate::models::{Note, Priority, Project, Resource, Task};
+    use crate::storage::InMemoryStorage;
+
+    fn make_task(text: &str) -> Task {
+        Task::new(text.into(), Priority::Medium, vec![], None, None, None)
+    }
+
+    fn search(storage: &InMemoryStorage, query: &str) -> Result<()> {
+        execute(storage, query.into(), vec![], None, StatusFilter::All)
+    }
+
+    #[test]
+    fn test_search_finds_task_by_text() {
+        let storage = InMemoryStorage::default();
+        storage.save(&[make_task("Buy milk")]).unwrap();
+
+        assert!(search(&storage, "milk").is_ok());
+    }
+
+    #[test]
+    fn test_search_no_results_fails() {
+        let storage = InMemoryStorage::default();
+        storage.save(&[make_task("Buy milk")]).unwrap();
+
+        assert!(search(&storage, "xyz").is_err());
+    }
+
+    #[test]
+    fn test_search_case_insensitive() {
+        let storage = InMemoryStorage::default();
+        storage.save(&[make_task("Buy Milk")]).unwrap();
+
+        assert!(search(&storage, "buy milk").is_ok());
+    }
+
+    #[test]
+    fn test_search_finds_note_by_body() {
+        let storage = InMemoryStorage::default();
+        storage
+            .save_notes(&[Note::new("Interesting note body".into())])
+            .unwrap();
+
+        assert!(search(&storage, "interesting").is_ok());
+    }
+
+    #[test]
+    fn test_search_finds_project_by_name() {
+        let storage = InMemoryStorage::default();
+        storage
+            .save_projects(&[Project::new("Rustodo".into())])
+            .unwrap();
+
+        assert!(search(&storage, "rustodo").is_ok());
+    }
+
+    #[test]
+    fn test_search_finds_resource_by_title() {
+        let storage = InMemoryStorage::default();
+        storage
+            .save_resources(&[Resource::new("SQLx docs".into())])
+            .unwrap();
+
+        assert!(search(&storage, "sqlx").is_ok());
+    }
+
+    #[test]
+    fn test_search_with_tag_filter() {
+        let storage = InMemoryStorage::default();
+        let mut task = make_task("Task");
+        task.tags = vec!["rust".into()];
+        storage.save(&[task]).unwrap();
+
+        let result = execute(
+            &storage,
+            "task".into(),
+            vec!["rust".into()],
+            None,
+            StatusFilter::All,
+        );
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_search_tag_filter_no_match_fails() {
+        let storage = InMemoryStorage::default();
+        storage.save(&[make_task("Task")]).unwrap();
+
+        let result = execute(
+            &storage,
+            "task".into(),
+            vec!["nonexistent".into()],
+            None,
+            StatusFilter::All,
+        );
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_search_status_pending_excludes_done() {
+        let storage = InMemoryStorage::default();
+        let mut done = make_task("Done task");
+        done.mark_done();
+        storage.save(&[done]).unwrap();
+
+        let result = execute(&storage, "task".into(), vec![], None, StatusFilter::Pending);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_search_with_project_filter() {
+        let storage = InMemoryStorage::default();
+        let p = Project::new("Rustodo".into());
+        let uuid = p.uuid;
+        storage.save_projects(&[p]).unwrap();
+        let mut task = make_task("Task");
+        task.project_id = Some(uuid);
+        storage.save(&[task]).unwrap();
+
+        let result = execute(
+            &storage,
+            "task".into(),
+            vec![],
+            Some("Rustodo".into()),
+            StatusFilter::All,
+        );
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_search_nonexistent_project_fails() {
+        let storage = InMemoryStorage::default();
+        storage.save(&[make_task("Task")]).unwrap();
+
+        let result = execute(
+            &storage,
+            "task".into(),
+            vec![],
+            Some("NonExistent".into()),
+            StatusFilter::All,
+        );
+        assert!(result.is_err());
+    }
+}

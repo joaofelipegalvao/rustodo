@@ -126,3 +126,206 @@ pub fn execute(storage: &impl Storage, args: ProjectEditArgs) -> Result<()> {
 
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::models::{Difficulty, Project};
+    use crate::storage::InMemoryStorage;
+
+    fn args(id: usize) -> ProjectEditArgs {
+        ProjectEditArgs {
+            id,
+            name: None,
+            difficulty: None,
+            done: false,
+            undone: false,
+            add_tech: vec![],
+            remove_tech: vec![],
+            clear_tech: false,
+            due: None,
+            clear_due: false,
+        }
+    }
+
+    #[test]
+    fn test_project_edit_name() {
+        let storage = InMemoryStorage::default();
+        storage
+            .save_projects(&[Project::new("Old".into())])
+            .unwrap();
+
+        execute(
+            &storage,
+            ProjectEditArgs {
+                name: Some("New".into()),
+                ..args(1)
+            },
+        )
+        .unwrap();
+
+        assert_eq!(storage.load_projects().unwrap()[0].name, "New");
+    }
+
+    #[test]
+    fn test_project_edit_empty_name_fails() {
+        let storage = InMemoryStorage::default();
+        storage
+            .save_projects(&[Project::new("Project".into())])
+            .unwrap();
+
+        assert!(
+            execute(
+                &storage,
+                ProjectEditArgs {
+                    name: Some("  ".into()),
+                    ..args(1)
+                }
+            )
+            .is_err()
+        );
+    }
+
+    #[test]
+    fn test_project_edit_difficulty() {
+        let storage = InMemoryStorage::default();
+        storage
+            .save_projects(&[Project::new("Project".into())])
+            .unwrap();
+
+        execute(
+            &storage,
+            ProjectEditArgs {
+                difficulty: Some(Difficulty::Hard),
+                ..args(1)
+            },
+        )
+        .unwrap();
+
+        assert_eq!(
+            storage.load_projects().unwrap()[0].difficulty,
+            Difficulty::Hard
+        );
+    }
+
+    #[test]
+    fn test_project_edit_add_tech() {
+        let storage = InMemoryStorage::default();
+        storage
+            .save_projects(&[Project::new("Project".into())])
+            .unwrap();
+
+        execute(
+            &storage,
+            ProjectEditArgs {
+                add_tech: vec!["rust".into()],
+                ..args(1)
+            },
+        )
+        .unwrap();
+
+        assert!(
+            storage.load_projects().unwrap()[0]
+                .tech
+                .contains(&"rust".to_string())
+        );
+    }
+
+    #[test]
+    fn test_project_edit_remove_tech() {
+        let storage = InMemoryStorage::default();
+        let mut p = Project::new("Project".into());
+        p.tech = vec!["rust".into(), "sqlite".into()];
+        storage.save_projects(&[p]).unwrap();
+
+        execute(
+            &storage,
+            ProjectEditArgs {
+                remove_tech: vec!["rust".into()],
+                ..args(1)
+            },
+        )
+        .unwrap();
+
+        let tech = &storage.load_projects().unwrap()[0].tech;
+        assert!(!tech.contains(&"rust".to_string()));
+        assert!(tech.contains(&"sqlite".to_string()));
+    }
+
+    #[test]
+    fn test_project_edit_clear_tech() {
+        let storage = InMemoryStorage::default();
+        let mut p = Project::new("Project".into());
+        p.tech = vec!["rust".into()];
+        storage.save_projects(&[p]).unwrap();
+
+        execute(
+            &storage,
+            ProjectEditArgs {
+                clear_tech: true,
+                ..args(1)
+            },
+        )
+        .unwrap();
+
+        assert!(storage.load_projects().unwrap()[0].tech.is_empty());
+    }
+
+    #[test]
+    fn test_project_edit_done() {
+        let storage = InMemoryStorage::default();
+        storage
+            .save_projects(&[Project::new("Project".into())])
+            .unwrap();
+
+        execute(
+            &storage,
+            ProjectEditArgs {
+                done: true,
+                ..args(1)
+            },
+        )
+        .unwrap();
+
+        assert!(storage.load_projects().unwrap()[0].completed);
+    }
+
+    #[test]
+    fn test_project_edit_undone() {
+        let storage = InMemoryStorage::default();
+        let mut p = Project::new("Project".into());
+        p.mark_done();
+        storage.save_projects(&[p]).unwrap();
+
+        execute(
+            &storage,
+            ProjectEditArgs {
+                undone: true,
+                ..args(1)
+            },
+        )
+        .unwrap();
+
+        assert!(!storage.load_projects().unwrap()[0].completed);
+    }
+
+    #[test]
+    fn test_project_edit_no_changes_is_ok() {
+        let storage = InMemoryStorage::default();
+        storage
+            .save_projects(&[Project::new("Project".into())])
+            .unwrap();
+
+        assert!(execute(&storage, args(1)).is_ok());
+    }
+
+    #[test]
+    fn test_project_edit_invalid_id_fails() {
+        let storage = InMemoryStorage::default();
+        storage
+            .save_projects(&[Project::new("Project".into())])
+            .unwrap();
+
+        assert!(execute(&storage, args(99)).is_err());
+    }
+}

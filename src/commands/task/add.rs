@@ -128,3 +128,170 @@ fn execute_inner(storage: &impl Storage, args: AddArgs, silent: bool) -> Result<
 
     Ok(id)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::models::{Priority, Recurrence};
+    use crate::storage::InMemoryStorage;
+
+    fn args(text: &str) -> AddArgs {
+        AddArgs {
+            text: text.into(),
+            priority: Priority::Medium,
+            tag: vec![],
+            project: None,
+            due: None,
+            recurrence: None,
+            depends_on: vec![],
+        }
+    }
+
+    #[test]
+    fn test_add_creates_task() {
+        let storage = InMemoryStorage::default();
+        execute_silent(&storage, args("Buy milk")).unwrap();
+
+        let tasks = storage.load().unwrap();
+        assert_eq!(tasks.len(), 1);
+        assert_eq!(tasks[0].text, "Buy milk");
+    }
+
+    #[test]
+    fn test_add_with_priority() {
+        let storage = InMemoryStorage::default();
+        execute_silent(
+            &storage,
+            AddArgs {
+                priority: Priority::High,
+                ..args("Task")
+            },
+        )
+        .unwrap();
+
+        assert_eq!(storage.load().unwrap()[0].priority, Priority::High);
+    }
+
+    #[test]
+    fn test_add_with_tags() {
+        let storage = InMemoryStorage::default();
+        execute_silent(
+            &storage,
+            AddArgs {
+                tag: vec!["rust".into(), "backend".into()],
+                ..args("Task")
+            },
+        )
+        .unwrap();
+
+        let tags = &storage.load().unwrap()[0].tags;
+        assert!(tags.contains(&"rust".to_string()));
+        assert!(tags.contains(&"backend".to_string()));
+    }
+
+    #[test]
+    fn test_add_with_project_creates_project() {
+        let storage = InMemoryStorage::default();
+        execute_silent(
+            &storage,
+            AddArgs {
+                project: Some("Rustodo".into()),
+                ..args("Task")
+            },
+        )
+        .unwrap();
+
+        let projects = storage.load_projects().unwrap();
+        assert_eq!(projects.len(), 1);
+        assert_eq!(projects[0].name, "Rustodo");
+
+        let task = &storage.load().unwrap()[0];
+        assert_eq!(task.project_id, Some(projects[0].uuid));
+    }
+
+    #[test]
+    fn test_add_with_existing_project_reuses_it() {
+        let storage = InMemoryStorage::default();
+        let project = crate::models::Project::new("Rustodo".into());
+        let proj_uuid = project.uuid;
+        storage.save_projects(&[project]).unwrap();
+
+        execute_silent(
+            &storage,
+            AddArgs {
+                project: Some("Rustodo".into()),
+                ..args("Task")
+            },
+        )
+        .unwrap();
+
+        assert_eq!(storage.load_projects().unwrap().len(), 1);
+        assert_eq!(storage.load().unwrap()[0].project_id, Some(proj_uuid));
+    }
+
+    #[test]
+    fn test_add_empty_text_fails() {
+        let storage = InMemoryStorage::default();
+        assert!(execute_silent(&storage, args("")).is_err());
+    }
+
+    #[test]
+    fn test_add_whitespace_only_text_fails() {
+        let storage = InMemoryStorage::default();
+        assert!(execute_silent(&storage, args("   ")).is_err());
+    }
+
+    #[test]
+    fn test_add_multiple_increments_count() {
+        let storage = InMemoryStorage::default();
+        execute_silent(&storage, args("Task A")).unwrap();
+        execute_silent(&storage, args("Task B")).unwrap();
+        execute_silent(&storage, args("Task C")).unwrap();
+
+        assert_eq!(storage.load().unwrap().len(), 3);
+    }
+
+    #[test]
+    fn test_add_with_recurrence() {
+        let storage = InMemoryStorage::default();
+        execute_silent(
+            &storage,
+            AddArgs {
+                recurrence: Some(Recurrence::Weekly),
+                due: Some("2099-12-31".into()),
+                ..args("Weekly task")
+            },
+        )
+        .unwrap();
+
+        assert_eq!(
+            storage.load().unwrap()[0].recurrence,
+            Some(Recurrence::Weekly)
+        );
+    }
+
+    #[test]
+    fn test_add_normalizes_tags_to_existing() {
+        let storage = InMemoryStorage::default();
+        execute_silent(
+            &storage,
+            AddArgs {
+                tag: vec!["rust".into()],
+                ..args("Task A")
+            },
+        )
+        .unwrap();
+
+        execute_silent(
+            &storage,
+            AddArgs {
+                tag: vec!["Rust".into()],
+                ..args("Task B")
+            },
+        )
+        .unwrap();
+
+        let tasks = storage.load().unwrap();
+        assert_eq!(tasks[1].tags[0], "rust");
+    }
+}

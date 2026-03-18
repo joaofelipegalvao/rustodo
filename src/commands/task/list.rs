@@ -183,3 +183,224 @@ fn determine_title(
     }
     .to_string()
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::models::{Priority, Task};
+    use crate::storage::InMemoryStorage;
+
+    fn make_task(text: &str) -> Task {
+        Task::new(text.into(), Priority::Medium, vec![], None, None, None)
+    }
+
+    fn make_task_with_priority(text: &str, priority: Priority) -> Task {
+        Task::new(text.into(), priority, vec![], None, None, None)
+    }
+
+    fn list(storage: &InMemoryStorage) -> Result<()> {
+        execute(
+            storage,
+            StatusFilter::All,
+            None,
+            None,
+            None,
+            vec![],
+            None,
+            None,
+        )
+    }
+
+    #[test]
+    fn test_list_empty_fails() {
+        let storage = InMemoryStorage::default();
+        assert!(list(&storage).is_err());
+    }
+
+    #[test]
+    fn test_list_shows_all_tasks() {
+        let storage = InMemoryStorage::default();
+        storage
+            .save(&[make_task("Task A"), make_task("Task B")])
+            .unwrap();
+        assert!(list(&storage).is_ok());
+    }
+
+    #[test]
+    fn test_list_filter_pending() {
+        let storage = InMemoryStorage::default();
+        let mut done = make_task("Done");
+        done.mark_done();
+        storage.save(&[make_task("Pending"), done]).unwrap();
+
+        let result = execute(
+            &storage,
+            StatusFilter::Pending,
+            None,
+            None,
+            None,
+            vec![],
+            None,
+            None,
+        );
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_list_filter_done() {
+        let storage = InMemoryStorage::default();
+        let mut done = make_task("Done");
+        done.mark_done();
+        storage.save(&[make_task("Pending"), done]).unwrap();
+
+        let result = execute(
+            &storage,
+            StatusFilter::Done,
+            None,
+            None,
+            None,
+            vec![],
+            None,
+            None,
+        );
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_list_filter_pending_no_pending_fails() {
+        let storage = InMemoryStorage::default();
+        let mut done = make_task("Done");
+        done.mark_done();
+        storage.save(&[done]).unwrap();
+
+        let result = execute(
+            &storage,
+            StatusFilter::Pending,
+            None,
+            None,
+            None,
+            vec![],
+            None,
+            None,
+        );
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_list_filter_by_priority() {
+        let storage = InMemoryStorage::default();
+        storage
+            .save(&[
+                make_task_with_priority("High", Priority::High),
+                make_task_with_priority("Low", Priority::Low),
+            ])
+            .unwrap();
+
+        let result = execute(
+            &storage,
+            StatusFilter::All,
+            Some(Priority::High),
+            None,
+            None,
+            vec![],
+            None,
+            None,
+        );
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_list_filter_by_tag() {
+        let storage = InMemoryStorage::default();
+        let mut task = make_task("Rust task");
+        task.tags = vec!["rust".into()];
+        storage.save(&[task, make_task("Other")]).unwrap();
+
+        let result = execute(
+            &storage,
+            StatusFilter::All,
+            None,
+            None,
+            None,
+            vec!["rust".into()],
+            None,
+            None,
+        );
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_list_filter_by_nonexistent_tag_fails() {
+        let storage = InMemoryStorage::default();
+        storage.save(&[make_task("Task")]).unwrap();
+
+        let result = execute(
+            &storage,
+            StatusFilter::All,
+            None,
+            None,
+            None,
+            vec!["nonexistent".into()],
+            None,
+            None,
+        );
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_list_filter_by_project() {
+        let storage = InMemoryStorage::default();
+        let project = crate::models::Project::new("Rustodo".into());
+        let proj_uuid = project.uuid;
+        storage.save_projects(&[project]).unwrap();
+
+        let mut task = make_task("Task");
+        task.project_id = Some(proj_uuid);
+        storage.save(&[task, make_task("Other")]).unwrap();
+
+        let result = execute(
+            &storage,
+            StatusFilter::All,
+            None,
+            None,
+            None,
+            vec![],
+            Some("Rustodo".into()),
+            None,
+        );
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_list_excludes_deleted_tasks() {
+        let storage = InMemoryStorage::default();
+        let mut deleted = make_task("Deleted");
+        deleted.soft_delete();
+        storage.save(&[deleted]).unwrap();
+
+        assert!(list(&storage).is_err()); // no visible tasks
+    }
+
+    #[test]
+    fn test_list_sort_by_priority() {
+        let storage = InMemoryStorage::default();
+        storage
+            .save(&[
+                make_task_with_priority("Low", Priority::Low),
+                make_task_with_priority("High", Priority::High),
+            ])
+            .unwrap();
+
+        let result = execute(
+            &storage,
+            StatusFilter::All,
+            None,
+            None,
+            Some(SortBy::Priority),
+            vec![],
+            None,
+            None,
+        );
+        assert!(result.is_ok());
+    }
+}

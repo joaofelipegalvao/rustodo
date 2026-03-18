@@ -158,3 +158,58 @@ fn month_abbr(month: u32) -> &'static str {
         _ => "???",
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::models::{Priority, Task};
+    use crate::storage::{EntityType, EventType, InMemoryStorage};
+
+    #[test]
+    fn test_stats_history_no_activity_is_ok() {
+        let storage = InMemoryStorage::default();
+        assert!(execute(&storage, 6).is_ok());
+    }
+
+    #[test]
+    fn test_stats_history_with_events_is_ok() {
+        let storage = InMemoryStorage::default();
+        let task = Task::new("T".into(), Priority::Medium, vec![], None, None, None);
+        let uuid = task.uuid;
+        storage.save(&[task]).unwrap();
+        storage
+            .record_event(EntityType::Task, uuid, EventType::Created)
+            .unwrap();
+        storage
+            .record_event(EntityType::Task, uuid, EventType::Completed)
+            .unwrap();
+
+        assert!(execute(&storage, 6).is_ok());
+    }
+
+    #[test]
+    fn test_stats_history_clear_all_is_ok() {
+        let storage = InMemoryStorage::default();
+        let task = Task::new("T".into(), Priority::Medium, vec![], None, None, None);
+        let uuid = task.uuid;
+        storage.save(&[task]).unwrap();
+        storage
+            .record_event(EntityType::Task, uuid, EventType::Created)
+            .unwrap();
+
+        assert!(execute_clear(&storage, true, None, true).is_ok());
+        assert!(
+            storage
+                .load_event_stats(1)
+                .unwrap()
+                .iter()
+                .all(|r| r.created == 0)
+        );
+    }
+
+    #[test]
+    fn test_stats_history_clear_requires_flag() {
+        let storage = InMemoryStorage::default();
+        assert!(execute_clear(&storage, false, None, true).is_err());
+    }
+}
