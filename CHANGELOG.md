@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.29.0](https://github.com/joaofelipegalvao/rustodo/compare/v2.28.1..v2.29.0) - 2026-03-18
+
+### Features
+
+- Add search methods to Storage trait - ([ac87b66](https://github.com/joaofelipegalvao/rustodo/commit/ac87b6690f67a2bae49f15dba08069d4e0c48bdf))
+- Implement upsert and search in storage backends - ([461a066](https://github.com/joaofelipegalvao/rustodo/commit/461a0668745d3444564b07b6da9d4d591e1c4719))
+
+### Refactoring
+
+- Use upsert in commands instead of full save - ([72d8038](https://github.com/joaofelipegalvao/rustodo/commit/72d80389bb808d8b9b05f835a620c606be639205))
 ## [2.28.1](https://github.com/joaofelipegalvao/rustodo/compare/v2.28.0..v2.28.1) - 2026-03-17
 
 ### Bug Fixes
@@ -560,6 +570,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Features
 
 - V1 - basic todo CLI with add/list commands - ([9580ae2](https://github.com/joaofelipegalvao/rustodo/commit/9580ae297837c9a6c5d4b18868d2f3abac1b1b9e))
+[2.29.0]: https://github.com/joaofelipegalvao/rustodo/compare/v2.28.1...v2.29.0
 [2.28.1]: https://github.com/joaofelipegalvao/rustodo/compare/v2.28.0...v2.28.1
 [2.28.0]: https://github.com/joaofelipegalvao/rustodo/compare/v2.27.0...v2.28.0
 [2.27.0]: https://github.com/joaofelipegalvao/rustodo/compare/v2.26.1...v2.27.0
